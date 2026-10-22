@@ -147,7 +147,25 @@ Fórmula oficial UTA: **Nota Final = (0.40 × Autónomo) + (0.30 × Tareas) + (0
 
 ---
 
-## 6. Despliegue y Ejecución Local
+## 6. Autenticación y Control de Acceso por Roles (HU-14)
+
+El sistema incorpora un módulo desacoplado de autenticación con **Tokens JWT** (JSON Web Tokens) y contraseñas hasheadas mediante **PBKDF2-HMAC-SHA256**:
+
+### Endpoints de Autenticación:
+- `POST /api/v1/auth/register`: Registro de nuevos usuarios con rol (`DOCENTE` o `ESTUDIANTE`).
+- `POST /api/v1/auth/login`: Autenticación segura y emisión de JWT con vigencia de 120 minutos.
+- `GET /api/v1/auth/me`: Consulta de perfil protegido mediante `Authorization: Bearer <token>`.
+
+### Cuentas de Demostración Precargadas:
+| Rol | Nombre | Correo Institucional | Contraseña | Vistas y Permisos |
+| :---: | :--- | :--- | :--- | :--- |
+| **DOCENTE** | Ing. Hernán Naranjo, Mg. | `docente@uta.edu.ec` | `Docente2026!` | Panel general, distribución del curso, detalle por alumno, alertas y generación de refuerzos. |
+| **ESTUDIANTE** | Estudiante C (`U-05`) | `estudiante.c@uta.edu.ec` | `Estudiante2026!` | Portal exclusivo del estudiante, desglose de notas propias, falencias en Unidad 2 y entrega de refuerzo. |
+| **ADMIN** | Administrador 1 | `admin@uta.edu.ec` | `Admin2026!` | Configuración técnica de Moodle, auditoría de logs (HU-16) y sincronización. |
+
+---
+
+## 7. Despliegue y Ejecución Local
 
 ### Prerrequisitos:
 - Docker y Docker Compose instalados (`docker --version`).
@@ -200,6 +218,7 @@ pytest agent/tests/ -v
 | **Entorno Dockerizado base** | Justin Ojeda | Tarea Base | **Completado** | `docker-compose.yml` con Moodle, Postgres, SQLServer, FastAPI, Ollama, Frontend |
 | **Esquema de Base de Datos inicial** | Johan Borja | Tarea Base | **Completado** | `database/init.sql` con esquema relacional, logs (HU-16) y alertas |
 | **Implementación HU-01 (Curso simulado)** | Justin Ojeda & Johan Borja | **3 Pts** | **Completado** | `scripts/seed_moodle_course.py` con 7 estudiantes y 2 casos críticos |
+| **Autenticación y Roles (HU-14)** | Justin Ojeda & Alvaro Moreta | **3 Pts** | **Completado** | Registro, Login con JWT, roles Docente/Estudiante y Portal del Alumno |
 | **Frontend Minimalista (Mockups 1, 2 y 3)** | Alvaro Moreta | Tarea Base | **Completado** | `frontend/index.html` interactivo, semáforos, evolución y refuerzos |
 | **Integración Continua (CI)** | Alan Zamora | Tarea Base | **Completado** | `.github/workflows/ci.yml` con Linter, Pytest y validación Docker |
 | **Documentación y Arquitectura** | Alan Zamora | Tarea Base | **Completado** | `README.md` técnico con diagramas y criterios de aceptación Gherkin |

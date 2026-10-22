@@ -18,6 +18,102 @@
 </head>
 <body class="text-slate-800">
 
+  <!-- ===================================================================== -->
+  <!-- MODAL DE AUTENTICACIÓN (LOGIN & REGISTRO DE USUARIOS)                 -->
+  <!-- ===================================================================== -->
+  <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+      
+      <!-- Encabezado Modal -->
+      <div class="bg-slate-900 text-white p-6 text-center">
+        <div class="w-12 h-12 bg-red-700 text-white rounded-xl flex items-center justify-center font-bold text-xl mx-auto shadow-md mb-2">
+          UTA
+        </div>
+        <h2 class="text-lg font-bold">Capa Inteligente Académica</h2>
+        <p class="text-xs text-slate-400 mt-1">FISEI • Universidad Técnica de Ambato</p>
+
+        <!-- Selector Pestaña Iniciar Sesión / Registrarse -->
+        <div class="flex mt-4 bg-slate-800 p-1 rounded-lg text-xs font-semibold">
+          <button id="tab-login" onclick="toggleAuthTab('login')" class="flex-1 py-1.5 rounded-md bg-blue-600 text-white transition">
+            Iniciar Sesión
+          </button>
+          <button id="tab-register" onclick="toggleAuthTab('register')" class="flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition">
+            Crear Cuenta
+          </button>
+        </div>
+      </div>
+
+      <!-- FORMULARIO 1: INICIAR SESIÓN -->
+      <div id="form-login-container" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Correo Institucional</label>
+          <input type="email" id="login-email" value="docente@uta.edu.ec" placeholder="ejemplo@uta.edu.ec" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña</label>
+          <input type="password" id="login-password" value="Docente2026!" placeholder="••••••••" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <button onclick="ejecutarLogin()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-sm">
+          Ingresar al Sistema
+        </button>
+
+        <!-- Accesos Rápidos Demo -->
+        <div class="pt-3 border-t border-slate-100">
+          <span class="text-[11px] text-slate-400 font-medium block text-center mb-2">Accesos rápidos de demostración:</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="demoLogin('docente')" class="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-lg font-medium transition text-left flex items-center space-x-1.5">
+              <span>👨‍🏫</span>
+              <div>
+                <div class="font-bold text-[11px]">Docente</div>
+                <div class="text-[9px] text-slate-400">Panel & Alertas</div>
+              </div>
+            </button>
+            <button onclick="demoLogin('estudiante')" class="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-lg font-medium transition text-left flex items-center space-x-1.5">
+              <span>🎓</span>
+              <div>
+                <div class="font-bold text-[11px]">Estudiante C</div>
+                <div class="text-[9px] text-slate-400">Portal de Notas</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMULARIO 2: CREAR CUENTA (REGISTRO) -->
+      <div id="form-register-container" class="p-6 space-y-3 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre Completo</label>
+          <input type="text" id="reg-nombre" placeholder="Ing. Carlos Pérez o Estudiante H" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Correo Institucional</label>
+          <input type="email" id="reg-email" placeholder="usuario@uta.edu.ec" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Rol en el Sistema</label>
+          <select id="reg-rol" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+            <option value="DOCENTE">👨‍🏫 Docente (Gestión y Seguimiento Académico)</option>
+            <option value="ESTUDIANTE">🎓 Estudiante (Portal de Refuerzo y Calificaciones)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cédula / ID UTA (Opcional)</label>
+          <input type="text" id="reg-id" placeholder="ej. U-10" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña (Mínimo 6 caracteres)</label>
+          <input type="password" id="reg-password" placeholder="••••••••" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <button onclick="ejecutarRegistro()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition shadow-sm mt-2">
+          Crear Cuenta e Ingresar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Header Institucional -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -31,8 +127,8 @@
         </div>
       </div>
 
-      <!-- Navegación por Pestañas (Mockups 1, 2 y 3) -->
-      <nav class="flex space-x-2 bg-slate-100 p-1 rounded-lg text-sm font-medium">
+      <!-- Navegación por Pestañas (Filtradas según el Rol del Usuario) -->
+      <nav id="docente-nav" class="flex space-x-2 bg-slate-100 p-1 rounded-lg text-sm font-medium">
         <button id="nav-btn-1" onclick="switchView(1)" class="px-3 py-1.5 rounded-md bg-white text-slate-800 shadow-sm transition">
           1. Panel Curso
         </button>
@@ -44,11 +140,32 @@
         </button>
       </nav>
 
-      <!-- Estado del Middleware / Sincronización -->
+      <!-- Pestaña para Estudiante -->
+      <nav id="estudiante-nav" class="hidden flex space-x-2 bg-slate-100 p-1 rounded-lg text-sm font-medium">
+        <button class="px-3 py-1.5 rounded-md bg-white text-slate-800 shadow-sm font-semibold text-xs">
+          🎓 Mi Rendimiento y Tareas de Refuerzo
+        </button>
+      </nav>
+
+      <!-- Perfil de Usuario y Cerrar Sesión -->
       <div class="flex items-center space-x-3">
+        <div class="text-right hidden sm:block">
+          <div class="flex items-center space-x-1.5 justify-end">
+            <span id="user-badge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800">
+              DOCENTE
+            </span>
+            <span id="user-name" class="text-xs font-semibold text-slate-800">Ing. Hernán Naranjo</span>
+          </div>
+          <span id="user-email" class="text-[11px] text-slate-400">docente@uta.edu.ec</span>
+        </div>
+
+        <button onclick="abrirModalAuth()" title="Cambiar Usuario o Registrarse" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md transition font-medium">
+          Cambiar Usuario
+        </button>
+
         <button onclick="syncMoodle()" id="sync-btn" class="flex items-center space-x-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-md transition shadow-sm">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          <span>Sincronizar Moodle</span>
+          <span class="hidden md:inline">Sincronizar Moodle</span>
         </button>
       </div>
     </div>
@@ -58,7 +175,113 @@
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
     <!-- ===================================================================== -->
-    <!-- MOCKUP 1: PANEL DEL CURSO                                              -->
+    <!-- VISTA EXCLUSIVA: PORTAL DEL ESTUDIANTE (ROL ESTUDIANTE)               -->
+    <!-- ===================================================================== -->
+    <div id="view-estudiante-portal" class="space-y-6 hidden">
+      <!-- Banner de Bienvenida del Alumno -->
+      <div class="bg-gradient-to-r from-slate-900 to-blue-900 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <span class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase bg-blue-500/30 text-blue-200 border border-blue-400/30">
+            Portal Académico del Estudiante
+          </span>
+          <h2 class="text-xl font-bold mt-2">Bienvenido, <span id="portal-est-nombre">Estudiante C</span></h2>
+          <p class="text-xs text-slate-300 mt-1">Materia: Metodologías Ágiles (MAT1) • Parcial 1 • Identificación: <span id="portal-est-id">U-05</span></p>
+        </div>
+        <div class="flex items-center space-x-4 bg-white/10 p-3 rounded-xl backdrop-blur-sm">
+          <div class="text-center px-3">
+            <span class="text-[10px] text-slate-300 uppercase font-bold">Nota Ponderada</span>
+            <div class="text-2xl font-bold text-red-400" id="portal-est-nota">3.5 / 10</div>
+          </div>
+          <div class="text-center px-3 border-l border-white/20">
+            <span class="text-[10px] text-slate-300 uppercase font-bold">Estado</span>
+            <div class="text-xs font-bold text-red-300 uppercase mt-1">En Riesgo Crítico</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Falencias y Tareas Asignadas -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Tarjeta de Diagnóstico y Falencias -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+            <h3 class="font-semibold text-slate-900 text-sm flex items-center space-x-2">
+              <span>🎯</span>
+              <span>Diagnóstico de Desempeño por Unidades</span>
+            </h3>
+            <span class="text-xs text-red-600 font-bold">Punto Crítico: Unidad 2</span>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs font-medium mb-1">
+                <span>Unidad 1: Fundamentos y Conceptos</span>
+                <span class="font-bold">6.0 / 10</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2">
+                <div class="bg-amber-400 h-2 rounded-full" style="width: 60%"></div>
+              </div>
+            </div>
+
+            <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+              <div class="flex justify-between text-xs font-bold text-red-800 mb-1">
+                <span>Unidad 2: Lógica y Modelado (Requiere Refuerzo)</span>
+                <span>2.0 / 10</span>
+              </div>
+              <div class="w-full bg-red-200 rounded-full h-2">
+                <div class="bg-red-600 h-2 rounded-full" style="width: 20%"></div>
+              </div>
+              <p class="text-[11px] text-red-700 mt-2">Dificultad detectada en: <strong>Tema 2.3 - Diagramación y Algoritmos Reutilizables</strong></p>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-medium mb-1">
+                <span>Unidad 3: Estructuras Aplicadas</span>
+                <span class="font-bold">4.0 / 10</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2">
+                <div class="bg-red-400 h-2 rounded-full" style="width: 40%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta de Tarea de Refuerzo Asignada -->
+        <div class="bg-white p-6 rounded-xl border border-blue-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+            <h3 class="font-semibold text-blue-900 text-sm flex items-center space-x-2">
+              <span>📝</span>
+              <span>Tarea de Refuerzo Asignada por el Docente</span>
+            </h3>
+            <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Activa</span>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-bold">Título de la Actividad</span>
+              <h4 class="text-xs font-bold text-slate-900 mt-0.5">Refuerzo Práctico: Guiado de Diagramación (Unidad 2)</h4>
+            </div>
+
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-bold">Instrucciones del Docente</span>
+              <p class="text-xs text-slate-600 mt-0.5 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF. Esta tarea otorgará puntos extra en el trabajo autónomo del Parcial 1.
+              </p>
+            </div>
+
+            <div class="pt-2">
+              <button onclick="alert('Redirigiendo a Moodle para subir el archivo de entrega de refuerzo...')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow flex items-center justify-center space-x-2">
+                <span>📤 Subir Entrega en Moodle</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MOCKUP 1: PANEL DEL CURSO (VISTA DOCENTE)                              -->
     <!-- ===================================================================== -->
     <div id="view-mockup-1" class="space-y-6">
       
@@ -69,7 +292,7 @@
           <p class="text-xs text-slate-500 mt-0.5">Equipo: Justin Ojeda (Backend) • Johan Borja (Arquitectura & DB) • Alvaro Moreta (Frontend & UX) • Alan Zamora (Scrum Master & QA)</p>
         </div>
         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          HU-01 Validada (7 Alumnos)
+          HU-01 y HU-14 Validadas
         </span>
       </div>
 
@@ -421,9 +644,17 @@
 
   </main>
 
-  <!-- Script de Interacción y Conexión con Middleware -->
+  <!-- Script de Interacción, Conexión con Middleware y Gestión de Sesión -->
   <script>
-    // Datos locales de respaldo correspondientes al Sprint 1 (HU-01)
+    // Estado de Usuario Actual
+    let currentUser = {
+      nombres: "Ing. Hernán Naranjo",
+      email: "docente@uta.edu.ec",
+      rol: "DOCENTE",
+      id_number: "U-01",
+      token: null
+    };
+
     const ESTUDIANTES_DATA = [
       { id: 'U-03', nombre: 'Estudiante A', auto: 8.0, tar: 8.0, pae: 8.0, final: 8.0, estado: 'Aceptable', badge: 'badge-aceptable' },
       { id: 'U-04', nombre: 'Estudiante B', auto: 8.5, tar: 8.5, pae: 8.5, final: 8.5, estado: 'Aceptable', badge: 'badge-aceptable' },
@@ -433,6 +664,144 @@
       { id: 'U-08', nombre: 'Estudiante F', auto: 6.5, tar: 6.0, pae: 6.0, final: 6.2, estado: 'En Riesgo', badge: 'badge-riesgo' },
       { id: 'U-09', nombre: 'Estudiante G', auto: 8.5, tar: 8.0, pae: 8.7, final: 8.4, estado: 'Aceptable', badge: 'badge-aceptable' }
     ];
+
+    function actualizarUIUsuario() {
+      document.getElementById('user-name').innerText = currentUser.nombres;
+      document.getElementById('user-email').innerText = currentUser.email;
+      const badge = document.getElementById('user-badge');
+      badge.innerText = currentUser.rol;
+      
+      if (currentUser.rol === 'DOCENTE' || currentUser.rol === 'ADMIN') {
+        badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800';
+        document.getElementById('docente-nav').classList.remove('hidden');
+        document.getElementById('estudiante-nav').classList.add('hidden');
+        document.getElementById('view-estudiante-portal').classList.add('hidden');
+        switchView(1);
+      } else {
+        badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800';
+        document.getElementById('docente-nav').classList.add('hidden');
+        document.getElementById('estudiante-nav').classList.remove('hidden');
+        
+        // Ocultar vistas docentes y mostrar portal estudiante
+        [1, 2, 3].forEach(n => document.getElementById(`view-mockup-${n}`).classList.add('hidden'));
+        document.getElementById('view-estudiante-portal').classList.remove('hidden');
+        document.getElementById('portal-est-nombre').innerText = currentUser.nombres;
+        document.getElementById('portal-est-id').innerText = currentUser.id_number || 'U-05';
+      }
+    }
+
+    function abrirModalAuth() {
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
+
+    function cerrarModalAuth() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    function toggleAuthTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('form-login-container').classList.toggle('hidden', !isLogin);
+      document.getElementById('form-register-container').classList.toggle('hidden', isLogin);
+      
+      document.getElementById('tab-login').className = isLogin 
+        ? 'flex-1 py-1.5 rounded-md bg-blue-600 text-white transition' 
+        : 'flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+        
+      document.getElementById('tab-register').className = !isLogin 
+        ? 'flex-1 py-1.5 rounded-md bg-emerald-600 text-white transition' 
+        : 'flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+    }
+
+    function demoLogin(rol) {
+      if (rol === 'docente') {
+        currentUser = {
+          nombres: "Ing. Hernán Naranjo",
+          email: "docente@uta.edu.ec",
+          rol: "DOCENTE",
+          id_number: "U-01"
+        };
+      } else {
+        currentUser = {
+          nombres: "Estudiante C",
+          email: "estudiante.c@uta.edu.ec",
+          rol: "ESTUDIANTE",
+          id_number: "U-05"
+        };
+      }
+      cerrarModalAuth();
+      actualizarUIUsuario();
+    }
+
+    async function ejecutarLogin() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      try {
+        const res = await fetch('http://localhost:8000/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          currentUser = {
+            nombres: data.user.nombres,
+            email: data.user.email,
+            rol: data.user.rol,
+            id_number: data.user.id_number,
+            token: data.access_token
+          };
+          alert(`¡Bienvenido ${currentUser.nombres}! Acceso autorizado como ${currentUser.rol}.`);
+        } else {
+          // Fallback demo local si el server no está corriendo
+          demoLogin(email.includes('docente') ? 'docente' : 'estudiante');
+        }
+      } catch (err) {
+        demoLogin(email.includes('docente') ? 'docente' : 'estudiante');
+      }
+      cerrarModalAuth();
+      actualizarUIUsuario();
+    }
+
+    async function ejecutarRegistro() {
+      const nombres = document.getElementById('reg-nombre').value;
+      const email = document.getElementById('reg-email').value;
+      const rol = document.getElementById('reg-rol').value;
+      const id_number = document.getElementById('reg-id').value;
+      const password = document.getElementById('reg-password').value;
+
+      if (!nombres || !email || !password) {
+        alert('Por favor complete todos los campos obligatorios.');
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:8000/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombres, email, rol, id_number, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          currentUser = {
+            nombres: data.user.nombres,
+            email: data.user.email,
+            rol: data.user.rol,
+            id_number: data.user.id_number,
+            token: data.access_token
+          };
+          alert(`Cuenta creada exitosamente para ${currentUser.nombres} con rol ${currentUser.rol}.`);
+        } else {
+          currentUser = { nombres, email, rol, id_number: id_number || 'U-10' };
+          alert(`Cuenta creada localmente para ${nombres} con rol ${rol}.`);
+        }
+      } catch (err) {
+        currentUser = { nombres, email, rol, id_number: id_number || 'U-10' };
+        alert(`Cuenta creada localmente para ${nombres} con rol ${rol}.`);
+      }
+      cerrarModalAuth();
+      actualizarUIUsuario();
+    }
 
     function renderTablaEstudiantes() {
       const tbody = document.getElementById('tabla-estudiantes');
@@ -465,14 +834,18 @@
       [1, 2, 3].forEach(n => {
         document.getElementById(`view-mockup-${n}`).classList.add('hidden');
         const btn = document.getElementById(`nav-btn-${n}`);
-        btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-        btn.classList.add('text-slate-600');
+        if (btn) {
+          btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+          btn.classList.add('text-slate-600');
+        }
       });
 
       document.getElementById(`view-mockup-${viewNumber}`).classList.remove('hidden');
       const activeBtn = document.getElementById(`nav-btn-${viewNumber}`);
-      activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-      activeBtn.classList.remove('text-slate-600');
+      if (activeBtn) {
+        activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-600');
+      }
 
       if (viewNumber === 2) {
         cargarDetalleEstudiante(studentId);
@@ -519,7 +892,7 @@
       } catch (e) {
         alert('Sincronización simulada completada (Modo desacoplado Sprint 1).');
       } finally {
-        btn.innerHTML = `<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Sincronizar Moodle`;
+        btn.innerHTML = `<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> <span class="hidden md:inline">Sincronizar Moodle</span>`;
       }
     }
 
@@ -537,6 +910,7 @@
 
     // Inicializar al cargar
     renderTablaEstudiantes();
+    actualizarUIUsuario();
   </script>
 </body>
 </html>

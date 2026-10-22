@@ -7,6 +7,7 @@
 -- ==============================================================================
 
 -- Limpieza preventiva en caso de regeneración de esquema
+DROP TABLE IF EXISTS usuarios CASCADE;
 DROP TABLE IF EXISTS alertas_tempranas CASCADE;
 DROP TABLE IF EXISTS calificaciones_ponderadas CASCADE;
 DROP TABLE IF EXISTS calificaciones CASCADE;
@@ -17,6 +18,20 @@ DROP TABLE IF EXISTS parciales CASCADE;
 DROP TABLE IF EXISTS periodos CASCADE;
 DROP TABLE IF EXISTS materias CASCADE;
 DROP TABLE IF EXISTS logs_sistema CASCADE;
+
+-- ------------------------------------------------------------------------------
+-- 0. TABLA: USUARIOS (Autenticación y Roles: DOCENTE, ESTUDIANTE, ADMIN - HU-14)
+-- ------------------------------------------------------------------------------
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    nombres VARCHAR(120) NOT NULL,
+    email VARCHAR(120) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    rol VARCHAR(20) NOT NULL CHECK (rol IN ('DOCENTE', 'ESTUDIANTE', 'ADMIN')),
+    id_number VARCHAR(30),                    -- Vinculado a estudiantes.id_number si es ESTUDIANTE
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 -- ------------------------------------------------------------------------------
 -- 1. TABLA: MATERIAS (Cursos Académicos)
@@ -211,6 +226,12 @@ JOIN parciales p ON cp.parcial_id = p.id;
 -- * ID number normalizado: [MATERIA]-[PARCIAL]-[UNIDAD]-[TEMA]
 -- * Al menos 2 estudiantes con nota ponderada menor a 5.0 (Casos Críticos)
 -- ==============================================================================
+
+-- 0. Insertar Usuarios Base (HU-14: Docente, Estudiante, Administrador)
+INSERT INTO usuarios (nombres, email, password_hash, rol, id_number) VALUES
+('Ing. Hernán Naranjo, Mg.', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
+('Estudiante C', 'estudiante.c@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-05'),
+('Administrador 1', 'admin@uta.edu.ec', 'e3a1f822$7b5c11029e88', 'ADMIN', 'U-02');
 
 -- 1. Insertar Materias
 INSERT INTO materias (codigo, nombre, docente_titular) VALUES
