@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Asegurar que el directorio del agente esté en sys.path
+_agent_dir = str(Path(__file__).resolve().parent.parent)
+if _agent_dir not in sys.path:
+    sys.path.insert(0, _agent_dir)
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict

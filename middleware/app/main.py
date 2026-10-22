@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Asegurar que el directorio del middleware esté en sys.path tanto para ejecución local como Docker
+_middleware_dir = str(Path(__file__).resolve().parent.parent)
+if _middleware_dir not in sys.path:
+    sys.path.insert(0, _middleware_dir)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
