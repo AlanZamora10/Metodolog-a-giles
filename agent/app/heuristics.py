@@ -1,11 +1,20 @@
+"""
+==============================================================================
+SERVICIO: MOTOR DE REGLAS HEURÍSTICAS DE RESPALDO (HU-11B)
+Responsable: Johan Borja (Agente IA & Datos)
+==============================================================================
+Este archivo implementa el motor de reglas deterministas que se activa
+automáticamente si el modelo de lenguaje de Ollama demora más de 10 segundos
+o no está disponible, garantizando que el docente siempre reciba un diagnóstico.
+==============================================================================
+"""
+
 from typing import Dict, Any, List
 
 
 class HeuristicRulesEngine:
     """
-    Motor de Plantillas Heurísticas de Respaldo (HU-11B).
-    Se activa automáticamente si el modelo de lenguaje en Ollama excede el timeout de 10s
-    o produce una salida inválida, garantizando alta disponibilidad del sistema.
+    Motor de reglas para generar diagnósticos pedagógicos de respaldo.
     """
 
     @classmethod
@@ -17,35 +26,37 @@ class HeuristicRulesEngine:
         notas_actividades: Dict[str, float]
     ) -> Dict[str, Any]:
         """
-        Analiza las calificaciones y genera un diagnóstico estructurado según reglas pedagógicas.
+        Analiza las notas de las tareas de un estudiante y genera un diagnóstico
+        didáctico de máximo 250 caracteres indicando la unidad más crítica.
         """
-        # Identificar la unidad con la calificación más baja
-        unidades_promedios: Dict[str, List[float]] = {}
-        for act_id, nota in notas_actividades.items():
-            # Extraer unidad ej: U1, U2
-            partes = act_id.split("-")
-            unidad_key = partes[2] if len(partes) > 2 else "U1"
-            unidades_promedios.setdefault(unidad_key, []).append(nota)
+        # Paso 1: Agrupar las notas por cada unidad (ej: U1, U2, U3, U4)
+        notas_por_unidad: Dict[str, List[float]] = {}
+        for codigo_actividad, nota in notas_actividades.items():
+            partes = codigo_actividad.split("-")
+            # El código de la unidad está en la tercera posición: MAT1-P1-U2-T3 -> U2
+            codigo_u = partes[2] if len(partes) > 2 else "U1"
+            notas_por_unidad.setdefault(codigo_u, []).append(nota)
 
+        # Paso 2: Identificar la unidad que tenga el promedio de notas más bajo
         unidad_critica_cod = "U2"
         menor_promedio = 10.0
 
-        for u, notas in unidades_promedios.items():
-            avg = sum(notas) / len(notas)
-            if avg < menor_promedio:
-                menor_promedio = avg
-                unidad_critica_cod = u
+        for cod_u, lista_notas in notas_por_unidad.items():
+            promedio_u = sum(lista_notas) / len(lista_notas)
+            if promedio_u < menor_promedio:
+                menor_promedio = promedio_u
+                unidad_critica_cod = cod_u
 
-        # Mapeo de nombres descriptivos
-        unidad_nombres = {
+        # Paso 3: Asignar el nombre descriptivo de la unidad
+        nombres_unidades = {
             "U1": "Unidad 1: Fundamentos y Conceptos",
             "U2": "Unidad 2: Lógica y Modelado",
             "U3": "Unidad 3: Estructuras Aplicadas",
             "U4": "Unidad 4: Arquitectura e Integración"
         }
-        unidad_critica = unidad_nombres.get(unidad_critica_cod, f"Unidad {unidad_critica_cod}")
+        unidad_critica = nombres_unidades.get(unidad_critica_cod, f"Unidad {unidad_critica_cod}")
 
-        # Generar diagnóstico conciso (máximo 250 caracteres según HU-11A)
+        # Paso 4: Redactar el diagnóstico según el semáforo (máximo 250 caracteres por HU-11A)
         if nota_final < 5.0:
             diagnostico = (
                 f"El estudiante presenta dificultades severas de comprensión en la {unidad_critica}. "
