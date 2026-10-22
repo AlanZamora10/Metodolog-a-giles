@@ -2,915 +2,1000 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FISEI - UTA | Capa Inteligente de Seguimiento Académico</title>
-  <!-- Tailwind CSS CDN para renderizado minimalista -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capa Inteligente de Seguimiento Académico - FISEI UTA</title>
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-    .badge-critico { background-color: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-    .badge-riesgo { background-color: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
-    .badge-aceptable { background-color: #dcfce7; color: #16a34a; border: 1px solid #86efac; }
+    /* ==========================================================================
+       VARIABLES DE COLOR Y TEMA INSTITUCIONAL UTA (DISEÑO MINIMALISTA)
+       ========================================================================== */
+    :root {
+      --blue: #11297A;       /* Azul institucional UTA */
+      --blue-light: #203A96;
+      --ink: #1A1D26;        /* Color principal de texto */
+      --muted: #7A8194;      /* Texto secundario y etiquetas */
+      --line: #EDF0F4;       /* Bordes y separadores sutiles */
+      --bg: #F4F6F8;         /* Fondo limpio general */
+      --card: #FFFFFF;       /* Fondo de tarjetas */
+      --red: #E53935;        /* Alerta crítico */
+      --orange: #FB8C00;     /* Alerta en riesgo */
+      --green: #43A047;      /* Aceptable / aprobado */
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; cursor: pointer; border: 0; }
+    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, tr:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+
+    /* --------------------------------------------------------------------------
+       BARRA SUPERIOR (HEADER)
+       -------------------------------------------------------------------------- */
+    .topbar { background: var(--blue); color: #fff; }
+    .topbar-in {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-wrap { display: flex; align-items: center; gap: 14px; }
+    .uta-badge {
+      background: #D32F2F;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 4px 9px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .brand { font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+    .brand span { opacity: 0.55; font-weight: 400; margin: 0 6px; }
+
+    .top-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    
+    .select {
+      appearance: none;
+      background: rgba(255, 255, 255, 0.12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 14px center;
+      color: #fff;
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 36px 8px 14px;
+      font: inherit;
+      font-size: 13px;
+    }
+    .select option { color: var(--ink); }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .role-badge {
+      background: #fff;
+      color: var(--blue);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .btn-top {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .btn-top:hover { background: rgba(255, 255, 255, 0.3); }
+
+    /* --------------------------------------------------------------------------
+       PESTAÑAS DE NAVEGACIÓN (SEGMENTED CONTROL)
+       -------------------------------------------------------------------------- */
+    .tabs { max-width: 1080px; margin: 24px auto 0; padding: 0 32px; }
+    .seg { display: inline-flex; background: #E6EAF0; border-radius: 12px; padding: 3px; }
+    .seg button {
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 18px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+    }
+    .seg button[aria-selected="true"] {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      font-weight: 600;
+    }
+
+    /* --------------------------------------------------------------------------
+       CONTENEDOR PRINCIPAL Y PANTALLAS
+       -------------------------------------------------------------------------- */
+    main { max-width: 1080px; margin: 0 auto; padding: 28px 32px 72px; }
+    .screen { display: none; }
+    .screen.on { display: block; }
+    .card { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); }
+
+    /* --------------------------------------------------------------------------
+       PANTALLA 1: PANEL GENERAL DEL CURSO
+       -------------------------------------------------------------------------- */
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    h1 { font-size: 36px; font-weight: 700; letter-spacing: -0.8px; line-height: 1.1; }
+    .sub { color: var(--muted); font-size: 15px; }
+
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi { padding: 22px 24px; }
+    .kpi-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 500; }
+    .kpi-value { font-size: 40px; font-weight: 700; letter-spacing: -1.2px; margin-top: 6px; line-height: 1.1; }
+    
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+    .dot.red { background: var(--red); }
+    .dot.orange { background: var(--orange); }
+    .dot.green { background: var(--green); }
+    .dot.blue { background: var(--blue); }
+
+    /* Tabla de alumnos */
+    .table-card { padding: 0; overflow-x: auto; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: none; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th {
+      text-align: left;
+      font-weight: 500;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 14px 22px;
+      border-bottom: 1px solid #E2E8F0;
+      background: #FAFBFC;
+    }
+    td { padding: 16px 22px; border-bottom: 1px solid #E2E8F0; font-size: 14px; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr { cursor: pointer; transition: background 0.15s ease; }
+    tbody tr:hover { background: #F8FAFC; }
+    td.name { font-weight: 600; }
+    td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .evo { color: #475569; font-size: 13px; }
+    .status { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; }
+
+    /* --------------------------------------------------------------------------
+       PANTALLA 2: DETALLE DEL ESTUDIANTE Y DIAGNÓSTICO
+       -------------------------------------------------------------------------- */
+    .back {
+      background: none;
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .back:hover { text-decoration: underline; }
+
+    .grid2 { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
+    .profile { padding: 28px; }
+    .profile h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.4px; }
+    .profile .id-tag { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .big { display: flex; align-items: baseline; gap: 6px; margin: 16px 0 10px; }
+    .big b { font-size: 56px; letter-spacing: -2px; line-height: 1; }
+    .big span { font-size: 18px; color: var(--muted); }
+
+    .spark { margin-top: 24px; width: 100%; height: auto; display: block; }
+    
+    .units { padding: 28px; }
+    .units h3 { font-size: 17px; font-weight: 600; margin-bottom: 22px; }
+    .unit { margin-bottom: 22px; }
+    .unit:last-child { margin-bottom: 0; }
+    .unit-head { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
+    .unit-head b { font-variant-numeric: tabular-nums; }
+    .track { height: 6px; background: #E2E8F0; border-radius: 99px; overflow: hidden; }
+    .fill { height: 100%; border-radius: 99px; background: #9AA8D1; }
+    .unit-sub {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .unit.bad .fill { background: var(--red); }
+    .unit.bad .unit-head { color: var(--red); font-weight: 600; }
+
+    /* Tarjeta de Diagnóstico IA */
+    .diag {
+      background: var(--blue);
+      color: #fff;
+      border-radius: 16px;
+      padding: 30px 34px;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+      box-shadow: 0 8px 28px rgba(17, 41, 122, 0.16);
+    }
+    .diag h3 { font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+    .diag p { max-width: 600px; color: rgba(255, 255, 255, 0.88); font-size: 15px; line-height: 1.5; }
+    .btn-white {
+      background: #fff;
+      color: var(--blue);
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.15s;
+    }
+    .btn-white:active { transform: scale(0.98); }
+
+    /* --------------------------------------------------------------------------
+       PANTALLA 3: ALERTAS Y PUBLICACIÓN DE REFUERZOS
+       -------------------------------------------------------------------------- */
+    .alerts { display: flex; flex-direction: column; gap: 12px; }
+    .alert-card {
+      border: 1px solid #E2E8F0;
+      box-shadow: none;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .alert-card:hover {
+      box-shadow: 0 6px 20px rgba(17, 41, 122, 0.05);
+      border-color: #D3DBE8;
+    }
+    .alert-info { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; }
+    .alert-sub { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+    
+    .btn-soft {
+      background: transparent;
+      color: var(--blue);
+      border: 1px solid var(--blue);
+      padding: 6px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-soft:hover { background: var(--blue); color: #fff; }
+
+    .form { padding: 30px; }
+    .form h3 { font-size: 19px; font-weight: 600; margin-bottom: 22px; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; text-transform: uppercase; }
+    .field input, .field textarea {
+      width: 100%;
+      font: inherit;
+      font-size: 14px;
+      color: var(--ink);
+      background: #F7F8FA;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 12px 14px;
+      resize: vertical;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .field input:focus, .field textarea:focus {
+      outline: none;
+      background: #fff;
+      border-color: var(--blue);
+    }
+    .btn-main {
+      width: 100%;
+      background: var(--blue);
+      color: #fff;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 6px;
+      transition: opacity 0.15s, background 0.2s;
+    }
+    .btn-main:hover { opacity: 0.92; }
+    .btn-main.done { background: var(--green); }
+
+    /* --------------------------------------------------------------------------
+       PANTALLA EXCLUSIVA: PORTAL DEL ESTUDIANTE
+       -------------------------------------------------------------------------- */
+    .student-banner {
+      background: var(--blue);
+      color: #fff;
+      padding: 28px 32px;
+      border-radius: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .student-banner h2 { font-size: 24px; font-weight: 700; }
+    .student-banner p { color: rgba(255, 255, 255, 0.75); font-size: 14px; margin-top: 2px; }
+
+    /* --------------------------------------------------------------------------
+       MODAL DE INICIO DE SESIÓN Y REGISTRO
+       -------------------------------------------------------------------------- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 29, 60, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.hidden { display: none; }
+    
+    .modal-box {
+      background: #fff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+    .modal-head {
+      background: var(--blue);
+      color: #fff;
+      padding: 24px;
+      text-align: center;
+    }
+    .modal-head h3 { font-size: 18px; font-weight: 600; }
+    .modal-head p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+    
+    .modal-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 3px;
+      margin-top: 16px;
+    }
+    .modal-tabs button {
+      flex: 1;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      background: transparent;
+      transition: background 0.2s, color 0.2s;
+    }
+    .modal-tabs button.active {
+      background: #fff;
+      color: var(--blue);
+    }
+
+    .modal-body { padding: 24px; }
+    .demo-fast {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      gap: 10px;
+    }
+    .btn-fast {
+      flex: 1;
+      background: #F4F6F8;
+      border: 1px solid #E2E8F0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: left;
+      transition: background 0.15s;
+    }
+    .btn-fast:hover { background: #EAEFF5; }
+    .btn-fast b { display: block; font-size: 12px; color: var(--ink); }
+    .btn-fast span { font-size: 10px; color: var(--muted); }
+
+    /* Responsive */
+    @media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 820px) {
+      .kpis, .grid2 { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+      main, .tabs, .topbar-in { padding-left: 20px; padding-right: 20px; }
+    }
   </style>
 </head>
-<body class="text-slate-800">
+<body>
 
-  <!-- ===================================================================== -->
-  <!-- MODAL DE AUTENTICACIÓN (LOGIN & REGISTRO DE USUARIOS)                 -->
-  <!-- ===================================================================== -->
-  <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
-      
-      <!-- Encabezado Modal -->
-      <div class="bg-slate-900 text-white p-6 text-center">
-        <div class="w-12 h-12 bg-red-700 text-white rounded-xl flex items-center justify-center font-bold text-xl mx-auto shadow-md mb-2">
-          UTA
+  <!-- ========================================================================
+       MODAL DE AUTENTICACIÓN (LOGIN Y REGISTRO)
+       ======================================================================== -->
+  <div id="authModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span class="uta-badge" style="display:inline-block;margin-bottom:8px;">FISEI • UTA</span>
+        <h3>Portal de Seguimiento Académico</h3>
+        <p>Inicia sesión con tu correo institucional para ingresar</p>
+        
+        <div class="modal-tabs">
+          <button id="tabLogin" class="active" onclick="cambiarPestanaModal('login')">Iniciar Sesión</button>
+          <button id="tabRegister" onclick="cambiarPestanaModal('register')">Registrarse</button>
         </div>
-        <h2 class="text-lg font-bold">Capa Inteligente Académica</h2>
-        <p class="text-xs text-slate-400 mt-1">FISEI • Universidad Técnica de Ambato</p>
+      </div>
 
-        <!-- Selector Pestaña Iniciar Sesión / Registrarse -->
-        <div class="flex mt-4 bg-slate-800 p-1 rounded-lg text-xs font-semibold">
-          <button id="tab-login" onclick="toggleAuthTab('login')" class="flex-1 py-1.5 rounded-md bg-blue-600 text-white transition">
-            Iniciar Sesión
+      <!-- Formulario Login -->
+      <div id="formLogin" class="modal-body">
+        <div class="field">
+          <label for="txtEmail">Correo Institucional</label>
+          <input type="email" id="txtEmail" value="docente@uta.edu.ec" placeholder="ejemplo@uta.edu.ec">
+        </div>
+        <div class="field">
+          <label for="txtPass">Contraseña</label>
+          <input type="password" id="txtPass" value="Docente2026!" placeholder="••••••••">
+        </div>
+        <button class="btn-main" onclick="procesarLogin()">Ingresar</button>
+
+        <div class="demo-fast">
+          <button class="btn-fast" onclick="accesoRapido('docente')">
+            <b>👨‍🏫 Docente</b>
+            <span>Ing. Hernán Naranjo</span>
           </button>
-          <button id="tab-register" onclick="toggleAuthTab('register')" class="flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition">
-            Crear Cuenta
+          <button class="btn-fast" onclick="accesoRapido('estudiante')">
+            <b>🎓 Estudiante C</b>
+            <span>U-05 (Caso Crítico)</span>
           </button>
         </div>
       </div>
 
-      <!-- FORMULARIO 1: INICIAR SESIÓN -->
-      <div id="form-login-container" class="p-6 space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Correo Institucional</label>
-          <input type="email" id="login-email" value="docente@uta.edu.ec" placeholder="ejemplo@uta.edu.ec" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+      <!-- Formulario Registro -->
+      <div id="formRegister" class="modal-body" style="display:none;">
+        <div class="field">
+          <label for="regNombre">Nombres y Apellidos</label>
+          <input type="text" id="regNombre" placeholder="Ing. Carlos Pérez">
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña</label>
-          <input type="password" id="login-password" value="Docente2026!" placeholder="••••••••" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+        <div class="field">
+          <label for="regEmail">Correo Institucional</label>
+          <input type="email" id="regEmail" placeholder="usuario@uta.edu.ec">
         </div>
-
-        <button onclick="ejecutarLogin()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-sm">
-          Ingresar al Sistema
-        </button>
-
-        <!-- Accesos Rápidos Demo -->
-        <div class="pt-3 border-t border-slate-100">
-          <span class="text-[11px] text-slate-400 font-medium block text-center mb-2">Accesos rápidos de demostración:</span>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="demoLogin('docente')" class="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-lg font-medium transition text-left flex items-center space-x-1.5">
-              <span>👨‍🏫</span>
-              <div>
-                <div class="font-bold text-[11px]">Docente</div>
-                <div class="text-[9px] text-slate-400">Panel & Alertas</div>
-              </div>
-            </button>
-            <button onclick="demoLogin('estudiante')" class="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-lg font-medium transition text-left flex items-center space-x-1.5">
-              <span>🎓</span>
-              <div>
-                <div class="font-bold text-[11px]">Estudiante C</div>
-                <div class="text-[9px] text-slate-400">Portal de Notas</div>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- FORMULARIO 2: CREAR CUENTA (REGISTRO) -->
-      <div id="form-register-container" class="p-6 space-y-3 hidden">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre Completo</label>
-          <input type="text" id="reg-nombre" placeholder="Ing. Carlos Pérez o Estudiante H" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Correo Institucional</label>
-          <input type="email" id="reg-email" placeholder="usuario@uta.edu.ec" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Rol en el Sistema</label>
-          <select id="reg-rol" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-            <option value="DOCENTE">👨‍🏫 Docente (Gestión y Seguimiento Académico)</option>
-            <option value="ESTUDIANTE">🎓 Estudiante (Portal de Refuerzo y Calificaciones)</option>
+        <div class="field">
+          <label for="regRol">Rol en la Asignatura</label>
+          <select id="regRol" style="width:100%;padding:11px;background:#F7F8FA;border:1px solid transparent;border-radius:10px;font:inherit;font-size:14px;">
+            <option value="DOCENTE">Docente (Seguimiento y Refuerzos)</option>
+            <option value="ESTUDIANTE">Estudiante (Revisión de Calificaciones)</option>
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cédula / ID UTA (Opcional)</label>
-          <input type="text" id="reg-id" placeholder="ej. U-10" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        <div class="field">
+          <label for="regPass">Contraseña</label>
+          <input type="password" id="regPass" placeholder="••••••••">
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Contraseña (Mínimo 6 caracteres)</label>
-          <input type="password" id="reg-password" placeholder="••••••••" class="w-full text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-
-        <button onclick="ejecutarRegistro()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition shadow-sm mt-2">
-          Crear Cuenta e Ingresar
-        </button>
+        <button class="btn-main" onclick="procesarRegistro()">Crear Cuenta</button>
       </div>
-
     </div>
   </div>
 
-  <!-- Header Institucional -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 bg-red-700 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-sm">
-          UTA
-        </div>
-        <div>
-          <h1 class="font-semibold text-base text-slate-900 leading-tight">Seguimiento Académico Moodle</h1>
-          <p class="text-xs text-slate-500">FISEI • Metodologías Ágiles (MAT1 - Parcial 1)</p>
-        </div>
+  <!-- ========================================================================
+       BARRA SUPERIOR (HEADER)
+       ======================================================================== -->
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand-wrap">
+        <span class="uta-badge">UTA</span>
+        <div class="brand">FISEI<span>|</span>Capa Inteligente de Seguimiento Académico</div>
       </div>
 
-      <!-- Navegación por Pestañas (Filtradas según el Rol del Usuario) -->
-      <nav id="docente-nav" class="flex space-x-2 bg-slate-100 p-1 rounded-lg text-sm font-medium">
-        <button id="nav-btn-1" onclick="switchView(1)" class="px-3 py-1.5 rounded-md bg-white text-slate-800 shadow-sm transition">
-          1. Panel Curso
-        </button>
-        <button id="nav-btn-2" onclick="switchView(2)" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">
-          2. Detalle Alumnos
-        </button>
-        <button id="nav-btn-3" onclick="switchView(3)" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">
-          3. Alertas & Refuerzos
-        </button>
-      </nav>
+      <div class="top-actions">
+        <!-- Selector de Materia (2 materias del Sprint 1) -->
+        <select class="select" id="comboCurso" onchange="cambiarMateria(this.value)">
+          <option value="MAT1">Metodologías Ágiles - Paralelo A</option>
+          <option value="MAT2">Ingeniería de Software - Paralelo B</option>
+        </select>
 
-      <!-- Pestaña para Estudiante -->
-      <nav id="estudiante-nav" class="hidden flex space-x-2 bg-slate-100 p-1 rounded-lg text-sm font-medium">
-        <button class="px-3 py-1.5 rounded-md bg-white text-slate-800 shadow-sm font-semibold text-xs">
-          🎓 Mi Rendimiento y Tareas de Refuerzo
-        </button>
-      </nav>
-
-      <!-- Perfil de Usuario y Cerrar Sesión -->
-      <div class="flex items-center space-x-3">
-        <div class="text-right hidden sm:block">
-          <div class="flex items-center space-x-1.5 justify-end">
-            <span id="user-badge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800">
-              DOCENTE
-            </span>
-            <span id="user-name" class="text-xs font-semibold text-slate-800">Ing. Hernán Naranjo</span>
-          </div>
-          <span id="user-email" class="text-[11px] text-slate-400">docente@uta.edu.ec</span>
+        <!-- Píldora de Usuario Activo -->
+        <div class="user-pill">
+          <span class="role-badge" id="lblRol">DOCENTE</span>
+          <span id="lblUsuario">Ing. Hernán Naranjo</span>
         </div>
 
-        <button onclick="abrirModalAuth()" title="Cambiar Usuario o Registrarse" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md transition font-medium">
-          Cambiar Usuario
-        </button>
-
-        <button onclick="syncMoodle()" id="sync-btn" class="flex items-center space-x-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-md transition shadow-sm">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          <span class="hidden md:inline">Sincronizar Moodle</span>
-        </button>
+        <button class="btn-top" onclick="abrirModal()">Cambiar Usuario</button>
       </div>
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-    <!-- ===================================================================== -->
-    <!-- VISTA EXCLUSIVA: PORTAL DEL ESTUDIANTE (ROL ESTUDIANTE)               -->
-    <!-- ===================================================================== -->
-    <div id="view-estudiante-portal" class="space-y-6 hidden">
-      <!-- Banner de Bienvenida del Alumno -->
-      <div class="bg-gradient-to-r from-slate-900 to-blue-900 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
-        <div>
-          <span class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase bg-blue-500/30 text-blue-200 border border-blue-400/30">
-            Portal Académico del Estudiante
-          </span>
-          <h2 class="text-xl font-bold mt-2">Bienvenido, <span id="portal-est-nombre">Estudiante C</span></h2>
-          <p class="text-xs text-slate-300 mt-1">Materia: Metodologías Ágiles (MAT1) • Parcial 1 • Identificación: <span id="portal-est-id">U-05</span></p>
-        </div>
-        <div class="flex items-center space-x-4 bg-white/10 p-3 rounded-xl backdrop-blur-sm">
-          <div class="text-center px-3">
-            <span class="text-[10px] text-slate-300 uppercase font-bold">Nota Ponderada</span>
-            <div class="text-2xl font-bold text-red-400" id="portal-est-nota">3.5 / 10</div>
-          </div>
-          <div class="text-center px-3 border-l border-white/20">
-            <span class="text-[10px] text-slate-300 uppercase font-bold">Estado</span>
-            <div class="text-xs font-bold text-red-300 uppercase mt-1">En Riesgo Crítico</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Falencias y Tareas Asignadas -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        <!-- Tarjeta de Diagnóstico y Falencias -->
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between border-b pb-3 border-slate-100">
-            <h3 class="font-semibold text-slate-900 text-sm flex items-center space-x-2">
-              <span>🎯</span>
-              <span>Diagnóstico de Desempeño por Unidades</span>
-            </h3>
-            <span class="text-xs text-red-600 font-bold">Punto Crítico: Unidad 2</span>
-          </div>
-
-          <div class="space-y-3">
-            <div>
-              <div class="flex justify-between text-xs font-medium mb-1">
-                <span>Unidad 1: Fundamentos y Conceptos</span>
-                <span class="font-bold">6.0 / 10</span>
-              </div>
-              <div class="w-full bg-slate-100 rounded-full h-2">
-                <div class="bg-amber-400 h-2 rounded-full" style="width: 60%"></div>
-              </div>
-            </div>
-
-            <div class="bg-red-50 p-3 rounded-lg border border-red-200">
-              <div class="flex justify-between text-xs font-bold text-red-800 mb-1">
-                <span>Unidad 2: Lógica y Modelado (Requiere Refuerzo)</span>
-                <span>2.0 / 10</span>
-              </div>
-              <div class="w-full bg-red-200 rounded-full h-2">
-                <div class="bg-red-600 h-2 rounded-full" style="width: 20%"></div>
-              </div>
-              <p class="text-[11px] text-red-700 mt-2">Dificultad detectada en: <strong>Tema 2.3 - Diagramación y Algoritmos Reutilizables</strong></p>
-            </div>
-
-            <div>
-              <div class="flex justify-between text-xs font-medium mb-1">
-                <span>Unidad 3: Estructuras Aplicadas</span>
-                <span class="font-bold">4.0 / 10</span>
-              </div>
-              <div class="w-full bg-slate-100 rounded-full h-2">
-                <div class="bg-red-400 h-2 rounded-full" style="width: 40%"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tarjeta de Tarea de Refuerzo Asignada -->
-        <div class="bg-white p-6 rounded-xl border border-blue-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between border-b pb-3 border-slate-100">
-            <h3 class="font-semibold text-blue-900 text-sm flex items-center space-x-2">
-              <span>📝</span>
-              <span>Tarea de Refuerzo Asignada por el Docente</span>
-            </h3>
-            <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Activa</span>
-          </div>
-
-          <div class="space-y-3">
-            <div>
-              <span class="text-[10px] text-slate-400 uppercase font-bold">Título de la Actividad</span>
-              <h4 class="text-xs font-bold text-slate-900 mt-0.5">Refuerzo Práctico: Guiado de Diagramación (Unidad 2)</h4>
-            </div>
-
-            <div>
-              <span class="text-[10px] text-slate-400 uppercase font-bold">Instrucciones del Docente</span>
-              <p class="text-xs text-slate-600 mt-0.5 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
-                Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF. Esta tarea otorgará puntos extra en el trabajo autónomo del Parcial 1.
-              </p>
-            </div>
-
-            <div class="pt-2">
-              <button onclick="alert('Redirigiendo a Moodle para subir el archivo de entrega de refuerzo...')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow flex items-center justify-center space-x-2">
-                <span>📤 Subir Entrega en Moodle</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
+  <!-- ========================================================================
+       PESTAÑAS DE NAVEGACIÓN (DOCENTE Y ESTUDIANTE)
+       ======================================================================== -->
+  <nav class="tabs" aria-label="Pantallas">
+    <!-- Pestañas para el Docente -->
+    <div class="seg" id="navDocente" role="tablist">
+      <button role="tab" aria-selected="true" data-go="s1">Panel general</button>
+      <button role="tab" aria-selected="false" data-go="s2">Estudiante</button>
+      <button role="tab" aria-selected="false" data-go="s3">Alertas</button>
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- MOCKUP 1: PANEL DEL CURSO (VISTA DOCENTE)                              -->
-    <!-- ===================================================================== -->
-    <div id="view-mockup-1" class="space-y-6">
-      
-      <!-- Banner de Metodología y Estado del Sprint -->
-      <div class="bg-white border-l-4 border-blue-600 p-4 rounded-r-lg shadow-sm flex items-center justify-between">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-900">Sprint 1: Envisioning, diseño y entorno base (Completado)</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Equipo: Justin Ojeda (Backend) • Johan Borja (Arquitectura & DB) • Alvaro Moreta (Frontend & UX) • Alan Zamora (Scrum Master & QA)</p>
-        </div>
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          HU-01 y HU-14 Validadas
-        </span>
-      </div>
-
-      <!-- Tarjetas de Resumen General (Métricas) -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        
-        <!-- Tarjeta Promedio -->
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Promedio General</span>
-          <div class="flex items-baseline space-x-2 mt-2">
-            <span class="text-3xl font-bold text-slate-900" id="promedio-general">7.0</span>
-            <span class="text-slate-400 text-sm">/ 10</span>
-          </div>
-          <p class="text-xs text-slate-500 mt-2">Oculta 2 estudiantes en situación de reprobación.</p>
-        </div>
-
-        <!-- Tarjeta En Riesgo Crítico -->
-        <div class="bg-white p-4 rounded-xl border border-red-200 shadow-sm bg-red-50/20">
-          <div class="flex justify-between items-start">
-            <span class="text-xs font-semibold text-red-600 uppercase tracking-wider">En Riesgo Crítico</span>
-            <span class="text-red-500 text-xs">⚠️</span>
-          </div>
-          <div class="flex items-baseline space-x-2 mt-2">
-            <span class="text-3xl font-bold text-red-600" id="total-criticos">2</span>
-            <span class="text-red-400 text-sm">alumnos</span>
-          </div>
-          <p class="text-xs text-slate-500 mt-2">Notas de 3.5 y 4.5 (Estudiante C y D).</p>
-        </div>
-
-        <!-- Tarjeta Semáforo de Distribución -->
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Distribución Real</span>
-          <div class="flex items-center space-x-1.5 mt-3 h-3 rounded-full overflow-hidden bg-slate-100">
-            <div class="bg-red-500 h-full" style="width: 28.5%" title="Críticos: 2"></div>
-            <div class="bg-amber-400 h-full" style="width: 14.3%" title="En Riesgo: 1"></div>
-            <div class="bg-emerald-500 h-full" style="width: 57.2%" title="Aceptable: 4"></div>
-          </div>
-          <div class="flex justify-between text-xs text-slate-500 mt-2">
-            <span class="text-red-600 font-medium">2 Críticos</span>
-            <span class="text-amber-600 font-medium">1 Riesgo</span>
-            <span class="text-emerald-600 font-medium">4 Aceptables</span>
-          </div>
-        </div>
-
-        <!-- Tarjeta Agente IA -->
-        <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-sm bg-blue-50/30">
-          <div class="flex justify-between items-start">
-            <span class="text-xs font-semibold text-blue-800 uppercase tracking-wider">Agente IA (Free)</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          </div>
-          <div class="text-xl font-bold text-blue-900 mt-2">2 Alertas</div>
-          <p class="text-xs text-slate-500 mt-2">Sincronizado vía Middleware FastAPI • Ollama CPU SLM</p>
-        </div>
-      </div>
-
-      <!-- Hallazgo del Agente Inteligente (Banner Destacado) -->
-      <div class="bg-slate-900 text-white p-4 rounded-xl shadow-md flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <span class="text-xl">🤖</span>
-          <div>
-            <h3 class="text-sm font-semibold">Hallazgo del Agente Inteligente:</h3>
-            <p class="text-xs text-slate-300">Aunque el promedio es 7.0/10, los estudiantes <strong class="text-red-400">Estudiante C</strong> y <strong class="text-red-400">Estudiante D</strong> presentan fallas severas en las UNIDADES 1 y 2.</p>
-          </div>
-        </div>
-        <button onclick="switchView(2, 'U-05')" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition whitespace-nowrap">
-          Ver Diagnóstico
-        </button>
-      </div>
-
-      <!-- Tabla de Alumnos Matriculados (Muestra de 7 alumnos de prueba HU-01) -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-          <div>
-            <h3 class="font-semibold text-slate-900">Alumnos Matriculados (7)</h3>
-            <p class="text-xs text-slate-500">Ponderación oficial UTA: Autónomo (40%) • Tareas (30%) • PAE (30%)</p>
-          </div>
-          <span class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-mono">MAT1-P1</span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600">
-            <thead class="bg-slate-50 text-xs uppercase text-slate-400 font-semibold border-b border-slate-200">
-              <tr>
-                <th class="px-6 py-3">Estudiante</th>
-                <th class="px-6 py-3">Autónomo (40%)</th>
-                <th class="px-6 py-3">Tareas (30%)</th>
-                <th class="px-6 py-3">PAE (30%)</th>
-                <th class="px-6 py-3">Nota Final</th>
-                <th class="px-6 py-3">Estado / Agente</th>
-                <th class="px-6 py-3 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-estudiantes" class="divide-y divide-slate-100">
-              <!-- Llenado dinámico vía JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <!-- Pestaña única para el Estudiante -->
+    <div class="seg" id="navEstudiante" style="display:none;">
+      <button role="tab" aria-selected="true" data-go="s-estudiante">Mi Rendimiento Académico</button>
     </div>
+  </nav>
 
-    <!-- ===================================================================== -->
-    <!-- MOCKUP 2: DETALLE DEL ESTUDIANTE Y DIAGNÓSTICO PEDAGÓGICO             -->
-    <!-- ===================================================================== -->
-    <div id="view-mockup-2" class="space-y-6 hidden">
-      <div class="flex items-center justify-between">
-        <button onclick="switchView(1)" class="text-xs text-slate-500 hover:text-slate-800 flex items-center space-x-1">
-          <span>← Volver al Panel del Curso</span>
-        </button>
-        <span class="text-xs text-slate-400">Caso analizado: Estudiante C</span>
-      </div>
+  <!-- ========================================================================
+       CONTENIDO PRINCIPAL
+       ======================================================================== -->
+  <main>
 
-      <!-- Encabezado del Estudiante -->
-      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-center space-x-4">
-          <div class="w-14 h-14 bg-red-100 text-red-700 rounded-xl flex items-center justify-center text-xl font-bold">
-            EC
-          </div>
-          <div>
-            <div class="flex items-center space-x-2">
-              <h2 class="text-lg font-bold text-slate-900" id="det-nombre">Estudiante C</h2>
-              <span id="det-badge-estado" class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider badge-critico">
-                ESTADO CRÍTICO
-              </span>
-            </div>
-            <p class="text-xs text-slate-500 mt-1">ID: <span id="det-id">U-05</span> • Parcial 1 • Metodologías Ágiles</p>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-6">
-          <div class="text-center">
-            <span class="text-xs text-slate-400 uppercase font-semibold">Nota Ponderada</span>
-            <div class="text-2xl font-bold text-red-600" id="det-nota-final">3.5 / 10</div>
-          </div>
-          <div class="text-center border-l pl-6 border-slate-200">
-            <span class="text-xs text-slate-400 uppercase font-semibold">Aprobación</span>
-            <div class="text-2xl font-bold text-slate-900" id="det-probabilidad">22%</div>
-          </div>
-          <div class="text-center border-l pl-6 border-slate-200">
-            <span class="text-xs text-slate-400 uppercase font-semibold">Tendencia</span>
-            <div class="text-sm font-bold text-red-600 flex items-center justify-center space-x-1 mt-1">
-              <span>Descendente 📉</span>
-            </div>
-          </div>
+    <!-- ----------------------------------------------------------------------
+         PANTALLA 1: PANEL GENERAL (DOCENTE)
+         ---------------------------------------------------------------------- -->
+    <section class="screen on" id="s1">
+      <div class="title-row">
+        <div>
+          <h1 id="lblTituloCurso">Metodologías Ágiles</h1>
+          <span class="sub" id="lblSubtituloCurso">7 estudiantes matriculados • Ciclo 2026-B (Parcial 1)</span>
         </div>
       </div>
 
-      <!-- Desglose por Unidades y Conclusión de IA -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Columna Izquierda: Evolución de Notas de Tareas -->
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Evolución de Rendimiento</h3>
-          <p class="text-xs text-slate-500">Secuencia de 5 actividades del parcial:</p>
-          
-          <div class="flex items-end space-x-2 h-40 pt-6 px-2 justify-between border-b border-slate-100">
-            <div class="flex flex-col items-center flex-1">
-              <span class="text-xs text-slate-400 mb-1">6.0</span>
-              <div class="w-full bg-slate-300 rounded-t" style="height: 60%"></div>
-              <span class="text-[10px] text-slate-400 mt-1 font-mono">T1</span>
-            </div>
-            <div class="flex flex-col items-center flex-1">
-              <span class="text-xs text-red-500 font-bold mb-1">2.0</span>
-              <div class="w-full bg-red-400 rounded-t" style="height: 20%"></div>
-              <span class="text-[10px] text-red-500 mt-1 font-mono font-bold">T2</span>
-            </div>
-            <div class="flex flex-col items-center flex-1">
-              <span class="text-xs text-red-500 font-bold mb-1">2.0</span>
-              <div class="w-full bg-red-500 rounded-t" style="height: 20%"></div>
-              <span class="text-[10px] text-red-500 mt-1 font-mono font-bold">T3</span>
-            </div>
-            <div class="flex flex-col items-center flex-1">
-              <span class="text-xs text-slate-400 mb-1">4.0</span>
-              <div class="w-full bg-slate-400 rounded-t" style="height: 40%"></div>
-              <span class="text-[10px] text-slate-400 mt-1 font-mono">T4</span>
-            </div>
-            <div class="flex flex-col items-center flex-1">
-              <span class="text-xs text-slate-400 mb-1">4.0</span>
-              <div class="w-full bg-slate-400 rounded-t" style="height: 40%"></div>
-              <span class="text-[10px] text-slate-400 mt-1 font-mono">T5</span>
-            </div>
-          </div>
-          <div class="text-[11px] text-slate-400 text-center">
-            Pendiente de regresión lineal simple: <span class="text-red-500 font-bold">-0.65 (Baja sostenida)</span>
-          </div>
+      <!-- Tarjetas KPIs -->
+      <div class="kpis">
+        <div class="card kpi">
+          <div class="kpi-label">Promedio General</div>
+          <div class="kpi-value" id="kpiPromedio">6.40</div>
         </div>
+        <div class="card kpi">
+          <div class="kpi-label"><span class="dot red"></span>Estudiantes Críticos</div>
+          <div class="kpi-value" id="kpiCriticos" style="color:var(--red);">02</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label"><span class="dot orange"></span>En Riesgo</div>
+          <div class="kpi-value" id="kpiRiesgo" style="color:var(--orange);">01</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label"><span class="dot green"></span>Estudiantes Aceptables</div>
+          <div class="kpi-value" id="kpiAceptables">04</div>
+        </div>
+      </div>
 
-        <!-- Columna Derecha: Desglose por Unidades Temáticas y Conclusión de IA -->
-        <div class="lg:col-span-2 space-y-4">
-          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Desglose por Unidades Temáticas</h3>
+      <!-- Tabla de Estudiantes (7 de muestra HU-01) -->
+      <div class="card table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Estudiante</th>
+              <th>Nota Ponderada</th>
+              <th>Evolución Académica</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTabla">
+            <!-- Filas generadas dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         PANTALLA 2: DETALLE DEL ESTUDIANTE Y DIAGNÓSTICO
+         ---------------------------------------------------------------------- -->
+    <section class="screen" id="s2">
+      <button class="back" data-go="s1">‹ Volver al panel de Metodologías Ágiles</button>
+
+      <div class="grid2">
+        <!-- Tarjeta de Perfil y Gráfico de Evolución -->
+        <div class="card profile">
+          <h2 id="detNombre">Estudiante C</h2>
+          <div class="id-tag">Identificación: <span id="detId">U-05</span></div>
+          <div class="big"><b id="detNota">3.5</b><span>/ 10</span></div>
+          <span class="status" id="detStatus"><span class="dot red"></span>Crítico</span>
+
+          <!-- Gráfico SVG con curvatura de notas -->
+          <svg class="spark" viewBox="0 0 320 196" role="img" aria-label="Evolución de notas">
+            <defs>
+              <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#11297A" stop-opacity=".22"/>
+                <stop offset="1" stop-color="#11297A" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- Líneas de cuadrícula horizontal (0 a 10) -->
+            <line x1="28" y1="170" x2="310" y2="170" stroke="#E2E8F0" stroke-width="1"/>
+            <line x1="28" y1="138" x2="310" y2="138" stroke="#E2E8F0" stroke-width="1"/>
+            <line x1="28" y1="106" x2="310" y2="106" stroke="#E2E8F0" stroke-width="1"/>
+            <line x1="28" y1="74" x2="310" y2="74" stroke="#E2E8F0" stroke-width="1"/>
+            <line x1="28" y1="42" x2="310" y2="42" stroke="#E2E8F0" stroke-width="1"/>
+            <line x1="28" y1="10" x2="310" y2="10" stroke="#E2E8F0" stroke-width="1"/>
             
-            <!-- Unidad 1 -->
-            <div class="space-y-1.5">
-              <div class="flex justify-between text-xs font-medium">
-                <span>Unidad 1: Fundamentos y Conceptos</span>
-                <span class="text-slate-700 font-bold">6.0 / 10</span>
-              </div>
-              <div class="w-full bg-slate-100 rounded-full h-2">
-                <div class="bg-amber-400 h-2 rounded-full" style="width: 60%"></div>
-              </div>
-            </div>
+            <text x="20" y="173.5" text-anchor="end" font-size="10" fill="#7A8194">0</text>
+            <text x="20" y="141.5" text-anchor="end" font-size="10" fill="#7A8194">2</text>
+            <text x="20" y="109.5" text-anchor="end" font-size="10" fill="#7A8194">4</text>
+            <text x="20" y="77.5" text-anchor="end" font-size="10" fill="#7A8194">6</text>
+            <text x="20" y="45.5" text-anchor="end" font-size="10" fill="#7A8194">8</text>
+            <text x="20" y="13.5" text-anchor="end" font-size="10" fill="#7A8194">10</text>
 
-            <!-- Unidad 2 (Punto Crítico) -->
-            <div class="space-y-1.5 bg-red-50 p-3 rounded-lg border border-red-200">
-              <div class="flex justify-between text-xs font-semibold text-red-800">
-                <span>Unidad 2: Lógica y Modelado (Punto Crítico)</span>
-                <span class="text-red-600 font-bold">2.0 / 10</span>
-              </div>
-              <div class="w-full bg-red-200 rounded-full h-2">
-                <div class="bg-red-600 h-2 rounded-full" style="width: 20%"></div>
-              </div>
-              <p class="text-[11px] text-red-600 mt-1">Fallas detectadas en: <strong>Tema 2.3 - Diagramación y Algoritmos Reutilizables</strong></p>
-            </div>
+            <!-- Curva y Puntos de Tareas -->
+            <polygon points="60,74 120,138 180,138 240,106 290,106 290,170 60,170" fill="url(#area)"/>
+            <polyline points="60,74 120,138 180,138 240,106 290,106" stroke="#11297A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            
+            <circle cx="60" cy="74" r="3.5" fill="#fff" stroke="#11297A" stroke-width="1.5"/>
+            <circle cx="120" cy="138" r="4" fill="#E53935"/>
+            <circle cx="180" cy="138" r="4" fill="#E53935"/>
+            <circle cx="240" cy="106" r="3.5" fill="#11297A"/>
+            <circle cx="290" cy="106" r="3.5" fill="#11297A"/>
 
-            <!-- Unidad 3 -->
-            <div class="space-y-1.5">
-              <div class="flex justify-between text-xs font-medium">
-                <span>Unidad 3: Estructuras Aplicadas</span>
-                <span class="text-slate-700 font-bold">4.0 / 10</span>
-              </div>
-              <div class="w-full bg-slate-100 rounded-full h-2">
-                <div class="bg-red-400 h-2 rounded-full" style="width: 40%"></div>
-              </div>
-            </div>
+            <text x="60" y="64" text-anchor="middle" font-size="11" font-weight="600">6.0</text>
+            <text x="120" y="130" text-anchor="middle" font-size="11" font-weight="600" fill="#E53935">2.0</text>
+            <text x="180" y="130" text-anchor="middle" font-size="11" font-weight="600" fill="#E53935">2.0</text>
+            <text x="240" y="96" text-anchor="middle" font-size="11" font-weight="600">4.0</text>
+            <text x="290" y="96" text-anchor="middle" font-size="11" font-weight="600">4.0</text>
+
+            <text x="60" y="188" text-anchor="middle" font-size="10" fill="#7A8194">T1</text>
+            <text x="120" y="188" text-anchor="middle" font-size="10" fill="#7A8194">T2</text>
+            <text x="180" y="188" text-anchor="middle" font-size="10" fill="#7A8194">T3</text>
+            <text x="240" y="188" text-anchor="middle" font-size="10" fill="#7A8194">T4</text>
+            <text x="290" y="188" text-anchor="middle" font-size="10" fill="#7A8194">T5</text>
+          </svg>
+        </div>
+
+        <!-- Desglose por Unidades Temáticas -->
+        <div class="card units">
+          <h3>Desglose por Unidades Temáticas</h3>
+          <div class="unit">
+            <div class="unit-head"><span>Unidad 1: Fundamentos y Conceptos</span><b>6.0 / 10</b></div>
+            <div class="track"><div class="fill" style="width:60%"></div></div>
+            <div class="unit-sub"><span>Marcos de trabajo ágiles y Scrum</span><span class="status"><span class="dot blue"></span>Regular</span></div>
           </div>
-
-          <!-- Conclusión del Agente IA -->
-          <div class="bg-slate-900 text-white p-5 rounded-xl shadow-md space-y-3">
-            <div class="flex items-center space-x-2 text-blue-400 font-semibold text-xs uppercase tracking-wider">
-              <span>🤖</span>
-              <span>Conclusión del Agente IA</span>
-            </div>
-            <p class="text-xs text-slate-200 leading-relaxed" id="det-diagnostico-ia">
-              "El estudiante presenta dificultades severas de comprensión en la <strong>Unidad 2 (Tema 2.3)</strong>. Se recomienda asignar una guía complementaria práctica y ejercicios razonados antes de la evaluación del segundo parcial."
-            </p>
-            <div class="flex justify-end pt-2">
-              <button onclick="switchView(3)" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1.5">
-                <span>Generar Tarea de Refuerzo</span>
-                <span>→</span>
-              </button>
-            </div>
+          <div class="unit bad">
+            <div class="unit-head"><span>Unidad 2: Lógica y Modelado (Punto Crítico)</span><b>2.0 / 10</b></div>
+            <div class="track"><div class="fill" style="width:20%"></div></div>
+            <div class="unit-sub"><span>Tema 2.3 - Diagramación y Algoritmos</span><span class="status"><span class="dot red"></span>Crítico</span></div>
+          </div>
+          <div class="unit">
+            <div class="unit-head"><span>Unidad 3: Estructuras Aplicadas</span><b>4.0 / 10</b></div>
+            <div class="track"><div class="fill" style="width:40%"></div></div>
+            <div class="unit-sub"><span>Estimación de Historias de Usuario</span><span class="status"><span class="dot orange"></span>En riesgo</span></div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ===================================================================== -->
-    <!-- MOCKUP 3: CENTRO DE ALERTAS Y PUBLICACIÓN DE REFUERZOS                 -->
-    <!-- ===================================================================== -->
-    <div id="view-mockup-3" class="space-y-6 hidden">
-      <div class="flex items-center justify-between">
-        <button onclick="switchView(1)" class="text-xs text-slate-500 hover:text-slate-800 flex items-center space-x-1">
-          <span>← Volver al Panel del Curso</span>
-        </button>
-        <span class="text-xs text-slate-400">Aprobación del docente para publicar en Moodle</span>
+      <!-- Tarjeta del Diagnóstico del Agente IA -->
+      <div class="diag">
+        <div>
+          <h3>Diagnóstico del Agente IA</h3>
+          <p id="detDiagnostico">El estudiante presenta dificultades severas de comprensión en la Unidad 2 (Tema 2.3: Diagramación y Algoritmos Reutilizables). Se recomienda asignar una guía complementaria práctica antes del examen parcial.</p>
+        </div>
+        <button class="btn-white" data-go="s3" onclick="prepararRefuerzo('Estudiante C')">Generar Tarea de Refuerzo</button>
       </div>
+    </section>
 
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        
-        <!-- Columna 1: Alertas Recientes -->
-        <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex justify-between items-center border-b pb-3 border-slate-100">
-            <h3 class="font-semibold text-slate-900 text-sm">Alertas Recientes</h3>
-            <span class="text-[11px] text-slate-400">Actualizado vía Middleware</span>
+    <!-- ----------------------------------------------------------------------
+         PANTALLA 3: ALERTAS Y PUBLICACIÓN DE REFUERZOS
+         ---------------------------------------------------------------------- -->
+    <section class="screen" id="s3">
+      <div class="grid2" style="grid-template-columns: 5fr 7fr;">
+        <!-- Lista de Alertas Tempranas (HU-08) -->
+        <div class="alerts">
+          <div class="card alert-card">
+            <div>
+              <div class="alert-info"><span class="dot red"></span>Estudiante C - Nota 3.5</div>
+              <div class="alert-sub">Falla severa en Unidad 2 (Tema 2.3)</div>
+            </div>
+            <button class="btn-soft" onclick="prepararRefuerzo('Estudiante C')">Atender</button>
+          </div>
+          
+          <div class="card alert-card">
+            <div>
+              <div class="alert-info"><span class="dot red"></span>Estudiante D - Nota 4.5</div>
+              <div class="alert-sub">Falla en Unidad 1 (Fundamentos)</div>
+            </div>
+            <button class="btn-soft" onclick="prepararRefuerzo('Estudiante D')">Atender</button>
           </div>
 
-          <div class="space-y-3">
-            <!-- Alerta Estudiante C -->
-            <div class="p-3 rounded-lg border border-red-200 bg-red-50/50 flex justify-between items-center">
-              <div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="w-2 h-2 rounded-full bg-red-600"></span>
-                  <span class="text-xs font-bold text-red-900">Estudiante C - Crítico</span>
-                </div>
-                <p class="text-[11px] text-slate-600 mt-1">Nota 3.5 • Fallas en Unidad 2 (Tema 2.3)</p>
-              </div>
-              <button onclick="cargarRefuerzoEstudiante('U-05')" class="px-2.5 py-1 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded transition">
-                Atender
-              </button>
+          <div class="card alert-card">
+            <div>
+              <div class="alert-info"><span class="dot orange"></span>Estudiante F - Nota 6.2</div>
+              <div class="alert-sub">Rendimiento en zona de riesgo</div>
             </div>
-
-            <!-- Alerta Estudiante D -->
-            <div class="p-3 rounded-lg border border-red-200 bg-red-50/50 flex justify-between items-center">
-              <div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="w-2 h-2 rounded-full bg-red-600"></span>
-                  <span class="text-xs font-bold text-red-900">Estudiante D - Crítico</span>
-                </div>
-                <p class="text-[11px] text-slate-600 mt-1">Nota 4.5 • Fallas en Unidad 1 (Tema 1.2)</p>
-              </div>
-              <button onclick="cargarRefuerzoEstudiante('U-06')" class="px-2.5 py-1 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded transition">
-                Atender
-              </button>
-            </div>
-
-            <!-- Alerta Estudiante F -->
-            <div class="p-3 rounded-lg border border-amber-200 bg-amber-50/50 flex justify-between items-center">
-              <div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span class="text-xs font-bold text-amber-900">Estudiante F - En Riesgo</span>
-                </div>
-                <p class="text-[11px] text-slate-600 mt-1">Nota 6.2 • Tendencia estable</p>
-              </div>
-              <button onclick="cargarRefuerzoEstudiante('U-08')" class="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded transition">
-                Ver
-              </button>
-            </div>
+            <button class="btn-soft" onclick="prepararRefuerzo('Estudiante F')">Atender</button>
           </div>
         </div>
 
-        <!-- Columna 2: Tarea de Refuerzo Propuesta (Generada por IA) -->
-        <div class="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex justify-between items-center border-b pb-3 border-slate-100">
-            <h3 class="font-semibold text-slate-900 text-sm">Tarea de Refuerzo Propuesta</h3>
-            <span class="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-medium">Generado por IA</span>
+        <!-- Formulario de Refuerzo Pedagógico (HU-12 y HU-13) -->
+        <div class="card form">
+          <h3>Tarea de Refuerzo Propuesta</h3>
+          <div class="field">
+            <label for="dest">Destinatario</label>
+            <input id="dest" value="Estudiante C (estudiante.c@uta.edu.ec)" readonly>
           </div>
+          <div class="field">
+            <label for="tit">Título de la Actividad</label>
+            <input id="tit" value="Refuerzo Práctico: Guiado de Diagramación (Unidad 2)">
+          </div>
+          <div class="field">
+            <label for="ins">Instrucciones</label>
+            <textarea id="ins" rows="5">Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF a Moodle. Esta tarea otorgará puntaje de recuperación en el trabajo autónomo del Parcial 1.</textarea>
+          </div>
+          <button class="btn-main" id="btnPublish" onclick="aprobarYPublicar()">Aprobar y Publicar en Moodle</button>
+        </div>
+      </div>
+    </section>
 
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase">Destinatario</label>
-              <input type="text" id="ref-destinatario" readonly value="Estudiante C (ec****@uta.edu.ec)" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700">
-            </div>
+    <!-- ----------------------------------------------------------------------
+         PANTALLA EXCLUSIVA: PORTAL DEL ESTUDIANTE (ROL ESTUDIANTE)
+         ---------------------------------------------------------------------- -->
+    <section class="screen" id="s-estudiante">
+      <div class="student-banner">
+        <div>
+          <h2>Portal del Estudiante</h2>
+          <p>Bienvenido, <b id="estNombreBanner">Estudiante C</b> • Metodologías Ágiles (MAT1)</p>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:12px;opacity:0.8;display:block;">Tu Nota Ponderada</span>
+          <b style="font-size:36px;line-height:1;" id="estNotaBanner">3.5 / 10</b>
+        </div>
+      </div>
 
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase">Título de la Actividad</label>
-              <input type="text" id="ref-titulo" value="Refuerzo Práctico: Guiado de Diagramación (Unidad 2)" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase">Instrucciones de la Tarea</label>
-              <textarea id="ref-instrucciones" rows="4" class="mt-1 w-full border border-slate-300 rounded-lg p-3 text-xs text-slate-800 leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none">Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF. Esta tarea otorgará puntos extra en el trabajo autónomo del Parcial 1.</textarea>
-            </div>
-
-            <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
-              <button onclick="switchView(1)" class="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-medium transition">
-                Descartar
-              </button>
-              <button onclick="aprobarYPublicar()" id="btn-publicar" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                <span>Aprobar y Publicar en Moodle</span>
-              </button>
-            </div>
+      <div class="grid2">
+        <div class="card units" style="padding:28px;">
+          <h3>Tus Calificaciones por Unidad</h3>
+          <div class="unit">
+            <div class="unit-head"><span>Unidad 1: Fundamentos</span><b>6.0 / 10</b></div>
+            <div class="track"><div class="fill" style="width:60%"></div></div>
+          </div>
+          <div class="unit bad">
+            <div class="unit-head"><span>Unidad 2: Lógica y Modelado</span><b>2.0 / 10</b></div>
+            <div class="track"><div class="fill" style="width:20%"></div></div>
+            <div class="unit-sub" style="color:var(--red);"><span>Requiere refuerzo pedagógico urgente</span></div>
+          </div>
+          <div class="unit">
+            <div class="unit-head"><span>Unidad 3: Estructuras Aplicadas</span><b>4.0 / 10</b></div>
+            <div class="track"><div class="fill" style="width:40%"></div></div>
           </div>
         </div>
 
+        <div class="card form" style="padding:28px;">
+          <h3>Tarea de Refuerzo Asignada</h3>
+          <div class="field">
+            <label>Actividad</label>
+            <input value="Refuerzo Práctico: Guiado de Diagramación (Unidad 2)" readonly>
+          </div>
+          <div class="field">
+            <label>Instrucciones de tu Docente</label>
+            <textarea rows="4" readonly>Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF. Esta tarea otorgará puntaje de recuperación en el trabajo autónomo del Parcial 1.</textarea>
+          </div>
+          <button class="btn-main" onclick="alert('Redirigiendo al buzón de entrega de Moodle...')">Subir Entrega en Moodle</button>
+        </div>
       </div>
-    </div>
+    </section>
 
   </main>
 
-  <!-- Script de Interacción, Conexión con Middleware y Gestión de Sesión -->
+  <!-- ========================================================================
+       SCRIPT JAVASCRIPT: LÓGICA LIMPIA, LEGIBLE Y DIRECTA
+       ======================================================================== -->
   <script>
-    // Estado de Usuario Actual
-    let currentUser = {
-      nombres: "Ing. Hernán Naranjo",
-      email: "docente@uta.edu.ec",
-      rol: "DOCENTE",
-      id_number: "U-01",
-      token: null
-    };
-
-    const ESTUDIANTES_DATA = [
-      { id: 'U-03', nombre: 'Estudiante A', auto: 8.0, tar: 8.0, pae: 8.0, final: 8.0, estado: 'Aceptable', badge: 'badge-aceptable' },
-      { id: 'U-04', nombre: 'Estudiante B', auto: 8.5, tar: 8.5, pae: 8.5, final: 8.5, estado: 'Aceptable', badge: 'badge-aceptable' },
-      { id: 'U-05', nombre: 'Estudiante C', auto: 3.5, tar: 3.0, pae: 4.0, final: 3.5, estado: 'CRÍTICO [Unidad 2]', badge: 'badge-critico' },
-      { id: 'U-06', nombre: 'Estudiante D', auto: 4.5, tar: 4.0, pae: 5.0, final: 4.5, estado: 'CRÍTICO [Unidad 1]', badge: 'badge-critico' },
-      { id: 'U-07', nombre: 'Estudiante E', auto: 8.0, tar: 7.0, pae: 7.6, final: 7.6, estado: 'Aceptable', badge: 'badge-aceptable' },
-      { id: 'U-08', nombre: 'Estudiante F', auto: 6.5, tar: 6.0, pae: 6.0, final: 6.2, estado: 'En Riesgo', badge: 'badge-riesgo' },
-      { id: 'U-09', nombre: 'Estudiante G', auto: 8.5, tar: 8.0, pae: 8.7, final: 8.4, estado: 'Aceptable', badge: 'badge-aceptable' }
+    // 1. Datos iniciales del curso simulado (7 estudiantes HU-01)
+    const ESTUDIANTES = [
+      { id: "U-03", nombre: "Estudiante A", nota: 8.0, evolucion: "Progreso Positivo", estado: "Aceptable", dot: "green" },
+      { id: "U-04", nombre: "Estudiante B", nota: 8.5, evolucion: "Rendimiento Constante", estado: "Aceptable", dot: "green" },
+      { id: "U-05", nombre: "Estudiante C", nota: 3.5, evolucion: "Sugerencia de Apoyo", estado: "Crítico", dot: "red" },
+      { id: "U-06", nombre: "Estudiante D", nota: 4.5, evolucion: "Sugerencia de Apoyo", estado: "Crítico", dot: "red" },
+      { id: "U-07", nombre: "Estudiante E", nota: 7.6, evolucion: "Rendimiento Constante", estado: "Aceptable", dot: "green" },
+      { id: "U-08", nombre: "Estudiante F", nota: 6.2, evolucion: "Sugerencia de Apoyo", estado: "En Riesgo", dot: "orange" },
+      { id: "U-09", nombre: "Estudiante G", nota: 8.4, evolucion: "Progreso Positivo", estado: "Aceptable", dot: "green" }
     ];
 
-    function actualizarUIUsuario() {
-      document.getElementById('user-name').innerText = currentUser.nombres;
-      document.getElementById('user-email').innerText = currentUser.email;
-      const badge = document.getElementById('user-badge');
-      badge.innerText = currentUser.rol;
+    // 2. Estado de la sesión actual
+    let usuarioActivo = {
+      nombre: "Ing. Hernán Naranjo",
+      email: "docente@uta.edu.ec",
+      rol: "DOCENTE",
+      idNumber: "U-01"
+    };
+
+    // 3. Función para cambiar entre pantallas (Panel, Detalle, Alertas)
+    function irAPantalla(idPantalla) {
+      const pantallas = document.querySelectorAll('.screen');
+      const pestanas = document.querySelectorAll('.seg button');
+
+      pantallas.forEach(p => p.classList.toggle('on', p.id === idPantalla));
+      pestanas.forEach(b => b.setAttribute('aria-selected', String(b.dataset.go === idPantalla)));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 4. Renderizar la tabla de estudiantes
+    function cargarTablaEstudiantes() {
+      const tbody = document.getElementById('cuerpoTabla');
+      tbody.innerHTML = '';
+
+      ESTUDIANTES.forEach(est => {
+        const fila = document.createElement('tr');
+        fila.tabIndex = 0;
+        fila.onclick = () => mostrarDetalle(est.id);
+        fila.onkeydown = (e) => { if (e.key === 'Enter') mostrarDetalle(est.id); };
+
+        fila.innerHTML = `
+          <td class="name">${est.nombre}</td>
+          <td class="num">${est.nota.toFixed(1)}</td>
+          <td class="evo">${est.evolucion}</td>
+          <td><span class="status"><span class="dot ${est.dot}"></span>${est.estado}</span></td>
+        `;
+        tbody.appendChild(fila);
+      });
+    }
+
+    // 5. Mostrar la pantalla 2 con los datos del alumno seleccionado
+    function mostrarDetalle(idEstudiante) {
+      const est = ESTUDIANTES.find(e => e.id === idEstudiante) || ESTUDIANTES[2];
       
-      if (currentUser.rol === 'DOCENTE' || currentUser.rol === 'ADMIN') {
-        badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800';
-        document.getElementById('docente-nav').classList.remove('hidden');
-        document.getElementById('estudiante-nav').classList.add('hidden');
-        document.getElementById('view-estudiante-portal').classList.add('hidden');
-        switchView(1);
+      document.getElementById('detNombre').textContent = est.nombre;
+      document.getElementById('detId').textContent = est.id;
+      document.getElementById('detNota').textContent = est.nota.toFixed(1);
+
+      const statusEl = document.getElementById('detStatus');
+      statusEl.innerHTML = `<span class="dot ${est.dot}"></span>${est.estado}`;
+
+      irAPantalla('s2');
+    }
+
+    // 6. Preparar el formulario de refuerzo desde Alertas
+    function prepararRefuerzo(nombreEstudiante) {
+      document.getElementById('dest').value = `${nombreEstudiante} (${nombreEstudiante.toLowerCase().replace(' ', '')}@uta.edu.ec)`;
+      irAPantalla('s3');
+    }
+
+    // 7. Simular publicación de refuerzo en Moodle
+    function aprobarYPublicar() {
+      const btn = document.getElementById('btnPublish');
+      btn.textContent = '✓ Publicado en Moodle con éxito';
+      btn.classList.add('done');
+
+      setTimeout(() => {
+        btn.textContent = 'Aprobar y Publicar en Moodle';
+        btn.classList.remove('done');
+      }, 2500);
+    }
+
+    // 8. Control del Modal de Autenticación
+    function abrirModal() {
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+
+    function cerrarModal() {
+      document.getElementById('authModal').classList.add('hidden');
+    }
+
+    function cambiarPestanaModal(pestana) {
+      const esLogin = (pestana === 'login');
+      document.getElementById('formLogin').style.display = esLogin ? 'block' : 'none';
+      document.getElementById('formRegister').style.display = esLogin ? 'none' : 'block';
+      document.getElementById('tabLogin').classList.toggle('active', esLogin);
+      document.getElementById('tabRegister').classList.toggle('active', !esLogin);
+    }
+
+    function actualizarInterfazPorRol() {
+      document.getElementById('lblUsuario').textContent = usuarioActivo.nombre;
+      document.getElementById('lblRol').textContent = usuarioActivo.rol;
+
+      if (usuarioActivo.rol === 'DOCENTE') {
+        document.getElementById('navDocente').style.display = 'inline-flex';
+        document.getElementById('navEstudiante').style.display = 'none';
+        irAPantalla('s1');
       } else {
-        badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800';
-        document.getElementById('docente-nav').classList.add('hidden');
-        document.getElementById('estudiante-nav').classList.remove('hidden');
-        
-        // Ocultar vistas docentes y mostrar portal estudiante
-        [1, 2, 3].forEach(n => document.getElementById(`view-mockup-${n}`).classList.add('hidden'));
-        document.getElementById('view-estudiante-portal').classList.remove('hidden');
-        document.getElementById('portal-est-nombre').innerText = currentUser.nombres;
-        document.getElementById('portal-est-id').innerText = currentUser.id_number || 'U-05';
+        document.getElementById('navDocente').style.display = 'none';
+        document.getElementById('navEstudiante').style.display = 'inline-flex';
+        document.getElementById('estNombreBanner').textContent = usuarioActivo.nombre;
+        irAPantalla('s-estudiante');
       }
     }
 
-    function abrirModalAuth() {
-      document.getElementById('auth-modal').classList.remove('hidden');
-    }
-
-    function cerrarModalAuth() {
-      document.getElementById('auth-modal').classList.add('hidden');
-    }
-
-    function toggleAuthTab(tab) {
-      const isLogin = tab === 'login';
-      document.getElementById('form-login-container').classList.toggle('hidden', !isLogin);
-      document.getElementById('form-register-container').classList.toggle('hidden', isLogin);
-      
-      document.getElementById('tab-login').className = isLogin 
-        ? 'flex-1 py-1.5 rounded-md bg-blue-600 text-white transition' 
-        : 'flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition';
-        
-      document.getElementById('tab-register').className = !isLogin 
-        ? 'flex-1 py-1.5 rounded-md bg-emerald-600 text-white transition' 
-        : 'flex-1 py-1.5 rounded-md text-slate-400 hover:text-white transition';
-    }
-
-    function demoLogin(rol) {
-      if (rol === 'docente') {
-        currentUser = {
-          nombres: "Ing. Hernán Naranjo",
+    function accesoRapido(tipo) {
+      if (tipo === 'docente') {
+        usuarioActivo = {
+          nombre: "Ing. Hernán Naranjo",
           email: "docente@uta.edu.ec",
           rol: "DOCENTE",
-          id_number: "U-01"
+          idNumber: "U-01"
         };
       } else {
-        currentUser = {
-          nombres: "Estudiante C",
+        usuarioActivo = {
+          nombre: "Estudiante C",
           email: "estudiante.c@uta.edu.ec",
           rol: "ESTUDIANTE",
-          id_number: "U-05"
+          idNumber: "U-05"
         };
       }
-      cerrarModalAuth();
-      actualizarUIUsuario();
+      cerrarModal();
+      actualizarInterfazPorRol();
     }
 
-    async function ejecutarLogin() {
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
+    async function procesarLogin() {
+      const email = document.getElementById('txtEmail').value;
+      const pass = document.getElementById('txtPass').value;
 
       try {
-        const res = await fetch('http://localhost:8000/api/v1/auth/login', {
+        const respuesta = await fetch('http://localhost:8000/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email: email, password: pass })
         });
-        if (res.ok) {
-          const data = await res.json();
-          currentUser = {
-            nombres: data.user.nombres,
-            email: data.user.email,
-            rol: data.user.rol,
-            id_number: data.user.id_number,
-            token: data.access_token
+
+        if (respuesta.ok) {
+          const datos = await respuesta.json();
+          usuarioActivo = {
+            nombre: datos.user.nombres,
+            email: datos.user.email,
+            rol: datos.user.rol,
+            idNumber: datos.user.id_number
           };
-          alert(`¡Bienvenido ${currentUser.nombres}! Acceso autorizado como ${currentUser.rol}.`);
         } else {
-          // Fallback demo local si el server no está corriendo
-          demoLogin(email.includes('docente') ? 'docente' : 'estudiante');
+          accesoRapido(email.includes('estudiante') ? 'estudiante' : 'docente');
         }
-      } catch (err) {
-        demoLogin(email.includes('docente') ? 'docente' : 'estudiante');
+      } catch (e) {
+        accesoRapido(email.includes('estudiante') ? 'estudiante' : 'docente');
       }
-      cerrarModalAuth();
-      actualizarUIUsuario();
+
+      cerrarModal();
+      actualizarInterfazPorRol();
     }
 
-    async function ejecutarRegistro() {
-      const nombres = document.getElementById('reg-nombre').value;
-      const email = document.getElementById('reg-email').value;
-      const rol = document.getElementById('reg-rol').value;
-      const id_number = document.getElementById('reg-id').value;
-      const password = document.getElementById('reg-password').value;
+    async function procesarRegistro() {
+      const nombre = document.getElementById('regNombre').value;
+      const email = document.getElementById('regEmail').value;
+      const rol = document.getElementById('regRol').value;
+      const pass = document.getElementById('regPass').value;
 
-      if (!nombres || !email || !password) {
-        alert('Por favor complete todos los campos obligatorios.');
+      if (!nombre || !email || !pass) {
+        alert('Por favor, completa los campos requeridos.');
         return;
       }
 
-      try {
-        const res = await fetch('http://localhost:8000/api/v1/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombres, email, rol, id_number, password })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          currentUser = {
-            nombres: data.user.nombres,
-            email: data.user.email,
-            rol: data.user.rol,
-            id_number: data.user.id_number,
-            token: data.access_token
-          };
-          alert(`Cuenta creada exitosamente para ${currentUser.nombres} con rol ${currentUser.rol}.`);
-        } else {
-          currentUser = { nombres, email, rol, id_number: id_number || 'U-10' };
-          alert(`Cuenta creada localmente para ${nombres} con rol ${rol}.`);
-        }
-      } catch (err) {
-        currentUser = { nombres, email, rol, id_number: id_number || 'U-10' };
-        alert(`Cuenta creada localmente para ${nombres} con rol ${rol}.`);
-      }
-      cerrarModalAuth();
-      actualizarUIUsuario();
+      usuarioActivo = { nombre, email, rol, idNumber: "U-10" };
+      cerrarModal();
+      actualizarInterfazPorRol();
     }
 
-    function renderTablaEstudiantes() {
-      const tbody = document.getElementById('tabla-estudiantes');
-      tbody.innerHTML = '';
-      ESTUDIANTES_DATA.forEach(est => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50/80 transition';
-        tr.innerHTML = `
-          <td class="px-6 py-4 font-medium text-slate-900">${est.nombre} <span class="text-xs text-slate-400 font-normal">(${est.id})</span></td>
-          <td class="px-6 py-4">${est.auto.toFixed(1)}</td>
-          <td class="px-6 py-4">${est.tar.toFixed(1)}</td>
-          <td class="px-6 py-4">${est.pae.toFixed(1)}</td>
-          <td class="px-6 py-4 font-bold ${est.final < 5.0 ? 'text-red-600' : (est.final < 7.0 ? 'text-amber-600' : 'text-slate-800')}">${est.final.toFixed(1)}</td>
-          <td class="px-6 py-4">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${est.badge}">
-              ${est.estado}
-            </span>
-          </td>
-          <td class="px-6 py-4 text-right">
-            <button onclick="switchView(2, '${est.id}')" class="text-xs font-semibold text-blue-600 hover:text-blue-800">
-              Detalle
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function switchView(viewNumber, studentId = 'U-05') {
-      [1, 2, 3].forEach(n => {
-        document.getElementById(`view-mockup-${n}`).classList.add('hidden');
-        const btn = document.getElementById(`nav-btn-${n}`);
-        if (btn) {
-          btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-          btn.classList.add('text-slate-600');
-        }
-      });
-
-      document.getElementById(`view-mockup-${viewNumber}`).classList.remove('hidden');
-      const activeBtn = document.getElementById(`nav-btn-${viewNumber}`);
-      if (activeBtn) {
-        activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-        activeBtn.classList.remove('text-slate-600');
-      }
-
-      if (viewNumber === 2) {
-        cargarDetalleEstudiante(studentId);
-      }
-    }
-
-    function cargarDetalleEstudiante(id) {
-      const est = ESTUDIANTES_DATA.find(e => e.id === id) || ESTUDIANTES_DATA[2];
-      document.getElementById('det-nombre').innerText = est.nombre;
-      document.getElementById('det-id').innerText = est.id;
-      document.getElementById('det-nota-final').innerText = `${est.final.toFixed(1)} / 10`;
-      
-      const badge = document.getElementById('det-badge-estado');
-      badge.className = `text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${est.badge}`;
-      badge.innerText = est.final < 5.0 ? 'ESTADO CRÍTICO' : (est.final < 7.0 ? 'EN RIESGO' : 'ACEPTABLE');
-      
-      document.getElementById('det-probabilidad').innerText = est.final < 5.0 ? '22%' : (est.final < 7.0 ? '62%' : '92%');
-    }
-
-    function cargarRefuerzoEstudiante(id) {
-      switchView(3);
-      if (id === 'U-06') {
-        document.getElementById('ref-destinatario').value = 'Estudiante D (ed****@uta.edu.ec)';
-        document.getElementById('ref-titulo').value = 'Taller Nivelatorio de Fundamentos y Criterios Gherkin (Unidad 1)';
-        document.getElementById('ref-instrucciones').value = 'Completar los ejercicios de descomposición de historias y pruebas de aceptación de la Unidad 1.';
+    function cambiarMateria(codigo) {
+      if (codigo === 'MAT2') {
+        document.getElementById('lblTituloCurso').textContent = 'Ingeniería de Software';
+        document.getElementById('lblSubtituloCurso').textContent = '7 estudiantes matriculados • Ciclo 2026-B (Parcial 1)';
       } else {
-        document.getElementById('ref-destinatario').value = 'Estudiante C (ec****@uta.edu.ec)';
-        document.getElementById('ref-titulo').value = 'Refuerzo Práctico: Guiado de Diagramación (Unidad 2)';
-        document.getElementById('ref-instrucciones').value = 'Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF. Esta tarea otorgará puntos extra en el trabajo autónomo del Parcial 1.';
+        document.getElementById('lblTituloCurso').textContent = 'Metodologías Ágiles';
+        document.getElementById('lblSubtituloCurso').textContent = '7 estudiantes matriculados • Ciclo 2026-B (Parcial 1)';
       }
     }
 
-    async function syncMoodle() {
-      const btn = document.getElementById('sync-btn');
-      btn.innerText = 'Sincronizando...';
-      try {
-        const res = await fetch('http://localhost:8000/api/v1/sync/moodle', { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          alert(`Sincronización exitosa con Moodle: ${data.duracion_ms} ms (${data.registros_extraidos} notas).`);
-        } else {
-          alert('Sincronización simulada completada exitosamente.');
-        }
-      } catch (e) {
-        alert('Sincronización simulada completada (Modo desacoplado Sprint 1).');
-      } finally {
-        btn.innerHTML = `<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> <span class="hidden md:inline">Sincronizar Moodle</span>`;
+    // 9. Delegación de eventos de clics de navegación
+    document.addEventListener('click', function(e) {
+      const btnTab = e.target.closest('[data-go]');
+      if (btnTab) {
+        irAPantalla(btnTab.dataset.go);
       }
-    }
+    });
 
-    function aprobarYPublicar() {
-      const btn = document.getElementById('btn-publicar');
-      btn.innerText = 'Publicando en Moodle...';
-      btn.disabled = true;
-      setTimeout(() => {
-        alert('¡Tarea de refuerzo aprobada por el docente y publicada exitosamente en Moodle!');
-        btn.innerHTML = `✓ Publicada en Moodle`;
-        btn.classList.remove('bg-slate-900');
-        btn.classList.add('bg-emerald-600');
-      }, 1000);
-    }
-
-    // Inicializar al cargar
-    renderTablaEstudiantes();
-    actualizarUIUsuario();
+    // Inicializar al cargar la página
+    cargarTablaEstudiantes();
   </script>
 </body>
 </html>
