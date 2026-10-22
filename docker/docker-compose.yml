@@ -1,0 +1,145 @@
+# Definición modular de compose en /docker referenciando la raíz del proyecto
+networks:
+  moodle-net:
+    driver: bridge
+
+volumes:
+  moodle_data:
+    driver: local
+  moodle_db_data:
+    driver: local
+  analytics_pgdata:
+    driver: local
+  sqlserver_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+services:
+  moodle-db:
+    image: bitnami/mariadb:11.2
+    container_name: moodle_mariadb
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=moodle_root_secret
+      - MARIADB_USER=bn_moodle
+      - MARIADB_PASSWORD=moodle_db_pass_2026
+      - MARIADB_DATABASE=bitnami_moodle
+    volumes:
+      - moodle_db_data:/bitnami/mariadb
+    networks:
+      - moodle-net
+
+  moodle:
+    image: bitnami/moodle:4.3
+    container_name: moodle_lms
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - MOODLE_DATABASE_HOST=moodle-db
+      - MOODLE_DATABASE_USER=bn_moodle
+      - MOODLE_DATABASE_PASSWORD=moodle_db_pass_2026
+      - MOODLE_DATABASE_NAME=bitnami_moodle
+      - MOODLE_USERNAME=admin
+      - MOODLE_PASSWORD=MoodleAdmin2026!
+      - MOODLE_EMAIL=admin@uta.edu.ec
+      - MOODLE_ENABLE_ENROL_WEBSERVICE=yes
+    volumes:
+      - moodle_data:/bitnami/moodle
+    depends_on:
+      - moodle-db
+    networks:
+      - moodle-net
+
+  analytics-db:
+    image: postgres:15-alpine
+    container_name: moodle_analytics_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=moodle_analytics
+      - POSTGRES_USER=analytics_user
+      - POSTGRES_PASSWORD=analytics_password_secret123
+    volumes:
+      - analytics_pgdata:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - moodle-net
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: moodle_sqlserver
+    restart: unless-stopped
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PID=Developer
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - moodle-net
+
+  middleware:
+    build:
+      context: ../middleware
+      dockerfile: Dockerfile
+    container_name: moodle_middleware
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://analytics_user:analytics_password_secret123@analytics-db:5432/moodle_analytics
+      - MOODLE_URL=http://moodle:8080
+      - MOODLE_WS_TOKEN=ws_mock_token_uta_fisei_sprint1
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - analytics-db
+      - moodle
+    networks:
+      - moodle-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: moodle_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - moodle-net
+
+  agent:
+    build:
+      context: ../agent
+      dockerfile: Dockerfile
+    container_name: moodle_agent_service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:1b
+      - AGENT_INFERENCE_TIMEOUT_SECONDS=10
+    depends_on:
+      - ollama
+    networks:
+      - moodle-net
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: moodle_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - middleware
+    networks:
+      - moodle-net
