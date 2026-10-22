@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moodle-analytics-middleware"
+version = "0.1.0"
+description = "Middleware FastAPI para sincronización de Moodle con Capa Inteligente (FISEI - UTA)"
+authors = [
+    {name = "Justin Ojeda", email = "jojeda2222@uta.edu.ec"},
+    {name = "Johan Borja", email = "jborja@uta.edu.ec"},
+    {name = "Alvaro Moreta", email = "amoreta@uta.edu.ec"},
+    {name = "Alan Zamora", email = "azamora@uta.edu.ec"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "httpx>=0.27.0",
+    "sqlalchemy>=2.0.28"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
