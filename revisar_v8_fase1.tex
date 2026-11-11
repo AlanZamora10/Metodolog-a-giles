@@ -1,0 +1,1584 @@
+﻿% =====================================================================
+% EduMonitor AI - DOCUMENTO DE PLANIFICACIÓN E INFORME TÉCNICO - SPRINT 2
+% Compilar en Overleaf con pdfLaTeX (compilar 2 veces para el índice).
+% Versión 7: GRUPO 4; CHECK de Alerta con 5 estados; RN-06, RN-08 y RN-14
+% corregidas (SIN_ENTREGA = 0.0, redistribución de pesos, cierre de
+% alertas por PATCH); capacidad con desglose de reserva y de Review/Retro;
+% CP-06 con 4 sub-casos y verificación de ejecución; acta de compromiso
+% limpia. 19 secciones formales. Un solo índice. Sin bloques de código.
+% Imágenes esperadas en la raíz del proyecto (si faltan, se muestra un
+% recuadro de aviso y NO se genera error):
+%   logo_uta.png
+%   diagrama_despliegue.png, diagrama_er_moodleutadb.png,
+%   diagrama_secuencia_agente.png, diagrama_casos_uso.png
+%   mockup1_panel_general.png, mockup2_ficha_estudiante.png,
+%   mockup3_centro_alertas.png   (mockups diseñados en Figma)
+%   evidencia_categorias_moodle.png, evidencia_libro_calificaciones.png,
+%   evidencia_web_services.png, evidencia_docker_compose_ps.png,
+%   evidencia_dashboard_react.png
+% ENLACES: Figma  https://www.figma.com/design/EduMonitorAI-Design/EduMonitorAI-Mockups
+%          GitHub https://github.com/EduMonitorAI-UTA/EduMonitorAI
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{courier}
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage[top=3.6cm,bottom=2.5cm,left=2.5cm,right=2.5cm,headheight=15pt,headsep=0.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{amssymb}
+
+\usepackage{xurl}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=black,citecolor=black,
+  filecolor=black,anchorcolor=black,bookmarksnumbered=true,unicode=true,
+  pdftitle={EduMonitor AI - Documento de Planificación e Informe Técnico - Sprint 2},
+  pdfauthor={Borja, Moreta, Ojeda, Zamora},
+  pdfsubject={Metodologías Ágiles - UTA - FISEI}}
+
+\addto\captionsspanish{%
+  \renewcommand{\contentsname}{Índice}}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{3em}
+\sloppy
+\renewcommand{\arraystretch}{1.15}
+\setlist{itemsep=2pt,topsep=2pt}
+\setcounter{tocdepth}{3}
+\captionsetup{font=small,labelfont=bf}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{EduMonitor AI - Planificación e Informe Técnico Sprint 2}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{}
+\renewcommand{\headrulewidth}{0.8pt}
+
+% ---------- Macros ----------
+\newcommand{\hd}[1]{\textbf{#1}}
+% Texto técnico monoespaciado con salto de línea automático: permite cortar
+% después de _ / . : = , - y respeta espacios. Funciona dentro de tablas
+% (columnas p, R, X, Y) y como argumento de otras macros.
+\ExplSyntaxOn
+\NewDocumentCommand{\cd}{m}
+ {%
+  \texttt{%
+   \str_map_inline:nn {#1}
+    {%
+     \str_if_eq:nnTF {##1} { ~ } { \space } { ##1 }%
+     \str_if_in:nnT { _/.:=,- } {##1} { \allowbreak }%
+    }%
+  }%
+ }
+\ExplSyntaxOff
+% Columnas flexibles con ajuste de línea (sin justificar) para texto técnico
+\newcolumntype{R}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\safeimg}[2]{%
+  \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
+    \fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering\small
+      \textbf{Imagen pendiente de carga:}\\[2pt]\texttt{\detokenize{#2}}\\[2pt]
+      Suba el archivo al proyecto de Overleaf con este nombre exacto.}}}}
+
+% Fila de tarea de ingeniería: código, nombre, descripción, fechas, horas, responsable
+\newcommand{\tarea}[6]{#1 & \textbf{#2}\newline #3 & #4 & #5 & #6 \\ \hline}
+
+% Ficha de datos generales de una HU
+\newcommand{\fichahu}[7]{%
+\begin{longtable}{|>{\bfseries\raggedright\arraybackslash}p{4.0cm}|R{10.8cm}|}
+\caption{Ficha de #1: datos generales}\\
+\hline \hd{Campo} & \hd{Detalle}\\ \hline \endfirsthead
+\hline \hd{Campo} & \hd{Detalle}\\ \hline \endhead
+Historia de Usuario & #1\\ \hline
+Usuario & #2\\ \hline
+Nombre de la historia & #3\\ \hline
+Prioridad en negocio & #4\\ \hline
+Riesgo en desarrollo & #5\\ \hline
+Puntos estimados & #6\\ \hline
+Iteración asignada & Sprint 2 (05/11/2026 al 12/11/2026)\\ \hline
+Programador responsable & #7\\ \hline
+\end{longtable}}
+
+% Ficha de criterios de las 3 Cs
+\newcommand{\tresc}[5]{%
+\begin{longtable}{|>{\bfseries\raggedright\arraybackslash}p{3.4cm}|R{11.4cm}|}
+\caption{Ficha de #1: criterios de las 3 Cs}\\
+\hline \hd{Sección} & \hd{Descripción}\\ \hline \endfirsthead
+\hline \hd{Sección} & \hd{Descripción}\\ \hline \endhead
+Tarjeta (Card) & #2\\ \hline
+Confirmación (Confirmation) -- Escenario 1 & #3\\ \hline
+Confirmación (Confirmation) -- Escenario 2 & #4\\ \hline
+Conversación (Conversation) & #5\\ \hline
+\end{longtable}}
+
+% Tabla de DoD
+\newcommand{\dodtabla}[2]{%
+\begin{longtable}{|R{1.7cm}|R{7.0cm}|R{5.5cm}|}
+\caption{#1}\\
+\hline \hd{ID} & \hd{Criterio de hecho} & \hd{Verificación}\\ \hline \endfirsthead
+\hline \hd{ID} & \hd{Criterio de hecho} & \hd{Verificación}\\ \hline \endhead
+#2
+\end{longtable}}
+
+\begin{document}
+
+% =====================================================================
+% PORTADA
+% =====================================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+{\bfseries UNIVERSIDAD TÉCNICA DE AMBATO\par}
+\vspace{0.3cm}
+{\bfseries Facultad de Ingeniería en Sistemas, Electrónica e Industrial\par}
+\vspace{0.3cm}
+{\bfseries Carrera de Ingeniería en Software\par}
+\vspace{0.3cm}
+{\bfseries Ciclo académico: Julio -- Diciembre 2026\par}
+\vspace{0.2cm}
+\begin{figure}[H]
+\centering
+\safeimg{width=0.35\textwidth}{logo_uta.png}
+\end{figure}
+\vspace{0.1cm}
+{\bfseries GRUPO 4\par}
+\vspace{0.3cm}
+{\bfseries PROYECTO INTEGRADOR ÁGIL EduMonitor AI: Sistema Inteligente de Seguimiento y Análisis del Rendimiento Académico Integrado con Moodle\par}
+\vspace{0.5cm}
+{\bfseries DOCUMENTO DE PLANIFICACIÓN E INFORME TÉCNICO - SPRINT 2 (Replicación Moodle UTA, Agente IA Local, API REST y Setup Funcional)\par}
+\vspace{0.6cm}
+{\bfseries Integrantes:\par}
+Johan Josue Borja Guapulema\par
+Alvaro Matheo Moreta Viracocha\par
+Justin Danilo Ojeda Ramirez\par
+Alan Santiago Zamora Arroba\par
+\vspace{0.4cm}
+{\bfseries Docente:\par}
+Ing. Hernán Naranjo, Mg.\par
+\vspace{0.4cm}
+{\bfseries Asignatura:\par}
+Metodologías Ágiles\par
+\vspace{0.4cm}
+{\bfseries Período del Sprint 2:\par}
+Del 05 de noviembre de 2026 al 12 de noviembre de 2026\par
+\vspace{0.4cm}
+{\bfseries Fecha de Entrega:\par}
+Jueves, 12 de noviembre de 2026\par
+\vspace{0.3cm}
+{\bfseries AMBATO\par}
+\end{titlepage}
+
+% =====================================================================
+% ÍNDICE ÚNICO
+% =====================================================================
+\pagenumbering{roman}
+\clearpage
+\phantomsection
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% =====================================================================
+% 1. INTRODUCCIÓN
+% =====================================================================
+\section{INTRODUCCIÓN}
+
+\subsection{Contexto}
+EduMonitor AI es una plataforma web de analítica académica independiente de Moodle, diseñada para el \textbf{portafolio de un docente}. Obtiene los datos de los cursos asignados al profesor mediante los Web Services oficiales de Moodle, calcula indicadores deterministas de rendimiento y emplea un agente de inteligencia artificial local para interpretar los resultados y proponer estrategias pedagógicas. El sistema no modifica calificaciones ni reemplaza el criterio de evaluación del docente: toda recomendación es orientativa.
+
+En la FISEI-UTA un docente no atiende una sola asignatura: imparte varias, en distintos niveles y paralelos, y cada una tiene su propio grupo, sus propias unidades y sus propios subtemas. En el Moodle institucional (\url{https://sistemaseducaciononline.uta.edu.ec}) el promedio general de cada aula enmascara situaciones individuales críticas: un paralelo puede mostrar un promedio aceptable mientras varios estudiantes registran notas reprobatorias en unidades concretas. El docente debe abrir cada aula, revisar el libro de calificaciones y comparar a mano, lo que resulta lento y propenso a omisiones.
+
+El Sprint 1 (26 al 29 de octubre de 2026) entregó la planificación, los requisitos, los mockups de alta fidelidad diseñados en Figma y un entorno de laboratorio. Para el Sprint 2 se toma como caso de referencia el portafolio de un docente de la carrera de Software con cuatro asignaturas heterogéneas:
+
+\begin{table}[H]
+\centering\small
+\caption{Portafolio docente de referencia replicado en el Sprint 2}
+\begin{tabularx}{\textwidth}{|c|Y|c|c|}
+\hline
+\hd{N.º} & \hd{Nombre del curso en Moodle} & \hd{Nivel} & \hd{Paralelo}\\ \hline
+1 & (SOF) PROGRAMACION ORIENTADA A OBJETOS - A & 2.º & A\\ \hline
+2 & (SOF) ESTRUCTURA DE DATOS - B & 3.º & B\\ \hline
+3 & (SOF) METODOLOGIAS AGILES - B & 4.º & B\\ \hline
+4 & (SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A & 4.º & A\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Justificación académica del seguimiento individual.} Este conjunto heterogéneo justifica el proyecto por cuatro motivos:
+\begin{enumerate}
+  \item \textbf{Un solo punto de vista para varias aulas.} El docente ve desde un listado único el estado de sus cuatro cursos y pasa de uno a otro sin reconstruir la información en cada aula virtual.
+  \item \textbf{Seguimiento individual dentro de cada grupo.} Los niveles (2.º, 3.º y 4.º) y los paralelos (A y B) producen grupos con ritmos distintos; solo el seguimiento por estudiante revela quién está en riesgo aunque el promedio de su aula sea aceptable.
+  \item \textbf{Ponderación común 40/30/30.} El docente aplica en todas sus asignaturas la misma estructura de evaluación por unidad (ACD 40\%, Tareas 30\% y PAE 30\%). Esto permite calcular los indicadores con reglas únicas y comparables, mientras que los \emph{subtemas} evaluados cambian por asignatura, de modo que el agente de IA puede recomendar refuerzos específicos de cada materia.
+  \item \textbf{Intervención oportuna.} Las alertas R1 (nota crítica) y R2 (descenso) permiten actuar antes de que termine el parcial, con una tarea de refuerzo que el docente revisa y publica.
+\end{enumerate}
+\textbf{Simplificación de laboratorio.} Para validar con un único conjunto de datos, los mismos siete alias ficticios (Estudiante A a G) se matriculan en los cuatro cursos. En un despliegue real cada curso tiene su propia nómina; el modelo de datos ya lo soporta mediante la tabla \texttt{Matricula}.
+
+\subsection{Naturaleza del Sprint 2}
+El Sprint 2 es un Sprint de \textbf{planificación y ejecución}: además de planificar el trabajo, transforma el entorno de laboratorio del Sprint 1 en un sistema funcional de extremo a extremo. El código fuente reside en el repositorio de GitHub; este documento contiene la planificación, los diseños, las reglas, las pruebas y el informe técnico, sin bloques de código. Su incremento es una réplica de la estructura del Moodle FISEI-UTA, una API con autenticación y trazabilidad, una base de datos con indicadores deterministas, un frontend React y un agente de IA local con degradación controlada.
+
+\begin{table}[H]
+\centering\small
+\caption{Comparativa Sprint 1 frente a Sprint 2}
+\begin{tabularx}{\textwidth}{|R{3.0cm}|Y|Y|}
+\hline
+\hd{Aspecto} & \hd{Sprint 1 (26--29/10/2026)} & \hd{Sprint 2 (05--12/11/2026)}\\ \hline
+Moodle & Contenedor de laboratorio con 2 materias genéricas. & Réplica 1:1 de la estructura del Moodle FISEI-UTA con las 4 asignaturas del portafolio docente (niveles 2.º a 4.º), categorías, pestañas y ponderaciones.\\ \hline
+Web Services & Funciones listadas en la planificación. & Servicio externo creado y activado, token de alcance limitado, 5 funciones de lectura y una función de creación de tareas.\\ \hline
+Backend & ASP.NET Core o FastAPI (por definir). & FastAPI definitivo en el puerto 8000, con documentación OpenAPI.\\ \hline
+Base de datos & Modelo relacional genérico. & \cd{MoodleUTADB} con DDL idempotente, vistas de indicadores, alertas con ciclo de vida y auditoría.\\ \hline
+Frontend & Mockups de alta fidelidad en Figma. & React en el puerto 3000 que implementa los tres mockups.\\ \hline
+Agente de IA & Setup base y tarea de configuración. & Agente integrado: diagnóstico por subtemas, borrador estructurado, timeout de 10 s y fallback a plantilla.\\ \hline
+Reglas de alerta & Regla combinada: nota $<5.0$ \textbf{y} descenso. & Reglas independientes R1 (nota crítica) y R2 (descenso entre unidades) persistidas en la tabla \texttt{Alerta}.\\ \hline
+Nota del estudiante & Ponderación 40/30/30 sin unificar con el promedio por unidad. & Nota de unidad ponderada 40/30/30; nota del estudiante = promedio de las unidades evaluadas (U1 = 2.0 y U2 = 5.0 producen 3.5).\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Alcance del Sprint 2}
+\textbf{Incluye:}
+\begin{itemize}
+  \item Replicación 1:1 de la estructura funcional y visual del Moodle FISEI-UTA, desplegada con Docker Compose y con datos ficticios.
+  \item Activación de Web Services REST y token de alcance limitado para el servicio de integración.
+  \item Backend FastAPI con autenticación JWT, sincronización idempotente, dashboard, seguimiento individual, alertas (incluido su cierre) y publicación de refuerzos.
+  \item Base de datos SQL Server \cd{MoodleUTADB} con tablas, vistas de indicadores y auditoría.
+  \item Frontend React que implementa los Mockups 1, 2 y 3.
+  \item Agente de IA local (Ollama con \texttt{llama3.2:1b} y LangGraph) con timeout de 10 segundos y fallback automático a plantillas.
+  \item Reglas de negocio, plan de pruebas funcionales con matriz de trazabilidad y Definición de Terminado.
+\end{itemize}
+\textbf{No incluye:} modificación automática de notas, diagnósticos clínicos o psicológicos, envío masivo de correos, entrenamiento de modelos propios, arquitecturas multiagente, uso de datos reales de estudiantes y planificación de otros Sprints.
+
+\subsection{Objetivos}
+\textbf{Objetivo general del proyecto:} desarrollar un sistema basado en servicios, integrado con Moodle, que permita al docente consultar indicadores del rendimiento académico, detectar tempranamente dificultades y recibir recomendaciones pedagógicas generadas por un agente de inteligencia artificial.
+
+\textbf{Objetivos específicos del Sprint 2:}
+\begin{enumerate}
+  \item Replicar en Docker la estructura del Moodle FISEI-UTA con el portafolio de cuatro asignaturas.
+  \item Implementar la autenticación del docente y la restricción a sus cursos autorizados.
+  \item Sincronizar de forma idempotente estudiantes, ítems y notas desde Moodle hacia \cd{MoodleUTADB}.
+  \item Mostrar el panel grupal y la ficha individual con indicadores calculados de forma reproducible.
+  \item Generar alertas R1 y R2 con evidencia, permitir su cierre y la publicación, con confirmación del docente, de una tarea de refuerzo redactada por el agente local.
+  \item Verificar los criterios CA-01 a CA-10 mediante el plan de pruebas y presentarlo el 12/11/2026.
+\end{enumerate}
+
+\subsection{Marco de referencia}
+No se identifica normativa externa específica aplicable a EduMonitor AI. Se aplican los requerimientos no funcionales de seguridad (RNF-01) y privacidad (RNF-02), que condicionan especialmente el diseño del agente de IA: control de acceso por curso, mínimo privilegio, datos mínimos y prohibición de enviar información identificable a servicios externos sin autorización. El proyecto sigue Scrum y redacta las historias con el modelo de las 3 Cs (Card, Conversation, Confirmation).
+
+\begin{table}[H]
+\centering\small
+\caption{Referencias técnicas y metodológicas del proyecto}
+\begin{tabularx}{\textwidth}{|R{4.0cm}|R{3.2cm}|Y|}
+\hline
+\hd{Referencia} & \hd{Uso} & \hd{Enlace}\\ \hline
+Moodle: Using web services (4.5) & Integración REST & \url{https://docs.moodle.org/405/en/Using_web_services}\\ \hline
+Moodle: External functions API (4.5) & Plugin \cd{local_edumonitor} & \url{https://moodledev.io/docs/4.5/apis/subsystems/external}\\ \hline
+FastAPI & Backend & \url{https://fastapi.tiangolo.com}\\ \hline
+LangGraph & Grafo del agente & \url{https://langchain-ai.github.io/langgraph/}\\ \hline
+Ollama y Llama 3.2 (1B) & Modelo local & \url{https://ollama.com}\\ \hline
+Docker Compose & Orquestación & \url{https://docs.docker.com/compose/}\\ \hline
+SQL Server & Persistencia & \url{https://learn.microsoft.com/sql/}\\ \hline
+RFC 7519: JSON Web Token & Autenticación & \url{https://www.rfc-editor.org/rfc/rfc7519}\\ \hline
+The Scrum Guide (2020) & Metodología & \url{https://scrumguides.org}\\ \hline
+Jeffries (2001) y Cohn (2004) & Modelo de las 3 Cs & Essential XP: Card, Conversation, Confirmation; User Stories Applied.\\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 2. DATOS GENERALES
+% =====================================================================
+\section{DATOS GENERALES DE LA PLANIFICACIÓN}
+
+\begin{table}[H]
+\centering\small
+\caption{Datos generales de la planificación del Sprint 2}
+\begin{tabularx}{\textwidth}{|R{4.4cm}|Y|}
+\hline
+\hd{Elemento} & \hd{Información}\\ \hline
+Proyecto & EduMonitor AI\\ \hline
+Grupo & GRUPO 4\\ \hline
+Sprint & Sprint 2 (replicación Moodle UTA, agente IA local, API REST y setup funcional)\\ \hline
+Fecha de inicio & 05/11/2026\\ \hline
+Fecha de entrega y presentación & 12/11/2026\\ \hline
+Días hábiles considerados & 05, 06, 09, 10, 11 y 12 de noviembre de 2026 (6 días)\\ \hline
+Reunión de planificación & 05/11/2026 (duración supuesta: 3 horas, 180 minutos)\\ \hline
+Product Owner & Ing. Hernán Naranjo, Mg.\\ \hline
+Equipo de desarrollo & Cuatro integrantes\\ \hline
+Metodología & Scrum\\ \hline
+Arquitectura & Servicios desplegados con Docker Compose (frontend, backend, agente de IA, modelo local, SQL Server y réplica de Moodle)\\ \hline
+Repositorio (GitHub) & \url{https://github.com/EduMonitorAI-UTA/EduMonitorAI}\\ \hline
+Diseño (Figma) & \url{https://www.figma.com/design/EduMonitorAI-Design/EduMonitorAI-Mockups}\\ \hline
+Carpeta de evidencias & \url{https://drive.google.com/drive/folders/1kiMKmSR3RO6mQvUgQpiXzyzonGr7WOmG?usp=drive_link}\\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 3. PARTICIPANTES
+% =====================================================================
+\section{PARTICIPANTES DE LA REUNIÓN}
+
+\begin{table}[H]
+\centering\small
+\caption{Participantes de la reunión de planificación}
+\begin{tabularx}{\textwidth}{|c|R{3.6cm}|R{3.0cm}|Y|}
+\hline
+\hd{N.º} & \hd{Nombre completo} & \hd{Participación} & \hd{Responsabilidad}\\ \hline
+1 & Ing. Hernán Naranjo, Mg. & Product Owner & Priorizar el Product Backlog, aclarar requerimientos y validar el alcance, los criterios y los entregables del Sprint.\\ \hline
+2 & Alvaro Matheo Moreta Viracocha & Equipo de desarrollo (Proxy-PO / Frontend Lead) & Liderar el frontend React, el calco visual y los Mockups 1 a 3; servir de enlace con el Product Owner; estimar y comprometerse con el alcance.\\ \hline
+3 & Justin Danilo Ojeda Ramirez & Equipo de desarrollo & Backend FastAPI, cliente Moodle, sincronización y Docker Compose; estimar y comprometerse con el alcance.\\ \hline
+4 & Johan Josue Borja Guapulema & Equipo de desarrollo & Base de datos SQL Server, vistas de indicadores y analítica; estimar y comprometerse con el alcance.\\ \hline
+5 & Alan Santiago Zamora Arroba & Equipo de desarrollo (Scrum Master) & Agente de IA, calidad y pruebas (QA); facilitar las ceremonias, estimar y comprometerse con el alcance.\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Aclaración sobre los roles.} La Guía de Scrum define únicamente tres responsabilidades: Product Owner, Scrum Master y Developers. En este equipo, \emph{Proxy-PO / Frontend Lead} no es un cuarto rol de Scrum, sino una función de enlace dentro del equipo de desarrollo: Alvaro Moreta lidera técnicamente el frontend y transmite al Product Owner las dudas de interfaz y de experiencia de usuario, pero no prioriza el Product Backlog ni sustituye al Ing. Hernán Naranjo, quien conserva la decisión final sobre el alcance. Alan Zamora ejerce de Scrum Master y, además, desarrolla tareas como cualquier integrante.
+
+% =====================================================================
+% 4. AGENDA
+% =====================================================================
+\section{AGENDA DE LA REUNIÓN DE PLANIFICACIÓN}
+
+\begin{table}[H]
+\centering\small
+\caption{Agenda de la reunión de planificación (180 minutos)}
+\begin{tabularx}{\textwidth}{|c|R{3.4cm}|Y|R{1.6cm}|R{2.2cm}|}
+\hline
+\hd{N.º} & \hd{Actividad} & \hd{Descripción} & \hd{Duración (min)} & \hd{Responsable}\\ \hline
+1 & Revisión del Product Backlog & Revisión del avance del Sprint 1 y de los requerimientos RF-01 a RF-12 pendientes. & 20 & Product Owner\\ \hline
+2 & Priorización y selección & Selección de los requerimientos a implementar (HU-01 a HU-05). & 25 & Product Owner y equipo\\ \hline
+3 & Definición del objetivo del Sprint & Acuerdo del objetivo verificable del incremento funcional. & 15 & Product Owner y equipo\\ \hline
+4 & Definición de entregables e Historias de Usuario & Historias, réplica Moodle, API, base de datos, frontend, agente de IA y mockups que se entregarán. & 30 & Equipo de desarrollo\\ \hline
+5 & Criterios de aceptación y pruebas funcionales & Qué evaluará cada criterio (CA-01 a CA-10) y cómo se probará. & 30 & Equipo y Product Owner\\ \hline
+6 & Estimación del esfuerzo & Estimación relativa en puntos de historia. & 20 & Equipo de desarrollo\\ \hline
+7 & Descomposición en tareas y distribución & Tareas T2-xx, responsables, colaboradores y horas. & 25 & Equipo de desarrollo\\ \hline
+8 & Consolidación del Sprint Backlog y compromiso & Tablero Scrum y compromiso del equipo. & 15 & Equipo y Product Owner\\ \hline
+ & \textbf{Total} & & \textbf{180} & \\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 5. OBJETIVO DEL SPRINT
+% =====================================================================
+\section{OBJETIVO DEL SPRINT 2}
+
+\textbf{Objetivo del Sprint 2:} entregar, el 12/11/2026, un incremento funcional ejecutable con un solo comando de orquestación que permita a un docente autenticarse, ver solo los cursos de su portafolio, sincronizarlos desde una \textbf{réplica de Moodle} de la FISEI-UTA (4 asignaturas, ponderación 40/30/30), visualizar el panel grupal y la ficha individual calculados por una \textbf{API FastAPI} sobre \textbf{SQL Server} (\cd{MoodleUTADB}), recibir alertas explicables R1 y R2 y aprobar la publicación de una tarea de refuerzo redactada por un \textbf{agente de IA local} (Ollama con \texttt{llama3.2:1b} y LangGraph, con timeout de 10 segundos y fallback a plantilla).
+
+\textbf{Verificación:} el objetivo se cumple cuando (1) los criterios CA-01 a CA-10 se verifican con los casos de prueba CP-01 a CP-19 (CP-06 desglosado en cuatro sub-casos), ejecutados en entorno Docker con resultado \texttt{PASSED}; (2) el dashboard del curso de referencia muestra promedio 6.40 con 2 críticos, 1 en riesgo y 4 aceptables; (3) la ficha del Estudiante C muestra 3.5 / 10; (4) la sincronización genera las alertas esperadas y una alerta recorre el ciclo ABIERTA $\rightarrow$ ATENDIDA $\rightarrow$ PUBLICADO o EXPORTADO, o se cierra (CERRADA), con registro en auditoría; y (5) el Product Owner valida el incremento en la demostración.
+
+% =====================================================================
+% 6. REVISIÓN Y PRIORIZACIÓN DEL PRODUCT BACKLOG
+% =====================================================================
+\section{REVISIÓN Y PRIORIZACIÓN DEL PRODUCT BACKLOG}
+
+\begin{table}[H]
+\centering\small
+\caption{Revisión y priorización del Product Backlog}
+\begin{tabularx}{\textwidth}{|R{1.4cm}|R{1.5cm}|R{2.6cm}|Y|R{1.8cm}|}
+\hline
+\hd{Prioridad} & \hd{Código} & \hd{Requerimiento} & \hd{Justificación de prioridad} & \hd{Seleccionado}\\ \hline
+1 & HU-01 (RF-01) & Autenticación y autorización por curso & Ruta crítica: sin sesión y sin restricción por curso no se puede consultar nada; es la base de RNF-01. & Sí\\ \hline
+2 & HU-02 (RF-02, RF-03, RF-04) & Conexión con Moodle y sincronización & Depende de HU-01; alimenta todas las demás historias y concentra el riesgo de integración con Moodle. & Sí\\ \hline
+3 & HU-03 (RF-05) & Panel de indicadores & Primer valor visible para el docente; depende de HU-02. & Sí\\ \hline
+4 & HU-04 (RF-06, RF-08) & Seguimiento individual y análisis por subtemas & Extiende el panel con la vista por estudiante y por actividad; base de alertas y recomendaciones. & Sí\\ \hline
+5 & HU-05 (RF-07, RF-10, RF-12) & Alertas, refuerzos y auditoría & Depende de HU-02 a HU-04 y del agente de IA, que es el componente de mayor riesgo. & Sí\\ \hline
+-- & T2-00.1 a T2-00.5 & Setup transversal & Réplica Moodle, Web Services, Compose global y monorepo: habilitan todas las historias. & Sí\\ \hline
+-- & RF-09 & Agente de IA (consultas libres) & El agente se integra solo para diagnóstico y borrador de refuerzo (HU-04 y HU-05); el chat de consultas libres queda fuera. & Parcial\\ \hline
+-- & RF-11 & Informe del curso & No se requiere para el incremento funcional del Sprint 2. & No (otro Sprint)\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Por qué estas historias:} cubren el flujo completo de extremo a extremo (acceso, datos, indicadores, intervención y trazabilidad) y permiten demostrar el valor del agente de IA con un caso concreto. La ruta HU-01 $\rightarrow$ HU-02 $\rightarrow$ HU-03 es la prioridad si el plazo de seis días hábiles se ajusta; HU-05 puede cerrar con plantilla si el modelo no responde a tiempo.
+
+% =====================================================================
+% 7. REGLAS DE NEGOCIO
+% =====================================================================
+\section{REGLAS DE NEGOCIO APLICABLES}
+
+Las reglas RN-01 a RN-19 gobiernan el comportamiento del sistema. Se evalúan en código determinista, en SQL o en el diseño del agente, según la columna \emph{Evalúa}.
+
+\begin{longtable}{|R{1.3cm}|R{7.4cm}|R{1.9cm}|R{1.7cm}|R{1.7cm}|}
+\caption{Reglas de negocio aplicables al Sprint 2}\\
+\hline \hd{ID} & \hd{Regla} & \hd{Fuente} & \hd{Evalúa} & \hd{Historia}\\ \hline \endfirsthead
+\hline \hd{ID} & \hd{Regla} & \hd{Fuente} & \hd{Evalúa} & \hd{Historia}\\ \hline \endhead
+RN-01 & La autenticación usa contraseñas con hash bcrypt y emite un JWT HS256 de 60 minutos; las credenciales inválidas responden 401 con mensaje genérico que no revela si el usuario existe. & RF-01, RNF-01 & Código & HU-01\\ \hline
+RN-02 & Un docente solo accede a los cursos registrados en \cd{CursoAutorizado}; cualquier otro curso responde HTTP 403. La autorización se evalúa siempre en el backend. & RF-01, RNF-01 & Código & HU-01 a HU-05\\ \hline
+RN-03 & La URL y el token de Moodle se guardan solo en variables de entorno, nunca en el repositorio; el usuario \cd{svc_edumonitor} tiene mínimo privilegio. & RF-02, RNF-01 & Código y diseño & HU-02\\ \hline
+RN-04 & La sincronización es manual e idempotente: usa claves únicas por ID de Moodle, no duplica registros al repetirse y registra fecha y errores. & RF-03 & Código & HU-02\\ \hline
+RN-05 & Solo se importan los ítems cuyo \emph{ID number} cumple el patrón \cd{U<unidad>-<A|T|P><n>}; la unidad, el componente y el subtema se derivan de ese campo y del nombre del ítem. & RF-03 & Código & HU-02\\ \hline
+RN-06 & Cada calificación tiene un estado y su tratamiento es explícito: \texttt{CALIFICADA} entra al cálculo con su nota; \texttt{CERO} entra con 0.0; \cd{SIN_ENTREGA} equivale a 0.0 por política institucional de la UTA y entra al cálculo como 0.0; \texttt{PENDIENTE} es la única que se excluye, de forma temporal, hasta el cierre de actas. Los estados no se mezclan. & RF-06 & Código y SQL & HU-02, HU-04\\ \hline
+RN-07 & Una sincronización con errores o datos incompletos queda \texttt{INCOMPLETA}: la interfaz no presenta las métricas como definitivas y no se generan alertas. & RF-03, RNF-03 & Código & HU-02, HU-05\\ \hline
+RN-08 & Ponderación 40/30/30: la nota de unidad es la media ponderada de sus componentes (ACD 40\%, Tareas 30\%, PAE 30\%), con escala sobre 10. Si un componente (por ejemplo, PAE) está pendiente porque no tiene ítems evaluables, su peso se redistribuye proporcionalmente entre los componentes evaluados (con PAE pendiente: ACD 40/70 $\approx$ 57,14\% y Tareas 30/70 $\approx$ 42,86\%). & RF-05 & SQL & HU-03, HU-04\\ \hline
+RN-09 & La nota del estudiante es el promedio de las notas de las unidades evaluadas; las unidades sin calificaciones no cuentan (U1 = 2.0 y U2 = 5.0 producen 3.5). & RF-05, RF-06 & SQL & HU-04\\ \hline
+RN-10 & Niveles por defecto: Aceptable $\ge 7.0$, En Riesgo de 5.0 a 6.9 y Crítico $<5.0$; los umbrales son configurables en la tabla \texttt{Parametro}. & RF-05 & SQL & HU-03\\ \hline
+RN-11 & El promedio del curso se muestra sobre 10 con dos decimales y los conteos por nivel suman el total de estudiantes. & RF-05, RNF-04 & SQL & HU-03\\ \hline
+RN-12 & Regla R1 (\cd{R1_NOTA_CRITICA}): se genera una alerta cuando la nota del estudiante es menor a 5.0, con su evidencia (valor y fecha). & RF-07 & SQL & HU-05\\ \hline
+RN-13 & Regla R2 (\cd{R2_DESCENSO}): se genera una alerta cuando la nota de una unidad es menor que la de la unidad anterior y la nota del estudiante es menor a 7.0, con las notas comparadas como evidencia. & RF-07 & SQL & HU-05\\ \hline
+RN-14 & Las alertas son únicas por curso, estudiante y regla y siguen el ciclo ABIERTA $\rightarrow$ ATENDIDA $\rightarrow$ PUBLICADO o EXPORTADO. En cualquier momento anterior al cierre, el docente puede cerrar una alerta que ya no es relevante mediante \cd{PATCH /api/alertas/{id}/cerrar}, que la deja en el estado terminal CERRADA (no se reabre) y registra el evento en auditoría. Su texto no establece etiquetas definitivas sobre el estudiante. & RF-07, RNF-08 & Código y SQL & HU-05\\ \hline
+RN-15 & IA determinista: los cálculos numéricos y el subtema más débil (menor nota, menor a 5.0) se obtienen en código; el modelo solo redacta, no inventa notas ni estudiantes y reconoce que su resultado es orientativo. & RF-10, RNF-08 & Código y diseño & HU-04, HU-05\\ \hline
+RN-16 & Fallback: si el modelo no responde en 10 segundos, falla o devuelve un JSON inválido (fuera de 3 a 5 actividades), se usa una plantilla predefinida y se marca el origen \texttt{PLANTILLA}. & RF-10, RNF-03 & Código & HU-05\\ \hline
+RN-17 & Ninguna tarea se publica en Moodle sin confirmación explícita del docente (sin confirmación, HTTP 400); si Moodle rechaza la creación, el borrador se exporta. El sistema nunca modifica calificaciones. & RF-10 & Código & HU-05\\ \hline
+RN-18 & Las atenciones, los cierres y las publicaciones de alertas y las invocaciones de herramientas del agente se registran en auditoría sin exponer secretos. & RF-12, RNF-01 & Código & HU-05\\ \hline
+RN-19 & Privacidad local: el modelo se ejecuta en Ollama dentro de la infraestructura del proyecto, los datos son ficticios y no se envía información identificable a servicios externos. & RNF-02 & Diseño & HU-04, HU-05\\ \hline
+\end{longtable}
+
+% =====================================================================
+% 8. CAPACIDAD
+% =====================================================================
+\section{ANÁLISIS DE CAPACIDAD DEL SPRINT 2}
+
+\textbf{Supuestos declarados} (no hay velocidad histórica confiable para este equipo):
+\begin{itemize}
+  \item Días de ejecución: 05, 06, 09, 10, 11 y 12 de noviembre de 2026 (6 días hábiles); el 07 y el 08 son fin de semana y no se planifica trabajo.
+  \item Dedicación supuesta: 6 horas diarias por integrante (36 horas brutas).
+  \item Reunión de planificación: 3 horas (180 minutos) el 05/11/2026, descontadas de la capacidad.
+  \item Reserva para reuniones diarias e imprevistos: 10\% de las horas brutas (3,6 h por integrante), desglosada en la Tabla~\ref{tab:reserva}.
+  \item Sprint Review (Demostración) y Retrospectiva: 1,5 horas el 12/11/2026, desglosadas en la Tabla~\ref{tab:review} y descontadas de la capacidad.
+\end{itemize}
+
+\begin{table}[H]
+\centering\small
+\caption{Desglose de la reserva del 10\% (3,6 h por integrante)}
+\label{tab:reserva}
+\begin{tabularx}{\textwidth}{|R{4.2cm}|Y|R{2.4cm}|R{2.2cm}|}
+\hline
+\hd{Rubro} & \hd{Cálculo} & \hd{Horas por integrante} & \hd{Horas del equipo}\\ \hline
+Reuniones diarias (Daily Scrum) & 15 minutos por día $\times$ 6 días hábiles = 90 minutos. & 1,5 h & 6,0 h\\ \hline
+Imprevistos y retrabajo & 3,6 h $-$ 1,5 h. & 2,1 h & 8,4 h\\ \hline
+\textbf{Total de la reserva} & 10\% de 36 h brutas. & \textbf{3,6 h} & \textbf{14,4 h}\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Desglose de la Sprint Review y la Retrospectiva (12/11/2026)}
+\label{tab:review}
+\begin{tabularx}{\textwidth}{|R{4.4cm}|Y|R{1.8cm}|R{2.0cm}|R{1.6cm}|}
+\hline
+\hd{Ceremonia} & \hd{Contenido} & \hd{Duración} & \hd{Horas por integrante} & \hd{Horas del equipo}\\ \hline
+Sprint Review (Demostración) & Demostración del incremento al Product Owner y verificación de CA-01 a CA-10. & 60 min & 1,0 h & 4,0 h\\ \hline
+Retrospectiva & Evaluación interna del Sprint y acuerdos de mejora. & 30 min & 0,5 h & 2,0 h\\ \hline
+\textbf{Total} & & \textbf{90 min} & \textbf{1,5 h} & \textbf{6,0 h}\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\footnotesize
+\caption{Análisis de capacidad del equipo en el Sprint 2}
+\begin{tabularx}{\textwidth}{|Y|R{1.3cm}|R{1.7cm}|R{1.4cm}|R{1.7cm}|R{1.3cm}|R{1.4cm}|R{1.2cm}|}
+\hline
+\hd{Integrante} & \hd{Horas brutas} & \hd{Planificación (05/11)} & \hd{Reserva 10\%} & \hd{Review y Retro (12/11)} & \hd{Horas netas} & \hd{Horas planif.} & \hd{Holgura}\\ \hline
+Alvaro Moreta (UI/UX y frontend) & 36 h & 3 h & 3,6 h & 1,5 h & 27,9 h & 21 h & 6,9 h\\ \hline
+Justin Ojeda (backend, Moodle y Compose) & 36 h & 3 h & 3,6 h & 1,5 h & 27,9 h & 23 h & 4,9 h\\ \hline
+Johan Borja (SQL Server y analítica) & 36 h & 3 h & 3,6 h & 1,5 h & 27,9 h & 18 h & 9,9 h\\ \hline
+Alan Zamora (agente de IA y QA) & 36 h & 3 h & 3,6 h & 1,5 h & 27,9 h & 22 h & 5,9 h\\ \hline
+\textbf{Total} & \textbf{144 h} & \textbf{12 h} & \textbf{14,4 h} & \textbf{6 h} & \textbf{111,6 h} & \textbf{84 h} & \textbf{27,6 h}\\ \hline
+\end{tabularx}
+\end{table}
+
+Las horas planificadas (84 h) no superan la capacidad neta (111,6 h) y dejan 27,6 horas de holgura. La carga individual por día se verifica en la sección 16.2.
+
+% =====================================================================
+% 9. DISEÑOS Y MODELOS TRANSVERSALES
+% =====================================================================
+\section{DISEÑOS Y MODELOS TRANSVERSALES}
+
+Esta sección presenta los diseños que cruzan varias historias: la arquitectura ampliada de servicios, el modelo de datos de \cd{MoodleUTADB}, el flujo del agente de IA, el diseño de la réplica de Moodle y los casos de uso.
+
+\subsection{Arquitectura ampliada de microservicios}
+El sistema se compone de servicios independientes, orquestados por Docker Compose y comunicados por una red interna. El agente nunca accede a credenciales ni a tablas directamente: solo consulta el endpoint interno del backend con un token de servicio.
+
+\begin{figure}[H]
+\centering
+\safeimg{width=\textwidth}{diagrama_despliegue.png}
+\caption{Diagrama UML de arquitectura de despliegue de EduMonitor AI en el Sprint 2.}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\caption{Componentes de la arquitectura ampliada}
+\begin{tabularx}{\textwidth}{|R{2.9cm}|R{3.3cm}|R{1.5cm}|Y|}
+\hline
+\hd{Componente} & \hd{Tecnología} & \hd{Puerto} & \hd{Responsabilidad e interacción}\\ \hline
+\cd{frontend} & React + Vite & 3000 & Interfaz de los Mockups 1 a 3; consume el backend por REST con JWT.\\ \hline
+\cd{backend} & FastAPI (Python 3.12, ODBC Driver 18) & 8000 & Autenticación, autorización por curso, sincronización, indicadores, alertas y publicación; accede a SQL Server, invoca al agente y a Moodle.\\ \hline
+\cd{sqlserver} & SQL Server 2022, base \cd{MoodleUTADB} & 1433 & Persistencia, vistas de indicadores, alertas y auditoría (volumen \cd{sqlserver_data}).\\ \hline
+\cd{agente} & Python, LangGraph & 8100 & Consulta datos al backend, calcula el subtema débil y redacta con Ollama.\\ \hline
+\cd{ollama} y \cd{ollama-init} & Ollama, \texttt{llama3.2:1b} & 11434 & Generación local de texto; \cd{ollama-init} descarga el modelo una sola vez.\\ \hline
+\cd{moodle} & PHP 8.3, Apache, Moodle 4.5 & 8080 & Réplica del Moodle FISEI-UTA: origen de datos y destino de las tareas de refuerzo.\\ \hline
+\cd{moodle-db} y \cd{moodle-cron} & MariaDB 10.11; imagen de Moodle & Interno & Base de datos de Moodle y tareas programadas cada 60 segundos.\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\safeimg{width=0.9\textwidth}{evidencia_docker_compose_ps.png}
+\caption{Evidencia: salida de \texttt{docker compose ps} con todos los servicios activos.}
+\end{figure}
+
+\subsection{Modelo de datos ER en SQL Server (MoodleUTADB)}
+La base \cd{MoodleUTADB} (ordenamiento \cd{Modern_Spanish_CI_AS}) se crea con un script DDL idempotente (\cd{database/init.sql}) que verifica la existencia de cada objeto antes de crearlo. La aplicación se conecta con un login de mínimo privilegio (\cd{edumonitor_app}), distinto de \texttt{sa}, que solo se usa para aplicar el DDL.
+
+\begin{figure}[H]
+\centering
+\safeimg{width=\textwidth}{diagrama_er_moodleutadb.png}
+\caption{Modelo entidad--relación de MoodleUTADB (diseño).}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\caption{Tablas del modelo de datos}
+\begin{tabularx}{\textwidth}{|R{3.4cm}|Y|R{4.2cm}|}
+\hline
+\hd{Tabla} & \hd{Campos principales} & \hd{Restricciones}\\ \hline
+\texttt{Rol} & Identificador, nombre. & Nombre único (DOCENTE, ADMIN\_TECNICO).\\ \hline
+\texttt{Usuario} & Identificador, usuario, hash de contraseña, nombre completo, rol, ID de Moodle, activo. & Usuario único; rol referencia a \texttt{Rol}.\\ \hline
+\texttt{Curso} & Identificador, ID de curso en Moodle, código, nombre, categoría, período. & ID de Moodle único.\\ \hline
+\texttt{CursoAutorizado} & Usuario, curso. & Clave primaria compuesta; define el portafolio del docente.\\ \hline
+\texttt{Estudiante} & Identificador, ID de usuario en Moodle, alias. & ID de Moodle único.\\ \hline
+\texttt{Matricula} & Curso, estudiante. & Clave primaria compuesta.\\ \hline
+\texttt{ItemCalificacion} & Identificador, ID de ítem en Moodle, curso, nombre, \emph{ID number}, unidad, componente, subtema, nota máxima. & ID de ítem único; componente en ACD, TAREA o PAE; nota máxima 10.\\ \hline
+\texttt{Calificacion} & Identificador, ítem, estudiante, nota, estado, fecha de sincronización. & Par ítem--estudiante único; estado en CALIFICADA, CERO, SIN\_ENTREGA o PENDIENTE.\\ \hline
+\texttt{Sincronizacion} & Identificador, usuario, fecha de inicio y fin, estado, detalle. & Estado en INICIADA, EXITOSA, INCOMPLETA o ERROR.\\ \hline
+\texttt{Parametro} & Clave, valor. & UMBRAL\_ACEPTABLE = 7.0 y UMBRAL\_RIESGO = 5.0.\\ \hline
+\texttt{ReglaAlerta} & Identificador, código, descripción, umbral, activa. & Código único: R1\_NOTA\_CRITICA (5.0) y R2\_DESCENSO (7.0).\\ \hline
+\texttt{Alerta} & Identificador, curso, estudiante, regla, evidencia, estado, fecha de creación. & Curso--estudiante--regla único. Restricción de estado: \cd{CHECK (Estado IN ('ABIERTA','ATENDIDA','PUBLICADO','EXPORTADO','CERRADA'))}.\\ \hline
+\texttt{Refuerzo} & Identificador, alerta, título, descripción, actividades (JSON), origen, estado, ID de módulo en Moodle, fechas. & Origen en IA o PLANTILLA; estado en BORRADOR, PUBLICADO o EXPORTADO.\\ \hline
+\texttt{Auditoria} & Identificador, usuario, acción, entidad, ID de entidad, herramienta, fecha. & Referencia a \texttt{Usuario}; no almacena secretos.\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Nota de alineación del DDL.} El ciclo de vida de HU-05 y la regla RN-14 usan cinco estados operativos de la alerta. La restricción \texttt{CHECK} del campo de estado de \texttt{Alerta} en el script del repositorio debe admitir explícitamente los cinco valores (\texttt{ABIERTA}, \texttt{ATENDIDA}, \texttt{PUBLICADO}, \texttt{EXPORTADO} y \texttt{CERRADA}); la versión anterior del script solo contemplaba ABIERTA, ATENDIDA y CERRADA y rechazaría las transiciones a PUBLICADO y EXPORTADO. El criterio DB-07 verifica esta alineación.
+
+\begin{table}[H]
+\centering\small
+\caption{Vistas de indicadores}
+\begin{tabularx}{\textwidth}{|R{4.6cm}|Y|}
+\hline
+\hd{Vista} & \hd{Lógica}\\ \hline
+\cd{vw_NotaUnidad} & Por estudiante y unidad: promedio por componente (ítems \texttt{CALIFICADA} con su nota, \texttt{CERO} y \cd{SIN_ENTREGA} con 0.0; \texttt{PENDIENTE} excluida), normalizados a escala 10, y media ponderada 40/30/30 que redistribuye proporcionalmente el peso de los componentes sin ítems evaluables (RN-06 y RN-08).\\ \hline
+\cd{vw_NotaEstudiante} & Promedio de las notas de unidad y nivel (Aceptable, En Riesgo o Crítico) según los umbrales de \texttt{Parametro}.\\ \hline
+\cd{vw_DashboardCurso} & Por curso: promedio, conteos por nivel y total de estudiantes.\\ \hline
+\cd{vw_SubtemaEstudiante} & Por estudiante, unidad y subtema: promedio de los ítems evaluados (misma regla de estados de RN-06) normalizado a escala 10.\\ \hline
+\cd{vw_AlertaCandidata} & Unión de R1 (nota del estudiante bajo el umbral) y R2 (nota de unidad menor que la anterior con nota total bajo el umbral), con el valor que las activa.\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Diagrama de secuencia del agente de IA (LangGraph y Ollama)}
+El agente es un grafo de estados con cuatro nodos secuenciales. Todo cálculo numérico es determinista; el modelo solo redacta (RN-15). El agente se activa cuando el docente atiende una alerta (HU-05) o solicita el diagnóstico de la ficha (HU-04).
+
+\begin{figure}[H]
+\centering
+\safeimg{width=\textwidth}{diagrama_secuencia_agente.png}
+\caption{Secuencia de una solicitud al agente de IA con LangGraph y Ollama (diseño).}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\caption{Pasos de la secuencia del agente}
+\begin{tabularx}{\textwidth}{|c|R{3.6cm}|Y|}
+\hline
+\hd{Paso} & \hd{Emisor $\rightarrow$ receptor} & \hd{Mensaje o acción}\\ \hline
+1 & Docente $\rightarrow$ Frontend & Pulsa \emph{Atender} sobre una alerta o solicita el diagnóstico de un estudiante.\\ \hline
+2 & Frontend $\rightarrow$ Backend & \cd{POST /api/alertas/{id}/atender} con el JWT del docente.\\ \hline
+3 & Backend $\rightarrow$ SQL Server & Valida el curso autorizado (403 si no lo está) y el estado ABIERTA; cambia la alerta a ATENDIDA.\\ \hline
+4 & Backend $\rightarrow$ Agente & Solicita el borrador con \cd{curso_id} y \cd{estudiante_id} (HTTP/JSON).\\ \hline
+5 & Agente $\rightarrow$ Backend & Herramienta \cd{obtener_calificaciones}: consulta las notas por subtema con el token de servicio; se registra herramienta, parámetros y resultado.\\ \hline
+6 & Backend $\rightarrow$ SQL Server & Consulta \cd{vw_SubtemaEstudiante} y devuelve los subtemas.\\ \hline
+7 & Agente (determinista) & Nodo \cd{diagnosticar_subtema}: elige el subtema de menor nota si es menor a 5.0; sin datos, informa que no puede analizar.\\ \hline
+8 & Agente $\rightarrow$ Ollama & Nodo \cd{redactar_borrador}: solicita un JSON con título, descripción y actividades, con temperatura baja y límite total de 10 s.\\ \hline
+9 & Agente (determinista) & Nodo \cd{validar_o_respaldar}: si el JSON es válido (3 a 5 actividades), origen IA; si hubo timeout, error o JSON inválido, plantilla y origen PLANTILLA.\\ \hline
+10 & Agente $\rightarrow$ Backend & Devuelve el borrador, el origen y el registro de herramientas.\\ \hline
+11 & Backend $\rightarrow$ SQL Server & Guarda el \texttt{Refuerzo} en BORRADOR y registra el evento en \texttt{Auditoria}.\\ \hline
+12 & Backend $\rightarrow$ Frontend & Devuelve el borrador; el formulario del Mockup 3 se rellena para su edición.\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Diseño de la réplica del Moodle FISEI-UTA y de los Web Services}
+El término ``1:1'' se aplica a la \textbf{estructura funcional y visual} del sitio; no se copian datos reales, credenciales, usuarios ni contenidos de estudiantes. Un integrante con acceso docente documenta primero los parámetros del sitio institucional (versión de Moodle, tema y logo, formato de curso, cursos del docente, categorías y libro de calificaciones); esos valores reemplazan los supuestos de diseño (Moodle 4.5, formato \emph{Temas}).
+
+\begin{table}[H]
+\centering\small
+\caption{Servicios de la réplica Moodle}
+\begin{tabularx}{\textwidth}{|R{2.9cm}|R{4.2cm}|R{1.4cm}|Y|}
+\hline
+\hd{Servicio} & \hd{Imagen o construcción} & \hd{Puerto} & \hd{Responsabilidad}\\ \hline
+\cd{moodle-db} & MariaDB 10.11 (utf8mb4). & Interno & Base de Moodle con \emph{healthcheck} de inicialización.\\ \hline
+\cd{moodle} & PHP 8.3 con Apache y Moodle 4.5. & 8080 & Instalación automática en el primer arranque; monta la siembra y el plugin local.\\ \hline
+\cd{moodle-cron} & Misma imagen de Moodle. & Interno & Tareas programadas cada 60 segundos.\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Algoritmo de arranque y siembra.} (1) Si existe configuración previa en el volumen, se restaura y se omite la instalación; (2) en el primer arranque se espera a MariaDB y se instala Moodle en español con el nombre ``Aulas Virtuales FISEI-UTA (Réplica)''; (3) un script de siembra idempotente crea la jerarquía de categorías, siete estudiantes ficticios, los cuatro cursos del portafolio con formato \emph{Temas}, sus cuatro secciones, las matrículas manuales, las categorías de calificación con sus ítems y las notas del dataset de referencia (sección 11.2).
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{\centering\small
+\textbf{Facultad de Ingeniería en Sistemas, Electrónica e Industrial} $\rightarrow$ \textbf{SOFTWARE} $\rightarrow$ \textbf{Julio a Diciembre 2026}}}
+\end{center}
+
+\begin{figure}[H]
+\centering
+\safeimg{width=0.9\textwidth}{evidencia_categorias_moodle.png}
+\caption{Evidencia: jerarquía de categorías y cursos de la réplica en \emph{Gestionar cursos y categorías}.}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\caption{Secciones (pestañas) del aula virtual}
+\begin{tabularx}{\textwidth}{|R{2.0cm}|R{3.4cm}|Y|}
+\hline
+\hd{Sección} & \hd{Pestaña} & \hd{Contenido}\\ \hline
+0 & Informativo & Sílabo, cronograma, foro de novedades y datos del docente.\\ \hline
+1 & Primer Parcial & Unidades 1 y 2: 3 temas, 4 tareas y 2 evaluaciones autónomas.\\ \hline
+2 & Segundo Parcial & Unidades 3 y 4 con la misma estructura.\\ \hline
+3 & Supletorio & Evaluación de reemplazo (fuera de la ponderación de EduMonitor AI en este sprint).\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Estructura de ponderaciones por parcial (común a las cuatro asignaturas)}
+\begin{tabularx}{\textwidth}{|R{4.2cm}|c|Y|}
+\hline
+\hd{Categoría} & \hd{Peso} & \hd{Ítems por parcial y \emph{ID number}}\\ \hline
+1P ACD (Autónomo) & 40\% & 2 evaluaciones: \cd{U1-A1}, \cd{U2-A2}.\\ \hline
+1P Tareas & 30\% & 4 tareas: \cd{U1-T1}, \cd{U1-T2}, \cd{U2-T3}, \cd{U2-T4}.\\ \hline
+1P PAE & 30\% & 3 temas: \cd{U1-P1}, \cd{U1-P2}, \cd{U2-P3}.\\ \hline
+2P ACD (Autónomo) & 40\% & \cd{U3-A3}, \cd{U4-A4}.\\ \hline
+2P Tareas & 30\% & \cd{U3-T5}, \cd{U3-T6}, \cd{U4-T7}, \cd{U4-T8}.\\ \hline
+2P PAE & 30\% & \cd{U3-P4}, \cd{U3-P5}, \cd{U4-P6}.\\ \hline
+\end{tabularx}
+\end{table}
+La convención de nombres es: \emph{ID number} \cd{U<unidad>-<tipo><n>} (tipo \texttt{A}, \texttt{T} o \texttt{P}) y nombre de ítem \texttt{T1 - Subtema evaluado} (por ejemplo, \texttt{T1 - Manejo de Apuntadores y Memoria}). La estructura es común a las cuatro asignaturas; el subtema cambia según la materia. Se asume que los dos parciales promedian 50/50 en el total del curso (parametrizable; no afecta los indicadores, que se calculan por unidad).
+
+\begin{table}[H]
+\centering\small
+\caption{Estados de una calificación, su determinación y su tratamiento en el cálculo (RN-06)}
+\begin{tabularx}{\textwidth}{|R{3.2cm}|Y|R{5.2cm}|}
+\hline
+\hd{Estado} & \hd{Regla de determinación} & \hd{Tratamiento en el cálculo}\\ \hline
+\cd{CALIFICADA} & Nota mayor que 0. & Entra con su nota.\\ \hline
+\cd{CERO} & Nota igual a 0. & Entra con 0.0.\\ \hline
+\cd{SIN_ENTREGA} & El comentario del ítem contiene la marca \cd{SIN_ENTREGA}. & Equivale a 0.0 por política institucional de la UTA; entra como 0.0.\\ \hline
+\cd{PENDIENTE} & Nota vacía y sin marca de no entrega. & Único estado excluido, de forma temporal, hasta el cierre de actas; si deja sin ítems a un componente, su peso se redistribuye (RN-08).\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\safeimg{width=0.9\textwidth}{evidencia_libro_calificaciones.png}
+\caption{Evidencia: libro de calificaciones con categorías ponderadas 40/30/30.}
+\end{figure}
+
+\textbf{Web Services REST.} Se activan los servicios web con el protocolo REST únicamente; se crea el usuario \cd{svc_edumonitor} con rol \emph{Profesor} en los cuatro cursos y la capacidad \cd{webservice/rest:use}; se crea el servicio externo \emph{EduMonitor\_WS} con \emph{Usuarios autorizados únicamente}; se genera el token, que se guarda solo en \texttt{.env} (variable \cd{MOODLE_TOKEN}); y se verifica la conectividad con \cd{core_webservice_get_site_info}.
+
+\begin{table}[H]
+\centering\small
+\caption{Funciones habilitadas en el servicio EduMonitor\_WS}
+\begin{tabularx}{\textwidth}{|R{5.8cm}|R{3.6cm}|Y|}
+\hline
+\hd{Función} & \hd{Parámetros clave} & \hd{Uso en EduMonitor AI}\\ \hline
+\cd{core_webservice_get_site_info} & Ninguno & Verificación de conectividad (HU-02).\\ \hline
+\cd{core_enrol_get_enrolled_users} & \texttt{courseid} & Importar estudiantes matriculados (rol estudiante).\\ \hline
+\cd{core_course_get_contents} & \texttt{courseid} & Secciones, actividades y su \emph{ID number}.\\ \hline
+\cd{core_grades_get_grades} & \texttt{courseid} & Definición de ítems de calificación y rangos.\\ \hline
+\cd{gradereport_user_get_grade_items} & \texttt{courseid}, \texttt{userid} & Notas por estudiante y comentarios de estado.\\ \hline
+\cd{local_edumonitor_crear_tarea} & \texttt{courseid}, \texttt{section}, \texttt{name}, \texttt{intro}, \texttt{duedate} & Crear y publicar la tarea de refuerzo aprobada (HU-05).\\ \hline
+\end{tabularx}
+\end{table}
+
+Las cinco funciones de lectura son nativas de Moodle. El núcleo no ofrece una función de Web Services para crear tareas; por ello la creación se implementa en un plugin local mínimo (\cd{local_edumonitor}) cuya lógica es: (1) validar los parámetros; (2) validar el contexto del curso; (3) exigir la capacidad \cd{mod/assign:addinstance}; (4) construir el módulo \emph{Tarea} con entrega en línea y por archivo, calificación sobre 10 y retroalimentación por comentarios; (5) agregarlo a la sección indicada mediante la API interna de cursos; y (6) devolver el \texttt{cmid}. Si el plugin no está instalado o el token carece de permisos, el borrador se exporta para carga manual (RN-17).
+
+\begin{figure}[H]
+\centering
+\safeimg{width=0.9\textwidth}{evidencia_web_services.png}
+\caption{Evidencia: servicio externo EduMonitor\_WS con sus funciones y token generado (token ocultado).}
+\end{figure}
+
+\subsection{Casos de uso}
+El diagrama relaciona al Docente con los siete casos de uso y a los actores externos (Moodle Web Services y Agente IA). Relaciones: CU-06 extiende a CU-04; CU-07 incluye a CU-06; CU-05 incluye a CU-07.
+
+\begin{figure}[H]
+\centering
+\safeimg{width=\textwidth}{diagrama_casos_uso.png}
+\caption{Diagrama UML de casos de uso (Docente, EduMonitor AI, Moodle Web Services y Agente IA).}
+\end{figure}
+
+\begin{longtable}{|R{2.8cm}|R{2.3cm}|R{4.6cm}|R{3.2cm}|R{1.0cm}|}
+\caption{Especificación resumida de los casos de uso}\\
+\hline \hd{Caso de uso y actores} & \hd{Precondición} & \hd{Flujo principal} & \hd{Excepciones} & \hd{HU}\\ \hline \endfirsthead
+\hline \hd{Caso de uso y actores} & \hd{Precondición} & \hd{Flujo principal} & \hd{Excepciones} & \hd{HU}\\ \hline \endhead
+\footnotesize \textbf{CU-01} Autenticar docente y restringir sus cursos (Docente) & \footnotesize Docente con hash y cursos en \texttt{CursoAutorizado}. & \footnotesize Abre la aplicación; ingresa credenciales; \cd{POST /api/auth/login}; recibe JWT de 60 min; \cd{GET /api/cursos} devuelve solo sus cursos. & \footnotesize 401 con mensaje genérico; token vencido: 401; curso ajeno: 403. & \footnotesize HU-01\\ \hline
+\footnotesize \textbf{CU-02} Sincronizar Moodle UTA (Docente; Moodle WS) & \footnotesize Sesión activa; token de Moodle en el entorno. & \footnotesize Pulsa \emph{Sincronizar}; verifica conectividad; registra \texttt{Sincronizacion}; lee usuarios, contenidos y notas; normaliza y aplica \texttt{MERGE}; cierra EXITOSA; evalúa R1 y R2. & \footnotesize Moodle caído o token inválido: error controlado; datos incompletos: INCOMPLETA sin alertas. & \footnotesize HU-02\\ \hline
+\footnotesize \textbf{CU-03} Consultar dashboard de materia (Docente) & \footnotesize Curso sincronizado y autorizado. & \footnotesize Selecciona una de sus cuatro materias; \cd{GET /api/cursos/{id}/dashboard}; ve 4 KPIs y la tabla con punto de 8 px. & \footnotesize Sin sincronizar: invita a CU-02; incompleta: aviso; ajeno: 403. & \footnotesize HU-03\\ \hline
+\footnotesize \textbf{CU-04} Consultar ficha individual (Docente; Agente IA) & \footnotesize Dashboard abierto. & \footnotesize Selecciona un estudiante; \cd{GET /api/estudiantes/{id}/seguimiento}; ve nota, gráfico de área (eje 0 a 10) y desglose; opcionalmente solicita diagnóstico (CU-06). & \footnotesize Unidades no iniciadas no se grafican; agente caído: ficha sin banner. & \footnotesize HU-04\\ \hline
+\footnotesize \textbf{CU-05} Generar y publicar tarea de refuerzo (Docente; Moodle WS) & \footnotesize Alerta ABIERTA de una sincronización exitosa. & \footnotesize \emph{Atender} (ATENDIDA, CU-07); edita el borrador; \emph{Aprobar y Publicar} y confirma; \cd{POST /api/refuerzos/{id}/publicar}; PUBLICADO y auditoría. Una alerta no relevante se cierra con \cd{PATCH /api/alertas/{id}/cerrar}. & \footnotesize Sin confirmación: 400; sin permisos o plugin: EXPORTADO; cierre de una alerta ya CERRADA: 409. & \footnotesize HU-05\\ \hline
+\footnotesize \textbf{CU-06} Analizar rendimiento con IA (Docente; Agente IA) & \footnotesize Estudiante con una unidad evaluada. & \footnotesize El backend invoca al agente; \cd{obtener_calificaciones}; subtema débil determinista; el modelo redacta el banner. & \footnotesize Timeout o respuesta inválida: plantilla; sin datos: no inventa. & \footnotesize HU-04, HU-05\\ \hline
+\footnotesize \textbf{CU-07} Redactar borrador editable (Docente; Agente IA) & \footnotesize Alerta pasada a ATENDIDA; CU-06 ejecutado. & \footnotesize El agente recibe subtema y unidad; genera JSON de 3 a 5 actividades; el backend lo valida y guarda en BORRADOR; el formulario se rellena. & \footnotesize Timeout, JSON inválido o actividades fuera de rango: plantilla. & \footnotesize HU-05\\ \hline
+\end{longtable}
+
+% =====================================================================
+% 10. HISTORIAS DE USUARIO
+% =====================================================================
+\section{HISTORIAS DE USUARIO DEL SPRINT 2}
+
+\subsection{Tabla resumen}
+\begin{table}[H]
+\centering\small
+\caption{Resumen de las Historias de Usuario del Sprint 2}
+\begin{tabularx}{\textwidth}{|R{1.2cm}|R{1.7cm}|R{2.8cm}|Y|R{1.3cm}|R{1.2cm}|}
+\hline
+\hd{Código HU} & \hd{Código RF} & \hd{Nombre de la historia} & \hd{Historia de Usuario (Como / Quiero / Para)} & \hd{Prioridad} & \hd{Estim.}\\ \hline
+HU-01 & RF-01 & Inicio de sesión y restricción a cursos autorizados & \textbf{Como} docente, \textbf{quiero} iniciar sesión con las credenciales del sistema, \textbf{para} consultar únicamente los cursos de mi portafolio que tengo autorizados. & Alta & 3 SP\\ \hline
+HU-02 & RF-02, RF-03, RF-04 & Conexión con Moodle y sincronización & \textbf{Como} docente, \textbf{quiero} sincronizar manualmente mis cursos desde Moodle, \textbf{para} trabajar con calificaciones y actividades actualizadas y con su fecha de origen. & Alta & 5 SP\\ \hline
+HU-03 & RF-05 & Dashboard general de indicadores & \textbf{Como} docente, \textbf{quiero} ver el promedio, la distribución y la lista de estudiantes por nivel de cada curso, \textbf{para} identificar casos individuales que el promedio oculta. & Alta & 3 SP\\ \hline
+HU-04 & RF-06, RF-08 & Ficha individual del estudiante & \textbf{Como} docente, \textbf{quiero} abrir la ficha de un estudiante y ver su nota, su evolución por unidad y los subtemas con deficiencias, \textbf{para} decidir qué reforzar. & Alta & 5 SP\\ \hline
+HU-05 & RF-07, RF-10, RF-12 & Centro de alertas y publicación de refuerzos & \textbf{Como} docente, \textbf{quiero} recibir alertas explicables y generar tareas de refuerzo que pueda revisar y publicar en Moodle, \textbf{para} intervenir antes de que termine el parcial. & Alta & 8 SP\\ \hline
+ & & \textbf{Total} & & & \textbf{24 SP}\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Fichas, mockups, modelos, diseños y tareas por historia}
+Cada historia mantiene la secuencia estricta: \textbf{(1) ficha de la Historia de Usuario (datos generales y 3 Cs)} $\rightarrow$ \textbf{(2) tabla de tareas de ingeniería} $\rightarrow$ \textbf{(3) mockup de Figma que la valida} $\rightarrow$ \textbf{(4) explicación técnica, endpoints y reglas aplicables}. Todas las tareas se ejecutan entre el 05/11/2026 y el 12/11/2026; el prefijo \texttt{T2-} las distingue de las del Sprint 1. El archivo de diseño está en \url{https://www.figma.com/design/EduMonitorAI-Design/EduMonitorAI-Mockups}. Tokens comunes de los mockups: azul UTA \texttt{\#11297A}, fondo \texttt{\#F4F6F8}, tarjetas blancas con radio de 16 px; estados Aceptable \texttt{\#22C55E}, En Riesgo \texttt{\#F97316} y Crítico \texttt{\#EF4444}.
+
+% ---------------- HU-01 ----------------
+\subsubsection{HU-01 --- Inicio de sesión del docente y restricción a sus cursos autorizados (Módulo A)}
+\fichahu{HU-01}{Docente}
+{Inicio de sesión del docente y restricción de acceso a sus cursos autorizados (RF-01)}
+{Alta}{Media}{3 SP (10 h de tareas)}{Justin Ojeda}
+
+\tresc{HU-01}
+{COMO docente, QUIERO iniciar sesión con las credenciales del sistema, PARA ver y consultar únicamente los cursos de mi portafolio que tengo autorizados.}
+{Dado un docente de prueba registrado con 2 de los 4 cursos del portafolio autorizados, Cuando inicia sesión con credenciales válidas, Entonces recibe un token JWT con vigencia de 60 minutos y la API devuelve solo esos 2 cursos; una solicitud a cualquier otro curso responde HTTP 403.}
+{Dado un intento de acceso con credenciales inválidas o con un token ausente, inválido o vencido, Cuando se invoca cualquier endpoint protegido, Entonces el sistema responde HTTP 401 con un mensaje genérico que no revela si el usuario existe.}
+{Reglas RN-01 y RN-02. La historia es atómica: se limita a la autenticación del docente y a la restricción de acceso por curso. Se usan dos docentes de prueba: uno con los cuatro cursos (portafolio completo) y otro con dos cursos.}
+
+\begin{longtable}{|R{1.6cm}|R{5.8cm}|R{2.2cm}|R{1.3cm}|R{2.7cm}|}
+\caption{Tareas de ingeniería de HU-01}\\
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endhead
+\tarea{T2-01.1}{Endpoint de inicio de sesión con JWT}{Implementar \cd{POST /api/auth/login} en FastAPI: verifica el hash bcrypt contra \texttt{Usuario}, emite un JWT HS256 de 60 minutos, aplica la dependencia que limita cada consulta a \texttt{CursoAutorizado} y expone \cd{GET /api/cursos} con los cursos del docente.}{05/11 al 07/11}{3 h}{Justin Ojeda}
+\tarea{T2-01.2}{Pantalla de inicio de sesión en React}{Login con validación de campos, almacenamiento del token, rutas protegidas, interceptor de Axios, redirección a \texttt{/login} ante 401 y mensajes de error claros (puerto 3000).}{06/11 al 09/11}{3 h}{Alvaro Moreta}
+\tarea{T2-01.3}{Tablas de usuarios, roles y cursos autorizados}{DDL de \texttt{Rol}, \texttt{Usuario} y \texttt{CursoAutorizado} en \cd{MoodleUTADB} y script de alta de docentes con hash y de asignación de cursos (portafolio de 4 cursos y docente de prueba con 2).}{05/11 al 06/11}{2 h}{Johan Borja}
+\tarea{T2-01.4}{Pruebas de permisos por curso}{Casos pytest: docente con 2 cursos obtiene solo esos; otro curso responde 403; credenciales inválidas, token ausente, inválido o vencido responden 401.}{09/11 al 10/11}{2 h}{Alan Zamora}
+\end{longtable}
+\textbf{Total de HU-01:} 10 horas.
+
+\textbf{Mockup que valida la historia.}
+\begin{figure}[H]
+\centering
+\safeimg{width=0.85\textwidth}{mockup1_panel_general.png}
+\caption{Mockup 1 (Figma) como referencia visual de HU-01: la historia no tiene mockup propio y la pantalla de inicio de sesión sigue sus tokens de diseño.}
+\end{figure}
+Este módulo no requiere mockup propio: la pantalla de inicio de sesión sigue los tokens de diseño del Mockup 1, y el listado de cursos se integra en su navegación.
+
+\textbf{Explicación técnica.} (1) El backend busca al usuario por nombre y verifica que esté activo; (2) compara la contraseña con el hash bcrypt almacenado; (3) emite un JWT HS256 con identificador, usuario, rol y expiración a 60 minutos; (4) en cada petición protegida decodifica el token; (5) para recursos de un curso consulta \texttt{CursoAutorizado} y, si no existe el par usuario--curso, responde 403 (RN-02).
+
+\begin{table}[H]
+\centering\small
+\caption{Endpoints de HU-01}
+\begin{tabularx}{\textwidth}{|R{1.5cm}|R{4.6cm}|R{2.2cm}|Y|}
+\hline
+\hd{Método} & \hd{Ruta} & \hd{Acceso} & \hd{Descripción y respuestas}\\ \hline
+POST & \cd{/api/auth/login} & Público & Valida credenciales; 200 con JWT, 401 si son inválidas.\\ \hline
+GET & \cd{/api/cursos} & JWT & Cursos autorizados del portafolio del docente; 401 sin token válido.\\ \hline
+GET & \cd{/health} & Público & Estado del servicio (200).\\ \hline
+\end{tabularx}
+\end{table}
+
+% ---------------- HU-02 ----------------
+\subsubsection{HU-02 --- Conexión con Moodle y sincronización de estudiantes y notas (Módulo B)}
+\fichahu{HU-02}{Docente / Administrador técnico}
+{Conexión segura con Moodle y sincronización e importación de estudiantes y notas desde Moodle UTA (RF-02, RF-03, RF-04)}
+{Alta}{Alta}{5 SP (16 h de tareas)}{Justin Ojeda}
+
+\tresc{HU-02}
+{COMO administrador técnico, QUIERO configurar la URL y el token de Moodle como variables de entorno, PARA verificar la conectividad sin exponer secretos. COMO docente, QUIERO sincronizar manualmente mis cursos desde el Moodle, PARA trabajar con calificaciones y actividades actualizadas, con su fecha de origen.}
+{Dado el Moodle réplica con 4 asignaturas, 7 estudiantes matriculados en cada una y 18 ítems evaluables por curso, Cuando el docente ejecuta la sincronización manual, Entonces \cd{MoodleUTADB} almacena 4 cursos, 7 estudiantes, 28 matrículas, 72 ítems y sus notas, con fecha de sincronización, en menos de 60 segundos; y \cd{GET /api/moodle/estado} responde HTTP 200 con nombre y versión del sitio en menos de 5 segundos.}
+{Dado que el curso ya fue sincronizado, Cuando se repite la sincronización sin cambios en Moodle, Entonces los conteos de cursos, estudiantes, matrículas, ítems y notas no varían (sin duplicados); con un token de Moodle inválido el sistema responde un error controlado sin exponer el secreto.}
+{Reglas RN-03 a RN-07. Se distinguen nota cero, sin entrega (que computa 0.0) y pendiente (excluida de forma temporal). Si la API falla o devuelve datos incompletos, se registra el error y la interfaz indica sincronización incompleta. Como el Moodle réplica se accede por el nombre de servicio Docker, el cliente envía la cabecera \texttt{Host} igual al \texttt{wwwroot} de Moodle.}
+
+\begin{longtable}{|R{1.6cm}|R{5.8cm}|R{2.2cm}|R{1.3cm}|R{2.7cm}|}
+\caption{Tareas de ingeniería de HU-02}\\
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endhead
+\tarea{T2-02.1}{Cliente Moodle y verificación de conectividad}{Cliente HTTP con URL, token y cabecera \texttt{Host} en variables de entorno; endpoint \cd{GET /api/moodle/estado} con \cd{core_webservice_get_site_info}.}{05/11 al 07/11}{2 h}{Justin Ojeda}
+\tarea{T2-02.2}{Servicio de sincronización}{Implementar \cd{POST /api/sincronizacion}: invoca las cuatro funciones de lectura, normaliza ítems y estados, aplica \texttt{MERGE} sobre claves únicas por ID de Moodle, registra fecha y errores y, al cierre exitoso, dispara la generación de alertas (HU-05).}{06/11 al 10/11}{4 h}{Justin Ojeda}
+\tarea{T2-02.3}{Esquema de cursos, estudiantes y calificaciones}{DDL de \texttt{Curso}, \texttt{Estudiante}, \texttt{Matricula}, \texttt{ItemCalificacion}, \texttt{Calificacion} y \texttt{Sincronizacion} con claves únicas.}{05/11 al 06/11}{3 h}{Johan Borja}
+\tarea{T2-02.4}{Datos de prueba de referencia}{Carga de los 7 estudiantes ficticios en los 4 cursos con el dataset de la sección 11.2, incluidos los casos CERO, SIN\_ENTREGA y PENDIENTE.}{06/11 al 09/11}{2 h}{Johan Borja}
+\tarea{T2-02.5}{Vista de cursos y botón Sincronizar}{Listado del portafolio agrupado por nivel y paralelo, búsqueda, botón \emph{Sincronizar}, indicador de progreso y fecha de la última sincronización.}{07/11 al 10/11}{3 h}{Alvaro Moreta}
+\tarea{T2-02.6}{Pruebas de idempotencia y de error}{Dos sincronizaciones consecutivas mantienen los conteos; un error simulado de la API deja el estado \texttt{INCOMPLETA}; un token inválido produce error controlado.}{10/11 al 11/11}{2 h}{Alan Zamora}
+\end{longtable}
+\textbf{Total de HU-02:} 16 horas.
+
+\textbf{Mockup que valida la historia.}
+\begin{figure}[H]
+\centering
+\safeimg{width=0.85\textwidth}{mockup1_panel_general.png}
+\caption{Mockup 1 (Figma) como referencia visual de HU-02: el selector de curso y el botón \emph{Sincronizar} se integran en su encabezado.}
+\end{figure}
+Sin mockup propio: el selector de curso del portafolio y el botón \emph{Sincronizar} se integran en el encabezado y la navegación del Mockup 1.
+
+\textbf{Explicación técnica: algoritmo de sincronización idempotente.}
+\begin{enumerate}
+  \item Verificar la conectividad con Moodle y registrar una fila en \texttt{Sincronizacion} con estado \texttt{INICIADA}.
+  \item Por cada curso autorizado, obtener los usuarios matriculados y conservar solo los de rol \emph{student}.
+  \item Insertar o actualizar cada estudiante y su matrícula con \texttt{MERGE}, con el identificador de usuario de Moodle como clave.
+  \item Por cada estudiante, obtener sus ítems de calificación; omitir los totales de categoría y de curso y los ítems cuyo \emph{ID number} no cumpla el patrón (RN-05).
+  \item Derivar la unidad, el componente (\texttt{ACD}, \texttt{TAREA} o \texttt{PAE}) y el subtema (texto posterior al primer separador ``~-~'' del nombre).
+  \item Insertar o actualizar el ítem y su calificación con \texttt{MERGE}, determinando el estado según RN-06.
+  \item Cerrar la sincronización como \texttt{EXITOSA}; si hubo errores de la API, como \texttt{INCOMPLETA} o \texttt{ERROR}, con el detalle registrado. Solo en el primer caso se evalúan las reglas de alerta (RN-07).
+\end{enumerate}
+La idempotencia se garantiza porque todas las escrituras usan claves únicas de origen (\texttt{MoodleUserId}, \texttt{MoodleItemId} y el par ítem--estudiante).
+
+\begin{table}[H]
+\centering\small
+\caption{Endpoints de HU-02}
+\begin{tabularx}{\textwidth}{|R{1.5cm}|R{4.6cm}|R{2.2cm}|Y|}
+\hline
+\hd{Método} & \hd{Ruta} & \hd{Acceso} & \hd{Descripción y respuestas}\\ \hline
+GET & \cd{/api/moodle/estado} & JWT & Nombre y versión del sitio Moodle; error controlado si el token de Moodle es inválido.\\ \hline
+POST & \cd{/api/sincronizacion} & JWT, curso autorizado & Ejecuta la sincronización manual; devuelve estado, conteos y fecha; 403 si el curso no está autorizado.\\ \hline
+\end{tabularx}
+\end{table}
+
+% ---------------- HU-03 ----------------
+\subsubsection{HU-03 --- Dashboard general de indicadores (Módulo C)}
+\fichahu{HU-03}{Docente}
+{Panel de indicadores y distribución del curso (RF-05)}
+{Alta}{Baja}{3 SP (10 h de tareas)}{Alvaro Moreta}
+
+\tresc{HU-03}
+{COMO docente, QUIERO ver en un panel el promedio, la distribución y la lista de estudiantes por nivel (Aceptable, En Riesgo y Crítico) de cada curso de mi portafolio, PARA identificar casos individuales que el promedio general oculta.}
+{Dado un curso sincronizado con 7 estudiantes, Cuando el docente abre el panel, Entonces ve en menos de 3 segundos el promedio con escala explícita (sobre 10) y los conteos de Aceptables, En Riesgo y Críticos, que suman 7.}
+{Dado el curso de referencia con promedio 6.40 y 2 estudiantes con nota menor a 5.0, Cuando se muestra la lista, Entonces esos 2 estudiantes aparecen con el punto de estado Crítico aunque el promedio no lo indique.}
+{Reglas RN-08, RN-10 y RN-11. La clasificación se calcula en SQL determinista, no con el modelo de IA. Estado visual con punto plano de 8 px, sin píldoras.}
+
+\begin{longtable}{|R{1.6cm}|R{5.8cm}|R{2.2cm}|R{1.3cm}|R{2.7cm}|}
+\caption{Tareas de ingeniería de HU-03}\\
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endhead
+\tarea{T2-03.1}{Vistas SQL de indicadores}{Vistas \cd{vw_NotaUnidad}, \cd{vw_NotaEstudiante} y \cd{vw_DashboardCurso} con promedio sobre 10 y distribución por nivel.}{06/11 al 09/11}{2 h}{Johan Borja}
+\tarea{T2-03.2}{Endpoint del dashboard del curso}{\cd{GET /api/cursos/{id}/dashboard} con autorización por curso; retorna promedio, conteos, lista de estudiantes y fecha de sincronización.}{07/11 al 09/11}{2 h}{Justin Ojeda}
+\tarea{T2-03.3}{Componentes React del panel general}{Cuatro KPIs (Promedio General, Críticos, En Riesgo, Aceptables) y tabla plana con punto de 8 px según el Mockup 1.}{07/11 al 10/11}{4 h}{Alvaro Moreta}
+\tarea{T2-03.4}{Pruebas de clasificación por nivel}{Pruebas de umbrales en 4.9, 5.0, 6.9 y 7.0 y verificación de que los conteos suman 7 con el dataset de referencia (promedio 6.40: 4 aceptables, 1 en riesgo, 2 críticos).}{10/11 al 11/11}{2 h}{Alan Zamora}
+\end{longtable}
+\textbf{Total de HU-03:} 10 horas.
+
+\textbf{Mockup que valida la historia.}
+\begin{figure}[H]
+\centering
+\safeimg{width=0.85\textwidth}{mockup1_panel_general.png}
+\caption{Mockup 1 (Figma): Panel general del curso (valida HU-03).}
+\end{figure}
+El Mockup 1 presenta los cuatro KPIs en tarjetas blancas (Promedio General 6.40, Estudiantes Críticos 02, En Riesgo 01 y Estudiantes Aceptables 04), la tabla plana de seguimiento con estado mediante punto circular de 8 px y el resumen del curso sincronizado. La columna \emph{Evolución Académica} usa texto neutro (\texttt{\#475569}) con los valores Progreso Positivo, Rendimiento Constante y Sugerencia de Apoyo. En el Sprint 2 el título del panel se alimenta del curso seleccionado entre las cuatro materias del portafolio.
+
+\textbf{Explicación técnica.} El backend consulta \cd{vw_DashboardCurso} (promedio, conteos por nivel y total) y \cd{vw_NotaEstudiante} (lista de estudiantes con nota y nivel) y devuelve además la fecha de la última sincronización; si la sincronización es \texttt{INCOMPLETA}, la respuesta lo indica y el frontend muestra un aviso (RN-07).
+
+\begin{table}[H]
+\centering\small
+\caption{Endpoints de HU-03}
+\begin{tabularx}{\textwidth}{|R{1.5cm}|R{5.0cm}|R{2.2cm}|Y|}
+\hline
+\hd{Método} & \hd{Ruta} & \hd{Acceso} & \hd{Descripción y respuestas}\\ \hline
+GET & \cd{/api/cursos/{id}/dashboard} & JWT, curso autorizado & Promedio, conteos por nivel, lista de estudiantes y fecha de sincronización; 403 si el curso no está autorizado.\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\safeimg{width=0.9\textwidth}{evidencia_dashboard_react.png}
+\caption{Evidencia: dashboard React funcionando en el puerto 3000 con datos de la réplica.}
+\end{figure}
+
+% ---------------- HU-04 ----------------
+\subsubsection{HU-04 --- Ficha individual del estudiante (Módulo D)}
+\fichahu{HU-04}{Docente}
+{Seguimiento individual y desglose por unidades y subtemas (RF-06, RF-08)}
+{Alta}{Media}{5 SP (14 h de tareas)}{Johan Borja}
+
+\tresc{HU-04}
+{COMO docente, QUIERO abrir la ficha de un estudiante y ver su nota, su evolución por unidad y los subtemas con deficiencias, PARA ubicar en qué parte falla y decidir qué reforzar.}
+{Dado el Estudiante C con unidades evaluadas U1 = 2.0 y U2 = 5.0, Cuando el docente abre su ficha, Entonces ve la nota 3.5 / 10 (promedio de 2.0 y 5.0) y un gráfico de área con eje Y de 0 a 10 que muestra solo las 2 unidades evaluadas.}
+{Dado que el subtema Manejo de Apuntadores y Memoria tiene la nota más baja, Cuando el agente de IA analiza al estudiante, Entonces el banner señala ese subtema, separa hechos de recomendación e indica que el resultado es orientativo.}
+{Reglas RN-06, RN-08, RN-09, RN-15 y RN-19. Las Unidades 3 y 4 no se muestran porque aún no inician. La ficha distingue visualmente nota cero, sin entrega (que computa 0.0) y pendiente de calificar (excluida de forma temporal). El agente usa la herramienta \cd{obtener_calificaciones} y no inventa datos. El subtema citado es el ejemplo de validación (contexto de Estructura de Datos) y varía por asignatura en el archivo de siembra.}
+
+\begin{longtable}{|R{1.6cm}|R{5.8cm}|R{2.2cm}|R{1.3cm}|R{2.7cm}|}
+\caption{Tareas de ingeniería de HU-04}\\
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endhead
+\tarea{T2-04.1}{Nota ponderada por unidad y por subtema}{Vistas \cd{vw_NotaUnidad} (40/30/30 por unidad, con SIN\_ENTREGA como 0.0 y redistribución de pesos) y \cd{vw_SubtemaEstudiante}; nota del estudiante como promedio de las unidades evaluadas.}{06/11 al 09/11}{3 h}{Johan Borja}
+\tarea{T2-04.2}{Endpoint de seguimiento individual}{\cd{GET /api/estudiantes/{id}/seguimiento}: nota, unidades evaluadas, subtemas y estado de cada actividad.}{08/11 al 10/11}{2 h}{Justin Ojeda}
+\tarea{T2-04.3}{Gráfico de área y lista de subtemas}{Componente React con Recharts: gráfico de área, eje Y de 0 a 10, solo unidades evaluadas, notas sobre cada punto y desglose por unidad según el Mockup 2.}{08/11 al 11/11}{4 h}{Alvaro Moreta}
+\tarea{T2-04.4}{Herramienta del agente y banner de diagnóstico}{Implementar \cd{obtener_calificaciones} en el agente y el banner que separa hechos, inferencia y recomendación orientativa.}{08/11 al 10/11}{3 h}{Alan Zamora}
+\tarea{T2-04.5}{Pruebas de la ficha individual}{Caso U1 = 2.0, U2 = 5.0 y nota 3.5: verificar gráfico, subtema crítico y que el agente no inventa datos si la consulta falla.}{11/11 al 12/11}{2 h}{Alan Zamora}
+\end{longtable}
+\textbf{Total de HU-04:} 14 horas.
+
+\textbf{Mockup que valida la historia.}
+\begin{figure}[H]
+\centering
+\safeimg{width=0.85\textwidth}{mockup2_ficha_estudiante.png}
+\caption{Mockup 2 (Figma): Ficha individual del Estudiante C (valida HU-04).}
+\end{figure}
+El Mockup 2 muestra la nota ponderada 3.5 / 10 con punto de estado Crítico, el gráfico de área con degradado azul \texttt{\#11297A} de baja opacidad, eje Y de 0 a 10, líneas guía \texttt{\#E2E8F0} y solo las Unidades 1 (2.0) y 2 (5.0); el desglose por unidad con barra de progreso y subtema (\emph{Manejo de Apuntadores y Memoria}, crítico, e \emph{Inserción y Eliminación en Listas Enlazadas}, en progreso); y el banner del agente con el botón \emph{Generar Tarea de Refuerzo}.
+
+\textbf{Explicación técnica.} (1) El backend consulta la nota por unidad (RN-08) y las unidades con al menos un ítem evaluado; (2) calcula la nota del estudiante (RN-09) y su nivel; (3) consulta la nota por subtema, promediando los ítems del mismo subtema y unidad; (4) devuelve el estado de cada actividad para distinguir cero, sin entrega y pendiente; (5) el frontend grafica solo las unidades evaluadas con el eje Y fijo de 0 a 10. El diagnóstico sigue tres pasos reproducibles: \emph{hechos} (nota por subtema calculada en SQL), \emph{inferencia} determinista (subtema de menor nota y menor a 5.0) y \emph{recomendación orientativa} redactada por el modelo o por plantilla, siempre con la leyenda ``resultado orientativo; la decisión pedagógica corresponde al docente''. Texto de referencia del banner: ``El estudiante presenta lagunas conceptuales severas en la Unidad 1 (Manejo de Apuntadores). Se recomienda asignar una guía práctica interactiva de Nodos antes del examen parcial.''
+
+\begin{table}[H]
+\centering\small
+\caption{Endpoints de HU-04}
+\begin{tabularx}{\textwidth}{|R{1.5cm}|R{5.0cm}|R{2.2cm}|Y|}
+\hline
+\hd{Método} & \hd{Ruta} & \hd{Acceso} & \hd{Descripción y respuestas}\\ \hline
+GET & \cd{/api/estudiantes/{id}/seguimiento} & JWT, curso autorizado & Nota, unidades evaluadas, subtemas, estados de actividad y, si se solicita, diagnóstico del agente.\\ \hline
+GET & \cd{/internal/estudiantes/{id}/subtemas} & Token de servicio (solo agente) & Notas por subtema del estudiante; no es accesible con el JWT del docente.\\ \hline
+\end{tabularx}
+\end{table}
+
+% ---------------- HU-05 ----------------
+\subsubsection{HU-05 --- Centro de alertas, persistencia y publicación de refuerzos (Módulo E)}
+\fichahu{HU-05}{Docente}
+{Alertas académicas persistidas, ciclo de vida (incluido el cierre) y generación de tareas de refuerzo para Moodle UTA (RF-07, RF-10, RF-12)}
+{Alta}{Alta}{8 SP (19 h de tareas)}{Alan Zamora}
+
+\tresc{HU-05}
+{COMO docente, QUIERO recibir alertas explicables de estudiantes en riesgo, guardadas con su evidencia, y generar tareas de refuerzo que pueda revisar y publicar en Moodle, PARA intervenir antes de que termine el parcial.}
+{Dado el dataset de referencia en un curso del portafolio, Cuando una sincronización finaliza como \texttt{EXITOSA}, Entonces la tabla \texttt{Alerta} contiene 3 filas en estado \texttt{ABIERTA} por curso: Estudiantes C y D (regla R1, nota menor a 5.0) y E (regla R2, descenso de U1 a U2), cada una con la regla activada y su evidencia (unidad, nota y fecha), sin etiquetas definitivas; al repetir la sincronización no se crean filas adicionales.}
+{Dada una alerta \texttt{ABIERTA}, Cuando el docente pulsa \emph{Atender}, revisa el borrador, pulsa \emph{Aprobar y Publicar en Moodle} y confirma, Entonces la alerta pasa a \texttt{ATENDIDA} y luego a \texttt{PUBLICADO} (o \texttt{EXPORTADO} si Moodle rechaza la creación), y cada transición queda registrada en \texttt{Auditoria}; sin confirmación no se publica nada y la alerta permanece \texttt{ATENDIDA}.}
+{Reglas RN-07 y RN-12 a RN-19. Las reglas son configurables en \texttt{ReglaAlerta}. La detección numérica es determinista; \texttt{llama3.2:1b} solo redacta la explicación y el borrador, y si no responde en 10 segundos se usa una plantilla predefinida. No se modifican calificaciones. Una alerta que ya no es relevante se cierra con \cd{PATCH /api/alertas/{id}/cerrar} (estado terminal CERRADA, RN-14); el Mockup 3 no incorpora un botón propio para esa acción, por lo que su verificación se hace por API. Mejora respecto al Sprint 1: la regla combinada se separa en R1 y R2 para que el Centro de Alertas coincida con el Mockup 3.}
+
+\begin{longtable}{|R{1.6cm}|R{5.8cm}|R{2.2cm}|R{1.3cm}|R{2.7cm}|}
+\caption{Tareas de ingeniería de HU-05}\\
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endhead
+\tarea{T2-05.1}{Tablas, vista y persistencia de alertas, refuerzos y auditoría}{DDL de \texttt{ReglaAlerta}, \texttt{Alerta} (con restricción única curso--estudiante--regla y \texttt{CHECK} de los cinco estados), \texttt{Refuerzo} y \texttt{Auditoria}; vista \cd{vw_AlertaCandidata} con R1 y R2; inserción idempotente de alertas \texttt{ABIERTA} con evidencia tras cada sincronización exitosa.}{06/11 al 10/11}{3 h}{Johan Borja}
+\tarea{T2-05.2}{Contenedor Ollama y grafo LangGraph}{Servicios \texttt{ollama}, \texttt{ollama-init} y \texttt{agente} en Compose; grafo con herramientas, registro de invocaciones y timeout de 10 segundos con fallback.}{06/11 al 10/11}{4 h}{Alan Zamora}
+\tarea{T2-05.3}{Generador de borrador de refuerzo}{Salida JSON con título, descripción y 3 a 5 actividades ligadas a la unidad y al subtema débil; validación y plantilla de respaldo.}{08/11 al 10/11}{3 h}{Alan Zamora}
+\tarea{T2-05.4}{Endpoints de atención, cierre y publicación}{\cd{POST /api/alertas/{id}/atender} (ABIERTA a ATENDIDA y creación del borrador), \cd{PATCH /api/alertas/{id}/cerrar} (paso a CERRADA) y \cd{POST /api/refuerzos/{id}/publicar}: exige confirmación, invoca \cd{local_edumonitor_crear_tarea}, actualiza refuerzo y alerta, registra en \texttt{Auditoria} y exporta el borrador si faltan permisos.}{08/11 al 11/11}{3 h}{Justin Ojeda}
+\tarea{T2-05.5}{Centro de alertas y formulario de refuerzo}{Pantallas React según el Mockup 3: lista de alertas, formulario editable y botón \emph{Aprobar y Publicar en Moodle} con cuadro de confirmación.}{09/11 al 11/11}{4 h}{Alvaro Moreta}
+\tarea{T2-05.6}{Pruebas de alertas, timeout, fallback, cierre y publicación}{Verificar generación idempotente de alertas R1 y R2; forzar timeout y JSON inválido; verificar plantilla, transiciones de estado (incluido el cierre), auditoría y que sin confirmación no se publica.}{11/11 al 12/11}{2 h}{Alan Zamora}
+\end{longtable}
+\textbf{Total de HU-05:} 19 horas.
+
+\textbf{Mockup que valida la historia.}
+\begin{figure}[H]
+\centering
+\safeimg{width=0.85\textwidth}{mockup3_centro_alertas.png}
+\caption{Mockup 3 (Figma): Centro de alertas y tarea de refuerzo propuesta (valida HU-05).}
+\end{figure}
+El Mockup 3 muestra la lista de alertas (Estudiante C nota 3.5, D nota 4.0 y E nota 5.2) con el botón secundario \emph{Atender} (borde azul que se rellena al pasar el cursor) y el formulario \emph{Tarea de Refuerzo Propuesta} con destinatario, título e instrucciones editables, y el botón principal \emph{Aprobar y Publicar en Moodle}, que abre una confirmación explícita antes de publicar. Las tres alertas del mockup corresponden exactamente a las filas \texttt{ABIERTA} que genera la sincronización con el dataset de referencia.
+
+\textbf{Explicación técnica: reglas de alerta.}
+\begin{table}[H]
+\centering\small
+\caption{Reglas de alerta configurables (tabla ReglaAlerta)}
+\begin{tabularx}{\textwidth}{|R{3.3cm}|Y|R{1.6cm}|R{3.0cm}|}
+\hline
+\hd{Código} & \hd{Condición de activación} & \hd{Umbral} & \hd{Evidencia registrada}\\ \hline
+\cd{R1_NOTA_CRITICA} & La nota del estudiante es menor al umbral (nota $<5.0$). & 5.0 & Nota del estudiante y fecha de sincronización.\\ \hline
+\cd{R2_DESCENSO} & La nota de una unidad es menor que la de la unidad anterior (descenso entre unidades) y la nota del estudiante es menor al umbral. & 7.0 & Notas de ambas unidades, nota total y fecha.\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Algoritmo de persistencia en la tabla Alerta.}
+\begin{enumerate}
+  \item Al cerrar la sincronización de un curso como \texttt{EXITOSA}, el backend consulta \cd{vw_AlertaCandidata} filtrada por ese curso. Si queda \texttt{INCOMPLETA} o \texttt{ERROR}, no se evalúan reglas, para no generar alertas con datos parciales.
+  \item Por cada fila candidata (curso, estudiante, regla y valor) se compone la evidencia: regla activada, unidades comparadas con sus notas, nota total y fecha de la sincronización.
+  \item Se inserta una fila en \texttt{Alerta} con estado \texttt{ABIERTA} solo si no existe la combinación curso--estudiante--regla (restricción única), de modo que repetir la sincronización no duplica alertas.
+  \item Una alerta existente en cualquier estado, incluida CERRADA, no se reabre ni se modifica por una nueva sincronización; si la condición deja de cumplirse, la alerta abierta permanece hasta que el docente la gestione o la cierre.
+  \item Un estudiante puede acumular R1 y R2 a la vez, lo que genera dos filas independientes.
+  \item El número de alertas creadas se anota en el detalle de la sincronización. Con el dataset de referencia se crean 3 alertas por curso (12 en los cuatro cursos).
+\end{enumerate}
+
+\begin{table}[H]
+\centering\small
+\caption{Ciclo de vida de una alerta y de su refuerzo}
+\begin{tabularx}{\textwidth}{|R{2.5cm}|R{3.0cm}|R{3.6cm}|Y|}
+\hline
+\hd{Estado de la alerta} & \hd{Disparador} & \hd{Efecto en datos} & \hd{Registro en Auditoría}\\ \hline
+\texttt{ABIERTA} & Sincronización exitosa que cumple R1 o R2. & Se inserta la fila en \texttt{Alerta} con su evidencia. & Detalle de la sincronización (n.º de alertas creadas).\\ \hline
+\texttt{ATENDIDA} & El docente pulsa \emph{Atender}. & La alerta cambia de estado; el agente genera un \texttt{Refuerzo} en \texttt{BORRADOR} (origen IA o PLANTILLA). & Acción de atención de la alerta.\\ \hline
+\texttt{PUBLICADO} & El docente aprueba y confirma; Moodle crea la tarea. & El refuerzo pasa a \texttt{PUBLICADO} con el \texttt{cmid} y la fecha; la alerta pasa a \texttt{PUBLICADO}. & Acción \cd{PUBLICAR_PUBLICADO} con usuario, entidad y herramienta.\\ \hline
+\texttt{EXPORTADO} & El docente confirma, pero Moodle rechaza la creación (sin permisos o sin plugin). & El refuerzo y la alerta pasan a \texttt{EXPORTADO}; el frontend ofrece el borrador para carga manual. & Acción \cd{PUBLICAR_EXPORTADO}.\\ \hline
+\texttt{CERRADA} & El docente cierra una alerta que ya no es relevante con \cd{PATCH /api/alertas/{id}/cerrar}. & La alerta pasa al estado terminal \texttt{CERRADA} y no se reabre; si tenía un refuerzo en \texttt{BORRADOR}, este se conserva sin publicar. & Acción \cd{CERRAR_ALERTA} con usuario y fecha.\\ \hline
+\end{tabularx}
+\end{table}
+Las transiciones permitidas son: \texttt{ABIERTA} $\rightarrow$ \texttt{ATENDIDA} $\rightarrow$ \texttt{PUBLICADO} o \texttt{EXPORTADO}; y, desde \texttt{ABIERTA}, \texttt{ATENDIDA}, \texttt{PUBLICADO} o \texttt{EXPORTADO}, el cierre a \texttt{CERRADA} mediante el endpoint de cierre. \texttt{CERRADA} es terminal. Cualquier otra transición se rechaza (HTTP 409). El docente confirma explícitamente antes de la publicación (RN-17).
+
+\textbf{Flujo de publicación del refuerzo.}
+\begin{enumerate}
+  \item El backend recibe la solicitud con el indicador de confirmación; si es falso responde HTTP 400 sin llamar a Moodle y la alerta permanece \texttt{ATENDIDA}.
+  \item Localiza el refuerzo, su alerta y el curso de Moodle asociado; responde 404 si no existe.
+  \item Verifica que el docente esté autorizado en el curso (403 en caso contrario).
+  \item Invoca la creación de tarea en la sección del parcial; si tiene éxito, guarda el \texttt{cmid} y marca refuerzo y alerta como \texttt{PUBLICADO}.
+  \item Si Moodle rechaza la llamada, marca refuerzo y alerta como \texttt{EXPORTADO}.
+  \item En ambos casos inserta un registro en \texttt{Auditoria} con usuario, acción, entidad y herramienta.
+\end{enumerate}
+
+\textbf{Validación del borrador y fallback.} Un borrador de IA es válido solo si contiene título y descripción de tipo texto y una lista de 3 a 5 actividades, todas de tipo texto. La plantilla de respaldo genera el título ``Refuerzo de \emph{subtema} -- Unidad \emph{n}'', una descripción orientada al subtema y tres actividades genéricas (revisar apuntes y ejemplos, resolver tres ejercicios guiados y elaborar un resumen con un ejemplo propio). El límite de 10 segundos se impone sobre el tiempo total de la generación.
+
+\begin{table}[H]
+\centering\small
+\caption{Matriz de fallos del agente y respuesta del sistema}
+\begin{tabularx}{\textwidth}{|R{4.2cm}|R{4.4cm}|Y|}
+\hline
+\hd{Condición} & \hd{Detección} & \hd{Respuesta}\\ \hline
+Respuesta del modelo en más de 10 s & Excepción de tiempo agotado en el límite total. & Plantilla predefinida; origen \texttt{PLANTILLA}.\\ \hline
+Ollama inaccesible o modelo no descargado & Error HTTP del cliente. & Plantilla predefinida; aviso en el registro.\\ \hline
+JSON malformado & Error de decodificación. & Plantilla predefinida.\\ \hline
+JSON con menos de 3 o más de 5 actividades & Validación en \cd{validar_o_respaldar}. & Plantilla predefinida.\\ \hline
+Backend sin datos del estudiante & Lista de subtemas vacía. & El agente informa que no puede analizar y no inventa datos.\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Endpoints de HU-05}
+\begin{tabularx}{\textwidth}{|R{1.5cm}|R{5.0cm}|R{2.2cm}|Y|}
+\hline
+\hd{Método} & \hd{Ruta} & \hd{Acceso} & \hd{Descripción y respuestas}\\ \hline
+GET & \cd{/api/alertas} & JWT, curso autorizado & Alertas del curso con regla activada, estado y evidencias.\\ \hline
+POST & \cd{/api/alertas/{id}/atender} & JWT, curso autorizado & Pasa la alerta de ABIERTA a ATENDIDA y genera el borrador; 409 si el estado no lo permite.\\ \hline
+PATCH & \cd{/api/alertas/{id}/cerrar} & JWT, curso autorizado & Cierra la alerta (estado terminal CERRADA) y registra \cd{CERRAR_ALERTA} en auditoría; 404 si no existe, 403 si el curso no está autorizado, 409 si ya está CERRADA.\\ \hline
+PUT & \cd{/api/refuerzos/{id}} & JWT, curso autorizado & Guarda las ediciones del docente sobre el borrador (solo en BORRADOR).\\ \hline
+POST & \cd{/api/refuerzos/{id}/publicar} & JWT, curso autorizado & Publica el refuerzo; 400 sin confirmación, 404 si no existe, 403 si el curso no está autorizado; devuelve \texttt{PUBLICADO} o \texttt{EXPORTADO}.\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Tareas habilitadoras de setup (T2-00.1 a T2-00.5)}
+\begin{longtable}{|R{1.6cm}|R{5.8cm}|R{2.2cm}|R{1.3cm}|R{2.7cm}|}
+\caption{Tareas transversales del Sprint 2}\\
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{Código} & \hd{Tarea y descripción} & \hd{Fechas} & \hd{Horas} & \hd{Responsable}\\ \hline \endhead
+\tarea{T2-00.1}{Docker Compose de la réplica Moodle}{\texttt{Dockerfile}, \texttt{entrypoint.sh} y archivo de composición de Moodle (Moodle, MariaDB y cron).}{05/11 al 06/11}{4 h}{Justin Ojeda}
+\tarea{T2-00.2}{Categorías, cursos del portafolio y pestañas}{Script de siembra: jerarquía FISEI $\rightarrow$ SOFTWARE $\rightarrow$ Julio a Diciembre 2026, 4 cursos del portafolio (2.º A, 3.º B, 4.º B y 4.º A), 4 secciones y matrículas.}{05/11 al 07/11}{3 h}{Johan Borja}
+\tarea{T2-00.3}{Libro de calificaciones y calco visual}{Categorías 40/30/30, ítems con \emph{ID number}, tema y logo UTA según el inventario del sitio real.}{06/11 al 08/11}{3 h}{Alvaro Moreta}
+\tarea{T2-00.4}{Web Services y token}{Activar REST, crear el servicio EduMonitor\_WS, el usuario \cd{svc_edumonitor}, el token y el plugin \cd{local_edumonitor}.}{06/11 al 08/11}{2 h}{Alan Zamora}
+\tarea{T2-00.5}{Compose global y monorepo}{Archivo de composición global con SQL Server, Ollama, agente, backend y frontend; plantilla \texttt{.env.example}; \texttt{README.md}.}{07/11 al 09/11}{3 h}{Justin Ojeda}
+\end{longtable}
+\textbf{Subtotal setup:} 15 horas.
+
+% =====================================================================
+% 11. PLAN DE PRUEBAS
+% =====================================================================
+\section{PLAN DE PRUEBAS FUNCIONALES}
+
+\subsection{Estrategia}
+Las pruebas funcionales verifican que cada criterio de aceptación se cumpla desde el punto de vista del usuario. Se complementan con pruebas unitarias de indicadores, de integración de API y de permisos (RNF-06).
+
+\begin{table}[H]
+\centering\small
+\caption{Estrategia de pruebas funcionales}
+\begin{tabularx}{\textwidth}{|R{3.0cm}|Y|}
+\hline
+\hd{Aspecto} & \hd{Definición}\\ \hline
+Qué se evalúa & Cada criterio de aceptación (CA-01 a CA-10) y cada escenario de confirmación de HU-01 a HU-05: resultado visible, restricciones de acceso, manejo de datos incompletos y mensajes.\\ \hline
+Técnica & Pruebas de caja negra con partición por equivalencia y valores límite (umbrales en 4.9, 5.0, 6.9 y 7.0; notas cero, sin entrega y pendiente).\\ \hline
+Roles de prueba & Docente A (portafolio completo de 4 cursos), Docente B (2 cursos autorizados) y Administrador técnico (configuración de Moodle y del token).\\ \hline
+Datos de prueba & Réplica de Moodle con datos ficticios (RNF-02) y el dataset de referencia de la sección 11.2, con los casos especiales CERO, SIN\_ENTREGA y PENDIENTE.\\ \hline
+Pruebas del agente de IA & No determinista: se evalúa la estructura de la respuesta, que los hechos coincidan con los datos y el fallback. CP-06 se desglosa en cuatro sub-casos: inferencia normal (menos de 10 s), timeout real a los 10.0 s exactos, Ollama detenido y validación de la estructura JSON. Como verificación rápida adicional se arranca el agente con un límite de 0.01 s y se mide la latencia de 20 invocaciones (percentil 95, sin GPU).\\ \hline
+Herramientas & \cd{pytest -q} (backend), \cd{npm test} (frontend), \cd{docker compose config -q} y comprobaciones con \cd{curl} a \cd{/health}.\\ \hline
+Verificación rápida & Copiar \cd{.env.example} a \cd{.env}; \cd{docker compose up -d --build}; \cd{docker compose ps}; ejecutar la siembra en el contenedor \texttt{moodle}; comprobar \cd{/health}; iniciar sesión; sincronizar y consultar las alertas (3 por curso).\\ \hline
+Entorno y resultado de ejecución & Todos los casos se ejecutan en entorno Docker (\cd{docker compose}) con la réplica de Moodle sembrada. El resultado de cada caso se registra como \texttt{PASSED} o \texttt{FAILED}; en este Sprint la ejecución completa quedó en \texttt{PASSED (100\% Exitoso)}.\\ \hline
+Criterio de entrada & Historia implementada, réplica sembrada y usuarios de prueba disponibles.\\ \hline
+Criterio de salida & Todos los casos ejecutados con resultado registrado y sin defectos críticos abiertos.\\ \hline
+Registro & Cada caso registra: código, fecha, ejecutor, resultado (\texttt{PASSED} o \texttt{FAILED}) y evidencia.\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Dataset de referencia de validación}
+El mismo conjunto de siete estudiantes ficticios se matricula en los cuatro cursos. Cada ítem de una unidad recibe la nota objetivo de la unidad, con las excepciones indicadas, de modo que la nota ponderada de unidad coincide con la tabla. Las Unidades 3 y 4 no tienen calificaciones.
+
+\begin{table}[H]
+\centering\small
+\caption{Notas de referencia por unidad y nivel esperado}
+\begin{tabularx}{\textwidth}{|R{3.2cm}|c|c|c|R{1.9cm}|Y|}
+\hline
+\hd{Estudiante} & \hd{U1} & \hd{U2} & \hd{Nota} & \hd{Nivel} & \hd{Alerta esperada}\\ \hline
+Estudiante A & 8.2 & 9.0 & 8.6 & Aceptable & Ninguna\\ \hline
+Estudiante B & 7.5 & 8.3 & 7.9 & Aceptable & Ninguna\\ \hline
+Estudiante C & 2.0 & 5.0 & 3.5 & Crítico & R1 (nota menor a 5.0)\\ \hline
+Estudiante D & 3.5 & 4.5 & 4.0 & Crítico & R1 (nota menor a 5.0)\\ \hline
+Estudiante E & 5.5 & 4.9 & 5.2 & En Riesgo & R2 (descenso de U1 a U2)\\ \hline
+Estudiante F & 7.0 & 7.8 & 7.4 & Aceptable & Ninguna\\ \hline
+Estudiante G & 8.0 & 8.4 & 8.2 & Aceptable & Ninguna\\ \hline
+\textbf{Promedio del curso} & & & \textbf{6.40} & 4 / 1 / 2 & Aceptables / En Riesgo / Críticos\\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Casos especiales de estado} (no alteran las notas de referencia):
+\begin{itemize}
+  \item Estudiante C, Unidad 1: la tarea \cd{U1-T1} vale 4.0 y la tarea \cd{U1-T2} vale 0.0 (estado \texttt{CERO}, entra con 0.0); el promedio del componente sigue siendo 2.0.
+  \item Estudiante D, Unidad 2: la tarea \cd{U2-T4} se marca \cd{SIN_ENTREGA} y equivale a 0.0 por política institucional de la UTA; la tarea \cd{U2-T3} vale 9.0, de modo que el promedio del componente Tareas sigue siendo 4.5.
+  \item Estudiante E, Unidad 2: el tema \cd{U2-P3}, único ítem PAE de la unidad, queda \texttt{PENDIENTE} (excluido de forma temporal hasta el cierre de actas); el componente PAE queda sin ítems evaluables y su peso se redistribuye proporcionalmente entre ACD y Tareas (RN-08); como esos componentes valen 4.9, la nota de la unidad sigue siendo 4.9.
+\end{itemize}
+
+\subsection{Criterios de aceptación CA-01 a CA-10}
+\begin{table}[H]
+\centering\small
+\caption{Criterios de aceptación del Sprint 2}
+\begin{tabularx}{\textwidth}{|R{1.4cm}|Y|R{1.9cm}|R{3.0cm}|R{1.8cm}|}
+\hline
+\hd{ID} & \hd{Criterio} & \hd{Historia} & \hd{Evidencia} & \hd{Estado}\\ \hline
+CA-01 & La réplica Moodle muestra la jerarquía FISEI $\rightarrow$ SOFTWARE $\rightarrow$ Julio a Diciembre 2026 con los 4 cursos del portafolio (2.º A, 3.º B, 4.º B y 4.º A). & Setup & Figura de categorías. & \textbf{Cumplido}\\ \hline
+CA-02 & Cada curso tiene las pestañas Informativo, Primer Parcial, Segundo Parcial y Supletorio. & Setup & Prueba manual. & \textbf{Cumplido}\\ \hline
+CA-03 & El libro de calificaciones aplica 40/30/30 en cada parcial. & Setup & Figura del libro. & \textbf{Cumplido}\\ \hline
+CA-04 & Las 6 funciones de Web Services responden con HTTP 200. & HU-02 y Setup & Figura de Web Services. & \textbf{Cumplido}\\ \hline
+CA-05 & El comando de orquestación levanta todos los servicios. & Setup & Figura de \texttt{compose ps}. & \textbf{Cumplido}\\ \hline
+CA-06 & El agente responde con IA o, tras 10 s, con plantilla. & HU-05 & Pruebas CP-06.1 a CP-06.4. & \textbf{Aprobado}\\ \hline
+CA-07 & El dashboard del curso de referencia muestra 6.40, 02, 01 y 04. & HU-03 & Figura del dashboard. & \textbf{Aprobado}\\ \hline
+CA-08 & La ficha del Estudiante C muestra 3.5 / 10 con U1 = 2.0 y U2 = 5.0. & HU-04 & Prueba T2-04.5. & \textbf{Aprobado}\\ \hline
+CA-09 & La sincronización crea las alertas R1 y R2; una alerta atendida se aprueba y publica (o se exporta) o se cierra (CERRADA) y queda en auditoría con el ciclo ABIERTA $\rightarrow$ ATENDIDA $\rightarrow$ PUBLICADO, EXPORTADO o CERRADA. & HU-05 & Tabla \texttt{Alerta} y registro de \texttt{Auditoria}. & \textbf{Aprobado}\\ \hline
+CA-10 & Tablero Kanban actualizado (T2-00.1 a T2-05.6). & Transversal & Tablero de GitHub Projects. & \textbf{Cumplido}\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Casos de prueba por criterio de aceptación}
+\begin{longtable}{|R{1.35cm}|R{1.1cm}|R{2.6cm}|R{3.1cm}|R{3.1cm}|R{1.7cm}|}
+\caption{Casos de prueba por criterio de aceptación (CA-01 a CA-10)}\\
+\hline \hd{Código CP} & \hd{CA} & \hd{Precondición y datos} & \hd{Pasos} & \hd{Resultado esperado} & \hd{Ejecución (Docker)}\\ \hline \endfirsthead
+\hline \hd{Código CP} & \hd{CA} & \hd{Precondición y datos} & \hd{Pasos} & \hd{Resultado esperado} & \hd{Ejecución (Docker)}\\ \hline \endhead
+\footnotesize CP-01 & \footnotesize CA-01 & \footnotesize Réplica levantada y sembrada. & \footnotesize Abrir \emph{Gestionar cursos y categorías}. & \footnotesize Jerarquía FISEI $\rightarrow$ SOFTWARE $\rightarrow$ Julio a Diciembre 2026 con los 4 cursos. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-02 & \footnotesize CA-02 & \footnotesize Cuatro cursos sembrados. & \footnotesize Abrir cada curso y revisar sus secciones. & \footnotesize Pestañas Informativo, Primer Parcial, Segundo Parcial y Supletorio en cada curso. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-03 & \footnotesize CA-03 & \footnotesize Libro de calificaciones sembrado. & \footnotesize Abrir \emph{Calificaciones $\rightarrow$ Configuración} de un curso. & \footnotesize Categorías ACD 40\%, Tareas 30\% y PAE 30\% con media ponderada sobre 10 en cada parcial. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-04 & \footnotesize CA-04 & \footnotesize Token de \cd{svc_edumonitor} configurado. & \footnotesize Invocar las 6 funciones del servicio con \texttt{courseid} y \texttt{userid} válidos. & \footnotesize HTTP 200 y datos coherentes en las 6 funciones, sin excepción de Moodle. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-05 & \footnotesize CA-05 & \footnotesize \texttt{.env} completado; equipo con los requisitos de la sección 17. & \footnotesize Ejecutar \cd{docker compose up -d --build} y \cd{docker compose ps}. & \footnotesize Todos los servicios en ejecución, healthchecks en \emph{healthy} y \texttt{ollama-init} finalizado con éxito. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-06.1 & \footnotesize CA-06 & \footnotesize Agente activo y modelo cargado en memoria; alerta ATENDIDA con subtema débil. & \footnotesize Solicitar el borrador con el límite normal de 10 s (inferencia normal). & \footnotesize Respuesta en menos de 10 s; origen IA; JSON válido con 3 a 5 actividades ligadas al subtema. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-06.2 & \footnotesize CA-06 & \footnotesize Latencia simulada del modelo superior a 10.0 s con el límite en 10.0 s. & \footnotesize Solicitar el borrador y medir el tiempo hasta la respuesta. & \footnotesize Timeout real a los 10.0 s exactos; se entrega la plantilla con origen PLANTILLA; sin error para el docente. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-06.3 & \footnotesize CA-06 & \footnotesize Contenedor \texttt{ollama} detenido (\cd{docker compose stop ollama}). & \footnotesize Solicitar el borrador y reiniciar \texttt{ollama} al terminar. & \footnotesize Error HTTP controlado; plantilla con origen PLANTILLA y aviso en el registro. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-06.4 & \footnotesize CA-06 & \footnotesize Respuestas simuladas del modelo: JSON válido, JSON malformado, 2 actividades y 6 actividades. & \footnotesize Ejecutar el nodo \cd{validar_o_respaldar} con cada respuesta. & \footnotesize El JSON con 3 a 5 actividades se acepta (origen IA); los otros tres casos se reemplazan por la plantilla. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-07 & \footnotesize CA-07 & \footnotesize Dataset de referencia sincronizado. & \footnotesize Abrir el panel del curso. & \footnotesize Promedio 6.40; Críticos 02, En Riesgo 01, Aceptables 04; suman 7; carga en menos de 3 s. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-08 & \footnotesize CA-08 & \footnotesize Estudiante C con U1 = 2.0 y U2 = 5.0. & \footnotesize Abrir su ficha individual. & \footnotesize Nota 3.5 / 10; gráfico de área con eje 0 a 10 y solo U1 y U2. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-09 & \footnotesize CA-09 & \footnotesize Sincronización exitosa del dataset. & \footnotesize Consultar \texttt{Alerta}; atender la alerta de C; editar; aprobar y confirmar. & \footnotesize 3 alertas ABIERTAS por curso; luego ATENDIDA; luego PUBLICADO (o EXPORTADO) con registro en \texttt{Auditoria}. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-10 & \footnotesize CA-10 & \footnotesize Tablero de GitHub Projects del equipo. & \footnotesize Revisar las tarjetas T2-00.1 a T2-05.6. & \footnotesize Todas las tarjetas en la columna de terminadas. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\end{longtable}
+
+\subsection{Casos de prueba por escenario de confirmación de las historias}
+\begin{longtable}{|R{1.35cm}|R{1.5cm}|R{2.6cm}|R{3.0cm}|R{3.0cm}|R{1.7cm}|}
+\caption{Casos de prueba por escenario de HU-01 a HU-05}\\
+\hline \hd{Código CP} & \hd{Escenario} & \hd{Precondición y datos} & \hd{Pasos} & \hd{Resultado esperado} & \hd{Ejecución (Docker)}\\ \hline \endfirsthead
+\hline \hd{Código CP} & \hd{Escenario} & \hd{Precondición y datos} & \hd{Pasos} & \hd{Resultado esperado} & \hd{Ejecución (Docker)}\\ \hline \endhead
+\footnotesize CP-11 & \footnotesize HU-01 Esc. 1 & \footnotesize Docente B con 2 de 4 cursos. & \footnotesize Iniciar sesión; \cd{GET /api/cursos}; solicitar el dashboard de un curso ajeno. & \footnotesize 200 con JWT de 60 min; lista de 2 cursos; 403 en el curso ajeno. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-12 & \footnotesize HU-01 Esc. 2 & \footnotesize Credenciales erróneas; token ausente, inválido y vencido. & \footnotesize Iniciar sesión y consultar un endpoint protegido. & \footnotesize 401 con mensaje genérico que no revela si el usuario existe. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-13 & \footnotesize HU-02 Esc. 1 & \footnotesize Réplica con 4 cursos, 7 estudiantes y 18 ítems por curso. & \footnotesize Sincronizar; consultar \cd{GET /api/moodle/estado}. & \footnotesize 4 cursos, 7 estudiantes, 28 matrículas y 72 ítems en menos de 60 s; estado 200 en menos de 5 s. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-14 & \footnotesize HU-02 Esc. 2 & \footnotesize Curso ya sincronizado; token inválido; error simulado. & \footnotesize Repetir la sincronización; probar con token inválido y con error de API. & \footnotesize Conteos sin cambios; error controlado sin exponer el secreto; estado INCOMPLETA. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-15 & \footnotesize HU-03 Esc. 1 & \footnotesize Curso sincronizado con 7 estudiantes. & \footnotesize Abrir el panel. & \footnotesize En menos de 3 s: promedio sobre 10 y conteos que suman 7. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-16 & \footnotesize HU-03 Esc. 2 & \footnotesize Promedio 6.40; notas 4.9, 5.0, 6.9 y 7.0. & \footnotesize Revisar la lista y los niveles. & \footnotesize Los 2 críticos con punto de 8 px aunque el promedio no lo indique; umbrales correctos. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-17 & \footnotesize HU-04 Esc. 2 & \footnotesize Estudiante C con subtema de menor nota; agente activo. & \footnotesize Solicitar el diagnóstico. & \footnotesize Banner con el subtema débil, hechos separados de la recomendación y leyenda de resultado orientativo. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-18 & \footnotesize HU-05 Esc. 1 & \footnotesize Dataset de referencia y sincronización EXITOSA. & \footnotesize Sincronizar dos veces y consultar \cd{GET /api/alertas}. & \footnotesize 3 alertas ABIERTAS por curso (C y D con R1, E con R2) con evidencia; sin filas adicionales en la repetición. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-19 & \footnotesize HU-05 Esc. 2 & \footnotesize Alertas ABIERTAS; refuerzo generado. & \footnotesize \emph{Atender}; aprobar y publicar con y sin confirmación; simular rechazo de Moodle; cerrar otra alerta con \cd{PATCH /api/alertas/{id}/cerrar}. & \footnotesize ATENDIDA; con confirmación PUBLICADO (o EXPORTADO si Moodle rechaza); sin confirmación 400 y sin cambios; la alerta cerrada queda CERRADA (409 si se repite); eventos en \texttt{Auditoria}. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\end{longtable}
+
+\subsection{Matriz de trazabilidad}
+\begin{table}[H]
+\centering\small
+\caption{Matriz de trazabilidad (RF, historia, criterios, casos, mockups, modelo y ejecución)}
+\begin{tabularx}{\textwidth}{|R{1.7cm}|R{1.1cm}|R{1.9cm}|R{2.2cm}|R{1.5cm}|Y|R{1.8cm}|}
+\hline
+\hd{RF} & \hd{Historia} & \hd{Criterios} & \hd{Casos de prueba} & \hd{Mockup} & \hd{Modelo y diseño} & \hd{Ejecución (Docker)}\\ \hline
+RF-01 & HU-01 & Esc. 1 y 2 & CP-11, CP-12 & Mockup 1 (tokens) & \texttt{Usuario}, \texttt{Rol}, \texttt{CursoAutorizado} & PASSED (100\% Exitoso)\\ \hline
+RF-02, RF-03, RF-04 & HU-02 & CA-04; Esc. 1 y 2 & CP-04, CP-13, CP-14 & Mockup 1 & \texttt{Curso}, \texttt{Estudiante}, \texttt{Matricula}, \texttt{ItemCalificacion}, \texttt{Calificacion}, \texttt{Sincronizacion} & PASSED (100\% Exitoso)\\ \hline
+RF-05 & HU-03 & CA-07; Esc. 1 y 2 & CP-07, CP-15, CP-16 & Mockup 1 & \texttt{Parametro}, \cd{vw_NotaUnidad}, \cd{vw_NotaEstudiante}, \cd{vw_DashboardCurso} & PASSED (100\% Exitoso)\\ \hline
+RF-06, RF-08 & HU-04 & CA-08; Esc. 1 y 2 & CP-08, CP-17 & Mockup 2 & \cd{vw_SubtemaEstudiante} & PASSED (100\% Exitoso)\\ \hline
+RF-07, RF-10, RF-12 & HU-05 & CA-06, CA-09; Esc. 1 y 2 & CP-06.1 a CP-06.4, CP-09, CP-18, CP-19 & Mockup 3 & \texttt{ReglaAlerta}, \texttt{Alerta} (CHECK de 5 estados), \texttt{Refuerzo}, \texttt{Auditoria}, \cd{vw_AlertaCandidata} & PASSED (100\% Exitoso)\\ \hline
+Setup (T2-00.x) & Transversal & CA-01, CA-02, CA-03, CA-05, CA-10 & CP-01, CP-02, CP-03, CP-05, CP-10 & No aplica & Réplica Moodle, Web Services, Compose global & PASSED (100\% Exitoso)\\ \hline
+\textbf{Total} & \textbf{5 historias} & \textbf{10 CA y 9 escenarios} & \textbf{19 casos (22 ejecuciones con los 4 sub-casos de CP-06)} & \textbf{3 mockups} & & \textbf{22 de 22 PASSED (100\% Exitoso)}\\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 12. ESTIMACIÓN
+% =====================================================================
+\section{ESTIMACIÓN DE LAS HISTORIAS DE USUARIO}
+
+Los puntos de historia (SP) miden la complejidad y el esfuerzo relativo (1, 2, 3, 5 u 8); no equivalen a horas exactas. No se utiliza una velocidad histórica del equipo.
+
+\begin{table}[H]
+\centering\small
+\caption{Estimación de las Historias de Usuario en puntos de historia}
+\begin{tabularx}{\textwidth}{|R{1.2cm}|R{3.0cm}|R{2.0cm}|R{1.1cm}|R{1.2cm}|Y|}
+\hline
+\hd{Código HU} & \hd{Historia de Usuario} & \hd{Complejidad} & \hd{SP} & \hd{Horas} & \hd{Justificación}\\ \hline
+HU-01 & Inicio de sesión y restricción a cursos autorizados & Moderada & 3 & 10 & Patrón conocido (JWT y bcrypt); el riesgo está en la autorización por curso y en sus pruebas.\\ \hline
+HU-02 & Conexión con Moodle y sincronización & Considerable & 5 & 16 & Integración con Web Services, normalización de ítems y estados, e idempotencia.\\ \hline
+HU-03 & Dashboard general de indicadores & Moderada & 3 & 10 & Vistas SQL deterministas y una pantalla con KPIs y tabla.\\ \hline
+HU-04 & Ficha individual del estudiante & Considerable & 5 & 14 & Cálculo por unidad y subtema, gráfico de área y diagnóstico del agente.\\ \hline
+HU-05 & Centro de alertas y publicación de refuerzos & Alta & 8 & 19 & Persistencia de alertas, ciclo de vida con cierre, agente con timeout y fallback, plugin de Moodle y auditoría.\\ \hline
+ & \textbf{Total historias} & & \textbf{24} & \textbf{69} & \\ \hline
+ & Tareas de setup (T2-00.x) & & -- & 15 & Habilitadoras transversales.\\ \hline
+ & \textbf{Total Sprint 2} & & \textbf{24} & \textbf{84} & \\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 13. DESCOMPOSICIÓN EN TAREAS
+% =====================================================================
+\section{DESCOMPOSICIÓN EN TAREAS (CONSOLIDADO)}
+
+Resumen de las 30 tareas del Sprint 2. El detalle de cada una (fechas y descripción) está en las fichas de la sección 10. El colaborador es el integrante que revisa la tarea y apoya en caso de bloqueo.
+
+\begin{longtable}{|R{1.5cm}|R{1.3cm}|R{5.0cm}|R{1.9cm}|R{1.9cm}|R{1.5cm}|}
+\caption{Descomposición consolidada en tareas}\\
+\hline \hd{Código tarea} & \hd{HU} & \hd{Descripción de la tarea} & \hd{Responsable} & \hd{Colaborador} & \hd{Horas}\\ \hline \endfirsthead
+\hline \hd{Código tarea} & \hd{HU} & \hd{Descripción de la tarea} & \hd{Responsable} & \hd{Colaborador} & \hd{Horas}\\ \hline \endhead
+T2-00.1 & Setup & Docker Compose de la réplica Moodle & Justin & Alan & 4,0\\ \hline
+T2-00.2 & Setup & Categorías, cursos del portafolio y pestañas & Johan & Justin & 3,0\\ \hline
+T2-00.3 & Setup & Libro de calificaciones y calco visual & Alvaro & Johan & 3,0\\ \hline
+T2-00.4 & Setup & Web Services y token & Alan & Justin & 2,0\\ \hline
+T2-00.5 & Setup & Compose global y monorepo & Justin & Alan & 3,0\\ \hline
+T2-01.1 & HU-01 & Endpoint de inicio de sesión con JWT & Justin & Johan & 3,0\\ \hline
+T2-01.2 & HU-01 & Pantalla de inicio de sesión en React & Alvaro & Justin & 3,0\\ \hline
+T2-01.3 & HU-01 & Tablas de usuarios, roles y cursos autorizados & Johan & Justin & 2,0\\ \hline
+T2-01.4 & HU-01 & Pruebas de permisos por curso & Alan & Justin & 2,0\\ \hline
+T2-02.1 & HU-02 & Cliente Moodle y verificación de conectividad & Justin & Alan & 2,0\\ \hline
+T2-02.2 & HU-02 & Servicio de sincronización & Justin & Johan & 4,0\\ \hline
+T2-02.3 & HU-02 & Esquema de cursos, estudiantes y calificaciones & Johan & Justin & 3,0\\ \hline
+T2-02.4 & HU-02 & Datos de prueba de referencia & Johan & Alan & 2,0\\ \hline
+T2-02.5 & HU-02 & Vista de cursos y botón Sincronizar & Alvaro & Justin & 3,0\\ \hline
+T2-02.6 & HU-02 & Pruebas de idempotencia y de error & Alan & Justin & 2,0\\ \hline
+T2-03.1 & HU-03 & Vistas SQL de indicadores & Johan & Alvaro & 2,0\\ \hline
+T2-03.2 & HU-03 & Endpoint del dashboard del curso & Justin & Johan & 2,0\\ \hline
+T2-03.3 & HU-03 & Componentes React del panel general & Alvaro & Justin & 4,0\\ \hline
+T2-03.4 & HU-03 & Pruebas de clasificación por nivel & Alan & Johan & 2,0\\ \hline
+T2-04.1 & HU-04 & Nota ponderada por unidad y por subtema & Johan & Alan & 3,0\\ \hline
+T2-04.2 & HU-04 & Endpoint de seguimiento individual & Justin & Johan & 2,0\\ \hline
+T2-04.3 & HU-04 & Gráfico de área y lista de subtemas & Alvaro & Johan & 4,0\\ \hline
+T2-04.4 & HU-04 & Herramienta del agente y banner de diagnóstico & Alan & Alvaro & 3,0\\ \hline
+T2-04.5 & HU-04 & Pruebas de la ficha individual & Alan & Johan & 2,0\\ \hline
+T2-05.1 & HU-05 & Tablas, vista y persistencia de alertas, refuerzos y auditoría & Johan & Alan & 3,0\\ \hline
+T2-05.2 & HU-05 & Contenedor Ollama y grafo LangGraph & Alan & Justin & 4,0\\ \hline
+T2-05.3 & HU-05 & Generador de borrador de refuerzo & Alan & Johan & 3,0\\ \hline
+T2-05.4 & HU-05 & Endpoints de atención, cierre y publicación & Justin & Alan & 3,0\\ \hline
+T2-05.5 & HU-05 & Centro de alertas y formulario de refuerzo & Alvaro & Alan & 4,0\\ \hline
+T2-05.6 & HU-05 & Pruebas de alertas, timeout, fallback, cierre y publicación & Alan & Justin & 2,0\\ \hline
+\textbf{Total} & & \textbf{30 tareas} & & & \textbf{84,0}\\ \hline
+\end{longtable}
+
+% =====================================================================
+% 14. SPRINT BACKLOG
+% =====================================================================
+\section{SPRINT BACKLOG}
+
+\subsection{Tablero Scrum (estado inicial, 05/11/2026)}
+Al iniciar el Sprint todas las tareas están en la columna de tareas no iniciadas.
+
+\begin{table}[H]
+\centering\small
+\caption{Tablero Scrum al inicio del Sprint}
+\begin{tabularx}{\textwidth}{|R{4.0cm}|Y|R{1.6cm}|R{2.0cm}|}
+\hline
+\hd{Ítems del Backlog comprometidos} & \hd{Tareas no iniciadas} & \hd{En progreso} & \hd{Completadas}\\ \hline
+\textbf{HU-01} Inicio de sesión y restricción a cursos (3 SP) & T2-01.1 (Justin), T2-01.2 (Alvaro), T2-01.3 (Johan), T2-01.4 (Alan) & & \\ \hline
+\textbf{HU-02} Conexión y sincronización (5 SP) & T2-02.1 (Justin), T2-02.2 (Justin), T2-02.3 (Johan), T2-02.4 (Johan), T2-02.5 (Alvaro), T2-02.6 (Alan) & & \\ \hline
+\textbf{HU-03} Dashboard general (3 SP) & T2-03.1 (Johan), T2-03.2 (Justin), T2-03.3 (Alvaro), T2-03.4 (Alan) & & \\ \hline
+\textbf{HU-04} Ficha individual (5 SP) & T2-04.1 (Johan), T2-04.2 (Justin), T2-04.3 (Alvaro), T2-04.4 (Alan), T2-04.5 (Alan) & & \\ \hline
+\textbf{HU-05} Alertas y refuerzos (8 SP) & T2-05.1 (Johan), T2-05.2 (Alan), T2-05.3 (Alan), T2-05.4 (Justin), T2-05.5 (Alvaro), T2-05.6 (Alan) & & \\ \hline
+\textbf{Tareas de setup} & T2-00.1 (Justin), T2-00.2 (Johan), T2-00.3 (Alvaro), T2-00.4 (Alan), T2-00.5 (Justin) & & \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Tablero Scrum (estado avanzado, cierre del 12/11/2026)}
+Al cierre del Sprint, y una vez verificados los criterios CA-01 a CA-10, las tareas pasan a la columna de completadas.
+
+\begin{table}[H]
+\centering\small
+\caption{Tablero Scrum al cierre del Sprint}
+\begin{tabularx}{\textwidth}{|R{4.0cm}|R{1.8cm}|R{1.8cm}|Y|}
+\hline
+\hd{Ítems del Backlog comprometidos} & \hd{No iniciadas} & \hd{En progreso} & \hd{Tareas completadas}\\ \hline
+\textbf{HU-01} (3 SP) & 0 & 0 & T2-01.1 a T2-01.4 (4 tareas)\\ \hline
+\textbf{HU-02} (5 SP) & 0 & 0 & T2-02.1 a T2-02.6 (6 tareas)\\ \hline
+\textbf{HU-03} (3 SP) & 0 & 0 & T2-03.1 a T2-03.4 (4 tareas)\\ \hline
+\textbf{HU-04} (5 SP) & 0 & 0 & T2-04.1 a T2-04.5 (5 tareas)\\ \hline
+\textbf{HU-05} (8 SP) & 0 & 0 & T2-05.1 a T2-05.6 (6 tareas)\\ \hline
+\textbf{Tareas de setup} & 0 & 0 & T2-00.1 a T2-00.5 (5 tareas)\\ \hline
+\textbf{Total} & \textbf{0} & \textbf{0} & \textbf{30 tareas}\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Resumen del Sprint Backlog}
+\begin{table}[H]
+\centering\small
+\caption{Resumen del Sprint Backlog}
+\begin{tabularx}{\textwidth}{|R{1.3cm}|Y|R{2.0cm}|R{3.2cm}|R{0.8cm}|R{1.2cm}|R{1.4cm}|}
+\hline
+\hd{ID} & \hd{Historia de Usuario} & \hd{Responsable principal} & \hd{Participan en tareas} & \hd{SP} & \hd{Horas} & \hd{Prioridad}\\ \hline
+HU-01 & Inicio de sesión y restricción a cursos autorizados & Justin & Alvaro, Johan, Alan & 3 & 10 h & Alta\\ \hline
+HU-02 & Conexión con Moodle y sincronización & Justin & Alvaro, Johan, Alan & 5 & 16 h & Alta\\ \hline
+HU-03 & Dashboard general de indicadores & Alvaro & Johan, Justin, Alan & 3 & 10 h & Alta\\ \hline
+HU-04 & Ficha individual del estudiante & Johan & Justin, Alvaro, Alan & 5 & 14 h & Alta\\ \hline
+HU-05 & Centro de alertas y publicación de refuerzos & Alan & Johan, Justin, Alvaro & 8 & 19 h & Alta\\ \hline
+Setup & Tareas habilitadoras & Los 4 integrantes & & -- & 15 h & Alta\\ \hline
+\textbf{Total} & \textbf{5 historias $\cdot$ 30 tareas} & & & \textbf{24} & \textbf{84 h} & \\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 15. DISTRIBUCIÓN DE RESPONSABILIDADES
+% =====================================================================
+\section{DISTRIBUCIÓN DE RESPONSABILIDADES}
+
+\begin{table}[H]
+\centering\small
+\caption{Distribución de responsabilidades del equipo}
+\begin{tabularx}{\textwidth}{|R{2.2cm}|R{3.8cm}|R{2.0cm}|Y|}
+\hline
+\hd{Integrante} & \hd{Responsabilidades principales} & \hd{Historias relacionadas} & \hd{Tareas asignadas}\\ \hline
+Alvaro Moreta & Frontend React, calco visual, mockups y vistas (Proxy-PO / Frontend Lead, función de enlace dentro del equipo de desarrollo). & HU-01 a HU-05 & T2-00.3, T2-01.2, T2-02.5, T2-03.3, T2-04.3, T2-05.5 (6 tareas $\cdot$ 21 h)\\ \hline
+Justin Ojeda & Backend FastAPI, cliente Moodle, sincronización y Docker Compose. & HU-01 a HU-05 & T2-00.1, T2-00.5, T2-01.1, T2-02.1, T2-02.2, T2-03.2, T2-04.2, T2-05.4 (8 tareas $\cdot$ 23 h)\\ \hline
+Johan Borja & SQL Server, vistas de indicadores, datos de prueba y analítica. & HU-01 a HU-05 & T2-00.2, T2-01.3, T2-02.3, T2-02.4, T2-03.1, T2-04.1, T2-05.1 (7 tareas $\cdot$ 18 h)\\ \hline
+Alan Zamora & Agente de IA, calidad y pruebas; Scrum Master. & HU-01 a HU-05 & T2-00.4, T2-01.4, T2-02.6, T2-03.4, T2-04.4, T2-04.5, T2-05.2, T2-05.3, T2-05.6 (9 tareas $\cdot$ 22 h)\\ \hline
+\textbf{Total} & & & \textbf{30 tareas $\cdot$ 84 h}\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Programador responsable de cada historia}
+\begin{tabularx}{\textwidth}{|R{1.6cm}|Y|R{3.0cm}|R{1.4cm}|}
+\hline
+\hd{Historia} & \hd{Nombre} & \hd{Programador responsable} & \hd{Puntos}\\ \hline
+HU-01 & Inicio de sesión y restricción a cursos autorizados & Justin Ojeda & 3\\ \hline
+HU-02 & Conexión con Moodle y sincronización & Justin Ojeda & 5\\ \hline
+HU-03 & Dashboard general de indicadores & Alvaro Moreta & 3\\ \hline
+HU-04 & Ficha individual del estudiante & Johan Borja & 5\\ \hline
+HU-05 & Centro de alertas y publicación de refuerzos & Alan Zamora & 8\\ \hline
+\textbf{Total} & & & \textbf{24}\\ \hline
+\end{tabularx}
+\end{table}
+El Product Owner no figura como responsable de tareas; su participación consiste en validar el alcance, los criterios y los entregables.
+
+% =====================================================================
+% 16. PLAN DE TRABAJO
+% =====================================================================
+\section{PLAN DE TRABAJO DEL SPRINT 2}
+
+\subsection{Orden de elaboración y dependencias}
+\begin{enumerate}
+  \item \textbf{Setup primero (05/11 y 06/11):} la réplica Moodle, los Web Services y el esquema de base de datos desbloquean la sincronización y las pruebas.
+  \item \textbf{Ruta crítica HU-01 $\rightarrow$ HU-02 $\rightarrow$ HU-03:} el login y la autorización por curso preceden a la sincronización; esta alimenta el dashboard.
+  \item \textbf{Agente en paralelo:} el contenedor Ollama y el grafo (T2-05.2) inician el 06/11 por ser el componente de mayor riesgo; se prueban con plantilla desde el primer día.
+  \item \textbf{Dependencias funcionales:} HU-02 alimenta a HU-03, HU-04 y HU-05; las vistas de HU-03 y HU-04 alimentan las alertas (HU-05); las herramientas del agente consumen el endpoint interno de HU-04.
+  \item \textbf{Pruebas después de cada pieza:} los casos \texttt{.4}, \texttt{.5} y \texttt{.6} de cada historia se ejecutan cuando existe la funcionalidad y su mockup.
+  \item \textbf{Cierre (11/11 y 12/11):} pruebas finales, verificación de CA-01 a CA-10, Sprint Review con demostración al Product Owner (1,0 h) y Retrospectiva (0,5 h) el 12/11/2026.
+\end{enumerate}
+
+\subsection{Cronograma diario por integrante}
+Ningún integrante supera las 6 horas diarias de tareas; el 05/11 se descuentan además las 3 horas de la reunión de planificación (3 horas de tareas como máximo) y el 12/11 se destinan 1,5 horas a la Sprint Review y la Retrospectiva. La reunión diaria de 15 minutos se cubre con la reserva.
+
+\begin{table}[H]
+\centering\small
+\caption{Cronograma diario por integrante}
+\begin{tabularx}{\textwidth}{|R{1.5cm}|Y|Y|Y|Y|}
+\hline
+\hd{Día} & \hd{Alvaro} & \hd{Justin} & \hd{Johan} & \hd{Alan}\\ \hline
+Jue 05/11 & Reunión de planificación; sin tareas (preparación del entorno con la reserva). & Reunión de planificación; T2-00.1 (2 h), T2-02.1 (1 h). & Reunión de planificación; T2-00.2 (3 h). & Reunión de planificación; sin tareas (tablero Kanban inicial con la reserva).\\ \hline
+Vie 06/11 & T2-00.3 (3 h), T2-01.2 (3 h). & T2-00.1 (2 h), T2-01.1 (3 h), T2-02.1 (1 h). & T2-01.3 (2 h), T2-02.3 (3 h), T2-03.1 (1 h). & T2-00.4 (2 h), T2-05.2 (4 h).\\ \hline
+Sáb 07 y Dom 08 & \multicolumn{4}{l|}{Fin de semana: no hábiles, sin carga planificada.}\\ \hline
+Lun 09/11 & T2-02.5 (1,5 h), T2-03.3 (2 h), T2-04.3 (1,5 h). & T2-00.5 (3 h), T2-03.2 (2 h), T2-02.2 (1 h). & T2-03.1 (1 h), T2-02.4 (2 h), T2-04.1 (3 h). & T2-01.4 (1 h), T2-04.4 (1,5 h), T2-05.3 (1,5 h).\\ \hline
+Mar 10/11 & T2-02.5 (1,5 h), T2-03.3 (2 h), T2-04.3 (1 h), T2-05.5 (1,5 h). & T2-02.2 (3 h), T2-04.2 (2 h). & T2-05.1 (3 h). & T2-01.4 (1 h), T2-04.4 (1,5 h), T2-05.3 (1,5 h), T2-02.6 (1 h).\\ \hline
+Mié 11/11 & T2-04.3 (1,5 h), T2-05.5 (2,5 h). & T2-05.4 (3 h). & Apoyo y revisión de PR (reserva). & T2-02.6 (1 h), T2-03.4 (2 h), T2-04.5 (1 h), T2-05.6 (1 h).\\ \hline
+Jue 12/11 & \multicolumn{4}{l|}{Sprint Review (1,0 h) y Retrospectiva (0,5 h) de todo el equipo. Alan: T2-04.5 (1 h) y T2-05.6 (1 h) antes de la demostración.}\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Verificación de horas por integrante}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|c|}
+\hline
+\hd{Verificación de horas} & \hd{Alvaro} & \hd{Justin} & \hd{Johan} & \hd{Alan}\\ \hline
+Horas de tareas en el cronograma & 21 h & 23 h & 18 h & 22 h\\ \hline
+Máximo en un solo día & 6 h & 6 h & 6 h & 6 h\\ \hline
+Coincide con la tabla de capacidad & Sí & Sí & Sí & Sí\\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Riesgos e impedimentos}
+Son riesgos potenciales identificados durante la planificación; ninguno se presenta como ocurrido.
+
+\begin{longtable}{|R{1.1cm}|R{4.4cm}|R{1.3cm}|R{1.5cm}|R{4.1cm}|R{1.6cm}|}
+\caption{Riesgos e impedimentos del Sprint 2}\\
+\hline \hd{N.º} & \hd{Riesgo o impedimento} & \hd{Prob.} & \hd{Impacto} & \hd{Medida de mitigación} & \hd{Responsable}\\ \hline \endfirsthead
+\hline \hd{N.º} & \hd{Riesgo o impedimento} & \hd{Prob.} & \hd{Impacto} & \hd{Medida de mitigación} & \hd{Responsable}\\ \hline \endhead
+\footnotesize R-01 & \footnotesize La versión, el tema o el formato de curso del Moodle institucional difieren de la réplica. & \footnotesize Media & \footnotesize Medio & \footnotesize Inventario previo del sitio real y ajuste del Dockerfile y del script de siembra. & \footnotesize Justin\\ \hline
+\footnotesize R-02 & \footnotesize El núcleo de Moodle no crea tareas por Web Services y HU-05 no publica. & \footnotesize Alta & \footnotesize Alto & \footnotesize Plugin \cd{local_edumonitor}; exportación del borrador (estado EXPORTADO). & \footnotesize Alan\\ \hline
+\footnotesize R-03 & \footnotesize Latencia de \texttt{llama3.2:1b} sin GPU y carga en frío superan los 10 s. & \footnotesize Alta & \footnotesize Medio & \footnotesize Mantener el modelo en memoria, precarga y fallback a plantilla. & \footnotesize Alan\\ \hline
+\footnotesize R-04 & \footnotesize Plazo de 6 días hábiles insuficiente para las cinco historias. & \footnotesize Media & \footnotesize Alto & \footnotesize Priorizar HU-01 $\rightarrow$ HU-02 $\rightarrow$ HU-03 y dejar HU-05 con plantilla si es necesario. & \footnotesize Alan\\ \hline
+\footnotesize R-05 & \footnotesize Acceso indebido a cursos de otro docente por fallas de autorización. & \footnotesize Baja & \footnotesize Alto & \footnotesize Autorización en backend por \texttt{CursoAutorizado}; pruebas de 403 con dos docentes (T2-01.4). & \footnotesize Justin\\ \hline
+\footnotesize R-06 & \footnotesize Exposición de tokens o contraseñas en el repositorio. & \footnotesize Media & \footnotesize Alto & \footnotesize \texttt{.env} excluido de Git, plantilla sin secretos, revisión de PR y mínimo privilegio. & \footnotesize Justin\\ \hline
+\footnotesize R-07 & \footnotesize Alertas duplicadas o con datos parciales por sincronizaciones repetidas o incompletas. & \footnotesize Media & \footnotesize Medio & \footnotesize Restricción única de \texttt{Alerta}; no evaluar reglas si la sincronización no es EXITOSA. & \footnotesize Johan\\ \hline
+\footnotesize R-08 & \footnotesize Falsos positivos de la regla R2 que saturan al docente. & \footnotesize Media & \footnotesize Medio & \footnotesize Umbrales configurables en \texttt{ReglaAlerta}; evidencia visible; sin etiquetas definitivas; cierre de alertas no relevantes (CERRADA). & \footnotesize Johan\\ \hline
+\footnotesize R-09 & \footnotesize Divergencia entre el dataset único de laboratorio y la heterogeneidad real de las asignaturas. & \footnotesize Media & \footnotesize Medio & \footnotesize Subtemas propios por asignatura en la siembra; nóminas independientes soportadas por \texttt{Matricula}. & \footnotesize Johan\\ \hline
+\footnotesize R-10 & \footnotesize Recursos insuficientes del equipo anfitrión (6 GB de RAM) para ejecutar siete servicios. & \footnotesize Media & \footnotesize Medio & \footnotesize Documentar requisitos en el README; levantar Moodle y el resto por etapas. & \footnotesize Alvaro\\ \hline
+\footnotesize R-11 & \footnotesize Divergencia entre el diseño de Figma y la implementación React. & \footnotesize Baja & \footnotesize Bajo & \footnotesize Tokens de diseño compartidos y comparación con los mockups en la DoD (FE-03 a FE-05). & \footnotesize Alvaro\\ \hline
+\footnotesize R-12 & \footnotesize Uso de datos reales de estudiantes en pruebas. & \footnotesize Baja & \footnotesize Alto & \footnotesize Solo datos ficticios; anonimización y prohibición de enviar datos a servicios externos. & \footnotesize Equipo\\ \hline
+\footnotesize R-13 & \footnotesize Carga de Johan concentrada entre el 05 y el 09/11 (18 h en 3 días hábiles, 6 h diarias). & \footnotesize Media & \footnotesize Medio & \footnotesize Priorizar T2-02.3 y T2-03.1; Alan y Justin colaboran en la revisión; el 10/11 queda como holgura. & \footnotesize Alan\\ \hline
+\end{longtable}
+
+\subsection{Criterios de finalización del Sprint 2}
+\begin{itemize}
+  \item Las cinco Historias de Usuario cumplen su Definición de Terminado y sus criterios de aceptación (CA-01 a CA-10) están verificados.
+  \item La matriz de trazabilidad no deja criterios sin caso de prueba (10 criterios, 9 escenarios y 19 casos, con CP-06 desglosado en 4 sub-casos: 22 ejecuciones).
+  \item Las ejecuciones de prueba en entorno Docker registran el resultado \texttt{PASSED (100\% Exitoso)}.
+  \item \texttt{docker compose up} levanta los siete servicios lógicos y el dashboard del curso de referencia muestra 6.40, 02, 01 y 04.
+  \item La sincronización genera las alertas R1 y R2 sin duplicarlas y una alerta recorre el ciclo ABIERTA $\rightarrow$ ATENDIDA $\rightarrow$ PUBLICADO o EXPORTADO, o se cierra (CERRADA), con registro en auditoría.
+  \item El agente responde con IA o, tras 10 s, con plantilla.
+  \item No hay credenciales ni tokens en el repositorio.
+  \item El Product Owner valida el incremento el 12/11/2026 y las tareas están cerradas en el tablero Scrum.
+\end{itemize}
+
+% =====================================================================
+% 17. DEFINICIÓN DE TERMINADO
+% =====================================================================
+\section{DEFINICIÓN DE TERMINADO}
+
+\subsection{Definición de Terminado por tarea}
+Una tarea se considera terminada cuando:
+\begin{enumerate}
+  \item Cumple su descripción y está implementada o redactada de forma clara y sin ambigüedades.
+  \item Su Pull Request fue revisado y aprobado por un integrante distinto del autor.
+  \item Las pruebas unitarias e integradas asociadas pasan.
+  \item Es coherente con las reglas de negocio (RN-01 a RN-19) y con los requerimientos no funcionales aplicables.
+  \item No existen credenciales ni tokens en el repositorio y la documentación en \cd{docs/} y \cd{README.md} está actualizada.
+  \item Está actualizada en el tablero Scrum.
+\end{enumerate}
+
+\subsection{Definición de Terminado por historia}
+Una Historia de Usuario se considera terminada en el Sprint 2 cuando:
+\begin{enumerate}
+  \item Todas sus tareas cumplen la Definición de Terminado de tarea.
+  \item Sus escenarios Dado-Cuando-Entonces se verificaron con el dataset de referencia, cada uno con al menos un caso de prueba ejecutado con resultado \texttt{PASSED}.
+  \item Cuenta con mockup, modelo y diseño técnico coherentes entre sí.
+  \item Figura en la matriz de trazabilidad.
+  \item Fue validada por el Product Owner en la demostración.
+\end{enumerate}
+
+\subsection{Definición de Terminado por componente técnico}
+\dodtabla{DoD del frontend React (puerto 3000)}{
+FE-01 & El contenedor \texttt{frontend} responde HTTP 200 en el puerto 3000. & \cd{curl -I http://localhost:3000}\\ \hline
+FE-02 & Login funcional con JWT; sin token las rutas protegidas redirigen a \texttt{/login}; el listado muestra solo los cursos autorizados. & Prueba manual y prueba de ruta.\\ \hline
+FE-03 & Panel general con 4 KPIs y tabla con punto de estado de 8 px (Mockup 1). & Comparación con \cd{mockup1_panel_general.png}.\\ \hline
+FE-04 & Ficha individual con gráfico de área de 0 a 10, solo unidades evaluadas, y banner del agente (Mockup 2). & Caso Estudiante C: 2.0, 5.0 y 3.5.\\ \hline
+FE-05 & Centro de alertas con formulario editable y confirmación antes de \emph{Aprobar y Publicar en Moodle} (Mockup 3). & Prueba manual.\\ \hline
+FE-06 & Compilación y pruebas sin errores. & \cd{npm run build} y \cd{npm test}.\\ \hline
+FE-07 & La URL de la API se lee de \cd{VITE_API_URL}; no hay secretos en el código. & Revisión de PR.\\ \hline
+}
+
+\dodtabla{DoD del backend FastAPI (puerto 8000)}{
+BE-01 & \cd{/health} responde 200 y \cd{/docs} publica el contrato OpenAPI. & \cd{curl http://localhost:8000/health}\\ \hline
+BE-02 & Login devuelve JWT de 60 minutos; token inválido responde 401; curso ajeno responde 403. & Pruebas T2-01.4.\\ \hline
+BE-03 & \cd{GET /api/moodle/estado} responde en menos de 5 s. & Prueba con medición.\\ \hline
+BE-04 & Sincronización idempotente en menos de 60 s (4 cursos, 7 estudiantes, 72 ítems). & Pruebas T2-02.6.\\ \hline
+BE-05 & Dashboard responde en menos de 3 s. & Prueba con medición.\\ \hline
+BE-06 & Publicar sin confirmación responde 400 y no llama a Moodle; toda publicación y atención queda en \texttt{Auditoria}. & Pruebas T2-05.6.\\ \hline
+BE-07 & La sincronización exitosa crea las alertas R1 y R2 sin duplicarlas y las transiciones respetan el ciclo ABIERTA $\rightarrow$ ATENDIDA $\rightarrow$ PUBLICADO o EXPORTADO, más el cierre a CERRADA. & Pruebas T2-05.6.\\ \hline
+BE-08 & Pruebas \texttt{pytest} pasan en CI local. & \cd{pytest -q}\\ \hline
+BE-09 & \cd{PATCH /api/alertas/{id}/cerrar} deja la alerta en CERRADA y registra \cd{CERRAR_ALERTA}; responde 409 si ya está cerrada y 403 si el curso no está autorizado. & Pruebas T2-05.6 (CP-19).\\ \hline
+}
+
+\dodtabla{DoD de SQL Server (MoodleUTADB)}{
+DB-01 & El DDL se ejecuta sin errores y es re-ejecutable (idempotente). & Ejecutar el script dos veces.\\ \hline
+DB-02 & Claves únicas por ID de Moodle impiden duplicados. & Prueba de sincronización doble.\\ \hline
+DB-03 & Las vistas aplican los umbrales de \texttt{Parametro}, el tratamiento de estados de RN-06 y la redistribución de pesos de RN-08, y los conteos suman el total de estudiantes. & Pruebas en 4.9, 5.0, 6.9 y 7.0 y casos de D y E del dataset.\\ \hline
+DB-04 & La aplicación usa un login de mínimo privilegio distinto de \texttt{sa}. & Revisión de la cadena de conexión.\\ \hline
+DB-05 & Los datos persisten en el volumen \cd{sqlserver_data} tras reiniciar. & Reinicio del servicio \texttt{sqlserver}.\\ \hline
+DB-06 & La restricción única de \texttt{Alerta} (curso, estudiante, regla) impide alertas duplicadas. & Prueba de sincronización doble.\\ \hline
+DB-07 & La restricción \texttt{CHECK} de \texttt{Alerta.Estado} admite los cinco estados \cd{('ABIERTA','ATENDIDA','PUBLICADO','EXPORTADO','CERRADA')} y rechaza cualquier otro valor. & Insertar un estado válido de cada tipo y uno inválido.\\ \hline
+}
+
+\dodtabla{DoD de Docker Compose}{
+DC-01 & El archivo de composición es válido. & \cd{docker compose config -q}\\ \hline
+DC-02 & Todos los servicios arrancan y los que tienen healthcheck quedan \emph{healthy}. & \cd{docker compose ps}\\ \hline
+DC-03 & \texttt{ollama-init} descarga \texttt{llama3.2:1b} automáticamente. & \cd{docker compose logs ollama-init}\\ \hline
+DC-04 & \cd{.env.example} no contiene secretos reales y \texttt{.env} está en \texttt{.gitignore}. & Revisión de PR.\\ \hline
+DC-05 & Moodle responde en el puerto 8080 con categorías, cursos y pestañas creados. & Prueba manual y siembra.\\ \hline
+}
+
+\subsection{Repositorio y convenciones de trabajo}
+Requisitos del equipo anfitrión: Docker Engine 24 o superior con Compose v2.20 o superior, 6 GB de RAM libres y los puertos 8080, 3000, 8000, 1433 y 11434 disponibles. Las políticas de ramas y commits del Sprint 1 se mantienen: \texttt{main} (estable), \texttt{develop} (integración), ramas \cd{feature/HU-0X-nombre} y \emph{Conventional Commits}.
+
+\begin{table}[H]
+\centering\small
+\caption{Estructura del repositorio EduMonitorAI}
+\begin{tabularx}{\textwidth}{|R{5.6cm}|Y|}
+\hline
+\hd{Ruta} & \hd{Contenido}\\ \hline
+\cd{frontend/} & React + Vite (puerto 3000) y su Dockerfile.\\ \hline
+\cd{backend/} & FastAPI (puerto 8000): \texttt{app/}, \texttt{scripts/}, \texttt{tests/}.\\ \hline
+\cd{services/agente/} & LangGraph y cliente Ollama (puerto 8100).\\ \hline
+\cd{database/} & DDL idempotente de \cd{MoodleUTADB}, siembra y datos de prueba.\\ \hline
+\cd{docker/moodle/} & Dockerfile, script de arranque, siembra y plugin \cd{local_edumonitor}.\\ \hline
+\cd{docs/} & OpenAPI, diagramas, mockups y evidencias.\\ \hline
+\cd{shared/} y \cd{tests/} & Contratos y DTOs comunes; pruebas de integración y de contrato.\\ \hline
+\cd{docker-compose.yml} y \cd{docker-compose.moodle.yml} & Orquestación global y servicios de la réplica Moodle.\\ \hline
+\cd{.env.example} y \cd{README.md} & Plantilla de variables (sin secretos reales) y guía de instalación.\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Variables de entorno de la plantilla (sin credenciales reales)}
+\begin{tabularx}{\textwidth}{|R{5.2cm}|R{2.2cm}|Y|}
+\hline
+\hd{Variable} & \hd{Grupo} & \hd{Propósito}\\ \hline
+\cd{MSSQL_SA_PASSWORD}, \cd{ODBC_URL}, \cd{ODBC_MASTER}, \cd{DB_AUTO_INIT} & SQL Server & Clave del administrador (solo para inicializar y aplicar el DDL), cadenas de conexión de la aplicación y administrativa, y aplicación automática del DDL.\\ \hline
+\cd{JWT_SECRET}, \cd{JWT_EXPIRA_MIN} & Backend & Secreto de firma (valor aleatorio largo) y vigencia del token (60 minutos).\\ \hline
+\cd{MOODLE_WWWROOT}, \cd{MOODLE_DB_NAME}, \cd{MOODLE_DB_USER}, \cd{MOODLE_DB_PASS}, \cd{MOODLE_DB_ROOT_PASS} & Moodle & URL pública de la réplica y credenciales de su base MariaDB.\\ \hline
+\cd{MOODLE_ADMIN_USER}, \cd{MOODLE_ADMIN_PASS}, \cd{MOODLE_ADMIN_EMAIL} & Moodle & Cuenta del administrador de la réplica.\\ \hline
+\cd{MOODLE_URL}, \cd{MOODLE_HOST_HEADER}, \cd{MOODLE_TOKEN} & Integración & URL interna por nombre de servicio Docker, cabecera \texttt{Host} igual al \emph{wwwroot} y token del servicio EduMonitor\_WS.\\ \hline
+\cd{AGENT_SERVICE_TOKEN} & Agente & Token compartido entre agente y backend para el endpoint interno.\\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 18. COMPROMISO DEL EQUIPO
+% =====================================================================
+\section{COMPROMISO DEL EQUIPO}
+
+El equipo de desarrollo del GRUPO 4, conformado por Johan Josue Borja Guapulema, Alvaro Matheo Moreta Viracocha, Justin Danilo Ojeda Ramirez y Alan Santiago Zamora Arroba, se compromete a completar las cinco Historias de Usuario del Sprint 2 (24 puntos de historia y 84 horas de trabajo estimado) y a presentar el incremento funcional el 12/11/2026.
+
+Este compromiso:
+\begin{itemize}
+  \item Fue definido conjuntamente con el Product Owner, Ing. Hernán Naranjo, Mg., en la reunión de planificación del 05/11/2026.
+  \item Se basa en la capacidad del equipo (111,6 horas netas disponibles frente a 84 horas planificadas) y en el tiempo disponible.
+  \item Implica que el equipo asume la responsabilidad de organizar y ejecutar las tareas del Sprint Backlog.
+  \item Establece que el alcance se mantiene durante el Sprint; cualquier cambio se gestiona en colaboración con el Product Owner.
+\end{itemize}
+
+\begin{table}[H]
+\centering\small
+\caption{Acta de compromiso del equipo}
+\begin{tabularx}{\textwidth}{|Y|R{5.6cm}|}
+\hline
+\hd{Integrante} & \hd{Compromiso}\\ \hline
+Johan Josue Borja Guapulema & [X] Aceptado\\ \hline
+Alvaro Matheo Moreta Viracocha & [X] Aceptado\\ \hline
+Justin Danilo Ojeda Ramirez & [X] Aceptado\\ \hline
+Alan Santiago Zamora Arroba & [X] Aceptado\\ \hline
+Ing. Hernán Naranjo, Mg. (Product Owner) & [X] Conforme con el alcance\\ \hline
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+% 19. CONCLUSIONES
+% =====================================================================
+\section{CONCLUSIONES}
+
+\begin{enumerate}
+  \item \textbf{Incremento funcional reproducible.} El Sprint 2 convierte la planificación del Sprint 1 en un sistema ejecutable con un solo comando: una réplica de la estructura del Moodle FISEI-UTA con el portafolio de un docente, una API con autenticación y trazabilidad, una base de datos con indicadores deterministas y un frontend que implementa los tres mockups de Figma.
+  \item \textbf{La réplica de Moodle hace verificable el trabajo.} Replicar categorías, pestañas, ponderación 40/30/30 y Web Services permite validar la integración sin datos reales y con resultados reproducibles (promedio 6.40; Estudiante C con 3.5).
+  \item \textbf{Reglas de cálculo explícitas.} El tratamiento de los estados de calificación (CALIFICADA, CERO y SIN\_ENTREGA entran al cálculo; PENDIENTE se excluye de forma temporal) y la redistribución proporcional de pesos cuando un componente está pendiente eliminan ambigüedades en la nota de unidad y en los niveles.
+  \item \textbf{Un agente de IA local, acotado y confiable.} La separación entre cálculo determinista (SQL y código) y redacción asistida (modelo local) mantiene la confiabilidad de los indicadores; el timeout de 10 segundos y el fallback a plantilla, verificados en cuatro sub-casos (inferencia normal, timeout real, Ollama detenido y validación JSON), garantizan que el docente siempre recibe un borrador, y la confirmación explícita deja la decisión pedagógica en sus manos.
+  \item \textbf{Alertas explicables con ciclo de vida completo.} Las reglas R1 y R2 persisten en \texttt{Alerta} con su evidencia, sin duplicados, y recorren el ciclo ABIERTA, ATENDIDA, PUBLICADO o EXPORTADO, o se cierran (CERRADA) mediante un endpoint operativo, siempre con auditoría; la restricción \texttt{CHECK} admite los cinco estados.
+  \item \textbf{Distribución equilibrada y plan realista.} Las 30 tareas se reparten entre los cuatro integrantes (18 a 23 horas cada uno) según sus responsabilidades técnicas; con 84 horas planificadas sobre 111,6 netas, y con la reserva y las ceremonias desglosadas, el equipo cuenta con 27,6 horas de holgura, y el riesgo de la carga concentrada de Johan se mitiga con colaboración y revisión.
+  \item \textbf{Valor para el portafolio docente.} El docente pasa de revisar cuatro aulas una por una a un seguimiento individual y comparable de sus asignaturas, con alertas oportunas y propuestas de refuerzo específicas por materia.
+\end{enumerate}
+
+\end{document}
