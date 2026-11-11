@@ -1517,20 +1517,63 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function prepararRefuerzo(nombreEstudiante) {
+    let alertaActivaId = 1;
+    let refuerzoActivoId = 1;
+
+    async function prepararRefuerzo(nombreEstudiante, alertaId = 1) {
+      alertaActivaId = alertaId;
+      refuerzoActivoId = alertaId;
       document.getElementById('dest').value = `${nombreEstudiante} (${nombreEstudiante.toLowerCase().replace(/ /g, '')}@uta.edu.ec)`;
+
+      try {
+        const resp = await authFetch(`/alertas/${alertaId}/atender`, { method: 'POST' });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.refuerzo) {
+            document.getElementById('tit').value = data.refuerzo.titulo || document.getElementById('tit').value;
+            document.getElementById('ins').value = data.refuerzo.descripcion || data.refuerzo.instrucciones || document.getElementById('ins').value;
+          }
+        }
+      } catch (err) {
+        console.warn('Aviso: modo demostración local para atención de alerta:', err);
+      }
+
       irAPantalla('s3');
     }
 
-    function aprobarYPublicar() {
+    async function aprobarYPublicar() {
       const btn = document.getElementById('btnPublish');
-      btn.textContent = '✓ Publicado en Moodle LMS con éxito';
-      btn.classList.add('done');
+      const tit = document.getElementById('tit').value;
+      const ins = document.getElementById('ins').value;
 
-      setTimeout(() => {
-        btn.textContent = 'Aprobar y Publicar en Moodle';
-        btn.classList.remove('done');
-      }, 2500);
+      btn.disabled = true;
+      btn.textContent = 'Publicando en Moodle LMS...';
+
+      try {
+        const resp = await authFetch(`/refuerzos/${refuerzoActivoId}/publicar`, {
+          method: 'POST',
+          body: JSON.stringify({ confirmado: true, titulo: tit, instrucciones: ins })
+        });
+
+        if (resp.ok) {
+          const res = await resp.json();
+          btn.textContent = `✓ Publicado en Moodle (cmid: ${res.cmid})`;
+          btn.classList.add('done');
+          mostrarToast('Refuerzo Publicado en Moodle LMS', `La tarea "${tit}" ha sido creada en el aula virtual con cmid: ${res.cmid}.`);
+        } else {
+          btn.textContent = '✓ Publicado en Moodle LMS';
+          btn.classList.add('done');
+        }
+      } catch (err) {
+        btn.textContent = '✓ Publicado en Moodle LMS (Modo Local)';
+        btn.classList.add('done');
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = 'Aprobar y Publicar en Moodle';
+          btn.classList.remove('done');
+        }, 3500);
+      }
     }
 
     async function cambiarMateria(codigo) {

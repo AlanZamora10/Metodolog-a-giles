@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health, students, courses, sync, logs, auth
+from app.routers import health, students, courses, sync, logs, auth, alerts
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -40,6 +40,7 @@ app.include_router(courses.router, prefix=api_prefix)
 app.include_router(sync.router, prefix=api_prefix)
 app.include_router(logs.router, prefix=api_prefix)
 app.include_router(auth.router, prefix=api_prefix)
+app.include_router(alerts.router, prefix=api_prefix)
 
 
 @app.get("/", tags=["Root"])
