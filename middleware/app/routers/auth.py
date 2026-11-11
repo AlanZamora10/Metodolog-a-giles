@@ -74,7 +74,7 @@ async def login(req: UserLoginRequest):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales incorrectas. Verifique su correo o contraseña.",
+            detail="Credenciales inválidas.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

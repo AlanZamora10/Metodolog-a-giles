@@ -20,7 +20,7 @@ import jwt
 # Parámetros de configuración del token JWT
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_jwt_key_uta_fisei_2026_sprint1")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-DURACION_TOKEN_MINUTOS = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
+DURACION_TOKEN_MINUTOS = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 
 def hash_password(password: str) -> str:
