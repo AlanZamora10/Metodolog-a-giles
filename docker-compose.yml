@@ -19,7 +19,7 @@ services:
   # 1. MOODLE LMS & MOODLE DATABASE
   # ----------------------------------------------------------------------------
   moodle-db:
-    image: bitnami/mariadb:11.2
+    image: mariadb:10.11
     container_name: moodle_mariadb
     restart: unless-stopped
     environment:
@@ -33,9 +33,8 @@ services:
       - moodle_db_data:/bitnami/mariadb
     networks:
       - moodle-net
-
   moodle:
-    image: bitnami/moodle:4.3
+    image: bitnamilegacy/moodle:4.3.2
     container_name: moodle_lms
     restart: unless-stopped
     ports:
@@ -57,7 +56,6 @@ services:
       - moodle-db
     networks:
       - moodle-net
-
   # ----------------------------------------------------------------------------
   # 2. BASE DE DATOS ANALÍTICA (PostgreSQL - Principal para Analítica y HU-01)
   # ----------------------------------------------------------------------------
@@ -94,7 +92,6 @@ services:
       - sqlserver_data:/var/opt/mssql
     networks:
       - moodle-net
-
   # ----------------------------------------------------------------------------
   # 3. MIDDLEWARE (FastAPI / Python 3.11+)
   # ----------------------------------------------------------------------------
@@ -118,7 +115,6 @@ services:
       - moodle
     networks:
       - moodle-net
-
   # ----------------------------------------------------------------------------
   # 4. AGENTE IA (Ollama SLM Local - Inferencia CPU/RAM sin GPU)
   # ----------------------------------------------------------------------------
@@ -152,7 +148,6 @@ services:
       - ollama
     networks:
       - moodle-net
-
   # ----------------------------------------------------------------------------
   # 5. FRONTEND MINIMALISTA (Nginx)
   # ----------------------------------------------------------------------------
