@@ -5,70 +5,112 @@
 ![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC292B?logo=microsoftsqlserver)
 ![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)
 ![Ollama](https://img.shields.io/badge/Ollama-llama3.2:1b-black?logo=ollama)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 **Institución:** Universidad Técnica de Ambato (UTA)  
 **Facultad:** Facultad de Ingeniería en Sistemas, Electrónica e Industrial (FISEI)  
-**Carrera:** Ingeniería en Software  
+**Carrera:** Carrera de Ingeniería en Software  
 **Asignatura:** Metodologías Ágiles  
-**Docente:** Ing. Hernán Naranjo, Mg.  
-**Metodología:** Scrum (Sprint 2 - 05/11/2026 al 12/11/2026)  
-**Versión:** 2.0 (Despliegue Funcional, Réplica Moodle UTA y Agente IA Local)  
+**Docente Tutor:** Ing. Hernán Naranjo, Mg.  
+**Metodología:** Scrum (Sprint 2: 05/11/2026 al 12/11/2026)  
+**Versión:** 2.0 (Despliegue Funcional, Réplica Moodle UTA, API REST y Agente IA Local)  
 
 ---
 
-## 1. Equipo de Desarrollo y Roles (Sprint 2)
+## 📋 Tabla de Contenidos
+
+- [1. Descripción del Proyecto](#1-descripción-del-proyecto)
+- [2. Equipo de Desarrollo y Roles (Sprint 2)](#2-equipo-de-desarrollo-y-roles-sprint-2)
+- [3. Arquitectura del Sistema y Contenedores](#3-arquitectura-del-sistema-y-contenedores)
+- [4. Portafolio Docente Replicado en Moodle UTA](#4-portafolio-docente-replicado-en-moodle-uta)
+- [5. Estructura del Monorepo](#5-estructura-del-monorepo)
+- [6. Guía de Despliegue Rápido con Docker Compose](#6-guía-de-despliegue-rápido-con-docker-compose)
+- [7. Catálogo de Endpoints API REST (FastAPI)](#7-catálogo-de-endpoints-api-rest-fastapi)
+- [8. Integración del Agente de IA Local (LangGraph + Ollama)](#8-integración-del-agente-de-ia-local-langgraph--ollama)
+- [9. Flujo de Alertas y Publicación de Refuerzos](#9-flujo-de-alertas-y-publicación-de-refuerzos)
+- [10. Comandos de Verificación y QA](#10-comandos-de-verificación-y-qa)
+- [11. Convenciones Git y Flujo de Trabajo](#11-convenciones-git-y-flujo-de-trabajo)
+
+---
+
+## 1. Descripción del Proyecto
+
+**EduMonitor AI** es un sistema web de analítica académica orientado al **portafolio de un docente** de la Universidad Técnica de Ambato. Extrae datos de las aulas virtuales Moodle mediante los Web Services REST oficiales, procesa indicadores numéricos deterministas con una regla de ponderación institucional **40% ACD, 30% Tareas y 30% PAE**, y utiliza un **agente de Inteligencia Artificial local** (LangGraph con Ollama `llama3.2:1b`) para diagnosticar subtemas críticos y redactar borradores editables de tareas de refuerzo.
+
+El sistema funciona de forma independiente sin alterar la base de datos nativa de Moodle, operando bajo el principio de que la IA actúa únicamente como una herramienta orientativa para la toma de decisiones pedagógicas del profesor.
+
+---
+
+## 2. Equipo de Desarrollo y Roles (Sprint 2)
 
 | Integrante | Rol Scrum | Responsabilidad Técnica Principal |
 | :--- | :--- | :--- |
-| **Alvaro Moreta** | Proxy-PO & Developer | Frontend React, Diseño UI/UX y Fidelidad Moodle |
-| **Justin Ojeda** | Developer | Backend FastAPI, Integración Moodle Web Services & Docker |
-| **Johan Borja** | Developer | Base de Datos SQL Server (`MoodleUTADB`) & Analítica |
-| **Alan Zamora** | Scrum Master & Developer | Agente de IA Local (Ollama/LangGraph) & QA |
+| **Alvaro Moreta** | Proxy-PO & Developer | Frontend React (Vite), UI/UX, Mockups Figma y Fidelidad Moodle |
+| **Justin Ojeda** | Developer | Backend FastAPI, Integración Moodle Web Services & Docker Compose |
+| **Johan Borja** | Developer | Base de Datos SQL Server (`MoodleUTADB`), Vistas DDL & Analítica |
+| **Alan Zamora** | Scrum Master & Developer | Agente IA Local (LangGraph/Ollama), Pruebas QA & Fallback |
 
 ---
 
-## 2. Arquitectura General del Sistema
+## 3. Arquitectura del Sistema y Contenedores
 
 <p align="center">
   <img src="docs/diagrama_despliegue.png" alt="Arquitectura del Sistema EduMonitor AI" width="850"/>
 </p>
 
-### Componentes de la Solución:
-* **Frontend (`:3000`):** Interfaz SPA construida en React + Vite que implementa las vistas de Dashboard, Ficha del Estudiante y Centro de Alertas.
-* **Backend API (`:8000`):** Middleware en FastAPI con autenticación JWT, sincronización idempotente y comunicación vía Web Services REST con Moodle.
-* **Base de Datos (`:1433`):** SQL Server Express (`MoodleUTADB`) con vistas analíticas de rendimiento por unidad y subtema.
-* **Agente IA (`:8100` / `:11434`):** Microservicio Python con LangGraph y Ollama (`llama3.2:1b`) para diagnóstico pedagógico y generación de borradores de refuerzo (con timeout de 10s y fallback a plantillas).
-* **Réplica Moodle UTA (`:8080`):** Entorno parametrizado en Docker con las asignaturas de 4.º Semestre y ponderaciones 40/30/30.
+La solución está completamente orquestada en Docker Compose mediante 7 microservicios interconectados:
+
+| Servicio | Tecnología | Puerto Host | Descripción / Responsabilidad |
+| :--- | :--- | :--- | :--- |
+| **`frontend`** | React + Vite | `:3000` | Interfaz SPA (Dashboard general, Ficha individual, Centro de Alertas). |
+| **`backend`** | FastAPI (Python 3.12) | `:8000` | API REST, autenticación JWT, sincronización REST Moodle y endpoints. |
+| **`sqlserver`** | SQL Server 2022 | `:1433` | Motor de base de datos relacional (`MoodleUTADB`), vistas y auditoría. |
+| **`agente`** | Python + LangGraph | `:8100` | Grafo de estado para diagnósticos pedagógicos por subtema. |
+| **`ollama`** | Ollama (`llama3.2:1b`) | `:11434` | Servidor LLM local sin comunicación con servicios externos cloud. |
+| **`moodle`** | PHP 8.3 + Apache | `:8080` | Réplica funcional Moodle UTA con plugin `local_edumonitor`. |
+| **`moodle-db`** | MariaDB 10.11 | Interno | Base de datos interna del LMS Moodle. |
 
 ---
 
-## 3. Asignaturas Replicadas de 4.º Semestre
+## 4. Portafolio Docente Replicado en Moodle UTA
 
-1. `(SOF) METODOLOGIAS AGILES - B`
-2. `(SOF) REDES - B`
-3. `(SOF) COMPUTACION VISUAL - B`
-4. `(SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - B`
+El entorno de prueba simula la carga horaria real de un docente de Software en la FISEI-UTA, estructurada bajo la jerarquía de categorías:  
+`Facultad de Ingeniería en Sistemas... -> SOFTWARE -> Julio a Diciembre 2026`:
+
+1. **`(SOF) PROGRAMACION ORIENTADA A OBJETOS - A`** (2.º Semestre, Paralelo A)
+2. **`(SOF) ESTRUCTURA DE DATOS - B`** (3.er Semestre, Paralelo B)
+3. **`(SOF) METODOLOGIAS AGILES - B`** (4.º Semestre, Paralelo B)
+4. **`(SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A`** (4.º Semestre, Paralelo A)
+
+### Ponderación de Evaluaciones (Libro de Calificaciones):
+- **Parcial 1 & Parcial 2:**
+  - **40% ACD** (Aprendizaje En Contacto con el Docente / Autónomo: `U1-A1`, `U2-A2`)
+  - **30% Tareas** (Trabajos prácticos e informes: `U1-T1`, `U1-T2`, `U2-T3`, `U2-T4`)
+  - **30% PAE** (Prácticas de Aplicación y Experimentación: `U1-P1`, `U1-P2`, `U2-P3`)
 
 ---
 
-## 4. Guía de Ejecución Rápida con Docker
+## 5. Estructura del Monorepo
 
-### Requisitos Previos:
-* Docker Engine 24+ y Docker Compose v2.20+
-* 6 GB de RAM libres
-
-### Pasos de Despliegue:
-
-```bash
-# 1. Clonar el repositorio
-git clone [https://github.com/AlanZamora10/Metodolog-a-giles.git](https://github.com/AlanZamora10/Metodolog-a-giles.git)
-cd Metodolog-a-giles
-
-# 2. Configurar variables de entorno
-cp .env.example .env
-
-# 3. Construir y levantar todos los microservicios
-docker compose up -d --build
-
-# 4. Poblar la réplica de Moodle UTA con categorías y datos ficticios
-docker compose exec -u www-data moodle php /seed/seed_uta.php
+```text
+Metodolog-a-giles/
+├── backend/                  # Código fuente de FastAPI (Python)
+│   ├── app/                  # Controladores, modelos Pydantic y servicios
+│   ├── tests/                # Pruebas unitarias e integradas con Pytest
+│   └── Dockerfile            # Imagen base del Backend
+├── database/                 # Scripts DDL y de inicialización
+│   ├── init.sql              # Creación de MoodleUTADB, tablas, vistas y triggers
+│   └── seed_data.sql         # Datos iniciales de docentes, alumnos y parametros
+├── docker/                   # Configuración para la réplica de Moodle
+│   └── moodle/               # Dockerfile, seed_uta.php y plugin local_edumonitor
+├── docs/                     # Diagramas UML, imágenes y documentación
+│   ├── diagrama_casos_uso.png
+│   └── diagrama_despliegue.png
+├── frontend/                 # Aplicación React + Vite
+│   ├── src/                  # Componentes (Dashboard, Ficha, Alertas)
+│   └── Dockerfile            # Imagen base del Frontend
+├── services/                 # Microservicio del Agente de IA
+│   └── agente/               # Implementación de LangGraph y cliente Ollama
+├── .env.example              # Plantilla de variables de entorno (sin llaves reales)
+├── docker-compose.yml        # Orquestador global de los 7 microservicios
+└── README.md                 # Documentación principal del proyecto
