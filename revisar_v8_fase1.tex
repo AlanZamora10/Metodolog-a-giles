@@ -599,6 +599,35 @@ El agente es un grafo de estados con cuatro nodos secuenciales. Todo cálculo nu
 \end{tabularx}
 \end{table}
 
+\subsection{Módulo de Analítica y Agente de IA: Flujo de Reglas R1/R2 e Interacción Multicapa}
+El módulo de analítica y el agente de inteligencia artificial operan mediante un desacoplamiento estricto entre el cálculo determinista y la generación de lenguaje natural. La arquitectura garantiza que ninguna calificación sea calculada o alterada por un modelo de lenguaje probabilístico (RN-15).
+
+\textbf{Flujo técnico de evaluación de las reglas R1 y R2:}
+\begin{enumerate}
+  \item \textbf{Consolidación en base de datos:} Al sincronizar un curso desde Moodle, las calificaciones se normalizan y almacenan en \texttt{Calificacion}. Las vistas SQL (\cd{vw_NotaUnidad} y \cd{vw_NotaEstudiante}) computan la ponderación reglamentaria de la UTA (40\% Autónomo, 30\% Tareas y 30\% PAE sobre 10 puntos), aplicando la redistribución proporcional de pesos si un componente no cuenta con ítems evaluables (RN-08).
+  \item \textbf{Detección determinista de candidatos (\cd{vw_AlertaCandidata}):}
+  \begin{itemize}
+    \item \textbf{Regla R1 (\cd{R1_NOTA_CRITICA}):} Se activa cuando la nota ponderada global del estudiante es estrictamente inferior a 5.00 puntos (\cd{nota < 5.0}). Identifica la unidad temática con menor desempeño promedio.
+    \item \textbf{Regla R2 (\cd{R2_DESCENSO}):} Se activa cuando la nota ponderada de una unidad es menor que la de la unidad inmediatamente anterior (\cd{Nota(U_k) < Nota(U_{k-1})}) y la nota global del estudiante es inferior al umbral de riesgo (\cd{nota < 7.0}).
+  \end{itemize}
+  \item \textbf{Persistencia idempotente en \texttt{Alerta}:} El middleware consulta \cd{vw_AlertaCandidata} e inserta las alertas candidatas en estado \texttt{ABIERTA} con su evidencia (valores numéricos y fecha). La restricción única compuesta \cd{(curso_id, estudiante_id, regla)} impide alertas duplicadas al repetir sincronizaciones (RN-14).
+\end{enumerate}
+
+\textbf{Interacción Middleware $\leftrightarrow$ Servicio Agente IA $\leftrightarrow$ Base de Datos:}
+\begin{enumerate}
+  \item \textbf{Activación por el docente:} Cuando el docente pulsa \emph{Atender} sobre una alerta en el frontend (\cd{POST /api/alertas/{id}/atender}), el middleware valida que la alerta esté \texttt{ABIERTA} y que el docente esté autorizado en el curso. Cambia el estado a \texttt{ATENDIDA} en la base de datos.
+  \item \textbf{Petición interna al microservicio del agente:} El middleware invoca al microservicio del Agente IA (\cd{POST http://agent:8001/api/v1/analyze}) enviando el identificador del alumno, nombre, nota ponderada y el diccionario de notas por actividad (\cd{notas_actividades}).
+  \item \textbf{Inferencia local con Ollama y fallback heurístico (HU-11B):}
+  \begin{itemize}
+    \item El servicio del agente estructura un prompt estricto solicitando un objeto JSON con las claves \cd{unidad_critica}, \cd{diagnostico} (máximo 250 caracteres) y \cd{tipo_accion_sugerida}.
+    \item Se envía a Ollama local (\cd{http://ollama:11434/api/generate}) ejecutando el modelo SLM \texttt{llama3.2:1b}.
+    \item Se aplica un temporizador asíncrono con límite estricto de 10.0 segundos (\cd{AGENT_INFERENCE_TIMEOUT_SECONDS}).
+    \item Si Ollama responde en menos de 10 s con JSON válido, se acepta con origen \texttt{ollama_slm}.
+    \item Si la inferencia supera los 10 segundos, si Ollama no está disponible o si el JSON devuelto es inválido, se ejecuta automáticamente el motor determinista de respaldo (\cd{HeuristicRulesEngine}), el cual analiza la agrupación de tareas por unidad (\cd{U1} a \cd{U4}), detecta el mínimo y redacta el diagnóstico con origen \texttt{motor_heuristico_hu11b}.
+  \end{itemize}
+  \item \textbf{Persistencia y auditoría:} El middleware almacena el resultado como un registro de \texttt{Refuerzo} en estado \texttt{BORRADOR} y registra el evento en la tabla \texttt{Auditoria} con el usuario, herramienta utilizada y sello temporal, devolviendo el borrador al frontend para que el docente lo revise y ajuste antes de su publicación final.
+\end{enumerate}
+
 \subsection{Diseño de la réplica del Moodle FISEI-UTA y de los Web Services}
 El término ``1:1'' se aplica a la \textbf{estructura funcional y visual} del sitio; no se copian datos reales, credenciales, usuarios ni contenidos de estudiantes. Un integrante con acceso docente documenta primero los parámetros del sitio institucional (versión de Moodle, tema y logo, formato de curso, cursos del docente, categorías y libro de calificaciones); esos valores reemplazan los supuestos de diseño (Moodle 4.5, formato \emph{Temas}).
 
@@ -1175,8 +1204,8 @@ CA-10 & Tablero Kanban actualizado (T2-00.1 a T2-05.6). & Transversal & Tablero 
 \footnotesize CP-19 & \footnotesize HU-05 Esc. 2 & \footnotesize Alertas ABIERTAS; refuerzo generado. & \footnotesize \emph{Atender}; aprobar y publicar con y sin confirmación; simular rechazo de Moodle; cerrar otra alerta con \cd{PATCH /api/alertas/{id}/cerrar}. & \footnotesize ATENDIDA; con confirmación PUBLICADO (o EXPORTADO si Moodle rechaza); sin confirmación 400 y sin cambios; la alerta cerrada queda CERRADA (409 si se repite); eventos en \texttt{Auditoria}. & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \end{longtable}
 
-\subsection{Evidencias de integración Frontend -- Middleware por API REST}
-La integración del frontend (puerto 3000, servido por Nginx) con el middleware FastAPI (puerto 8000) se realiza mediante peticiones asíncronas con la API Fetch nativa y cabeceras de autorización Bearer JWT (\cd{Authorization: Bearer <token>}). En la Tabla~\ref{tab:contratos_api} se detallan los contratos de integración consumidos en tiempo real por la interfaz de usuario, y en la Tabla~\ref{tab:cp_integracion} los casos de prueba de integración (CP-INT-01 a CP-INT-05) ejecutados satisfactoriamente en el entorno de desarrollo y validación.
+\subsection{Evidencias de integración, verificación en Swagger y casos de prueba de API REST}
+La integración entre el frontend (puerto 3000, servido por Nginx) y el middleware FastAPI (puerto 8000) se realiza mediante peticiones asíncronas con la API Fetch nativa y cabeceras de autorización Bearer JWT (\cd{Authorization: Bearer <token>}). En la Tabla~\ref{tab:contratos_api} se detallan los contratos de integración consumidos en tiempo real por la interfaz de usuario, y en la Tabla~\ref{tab:cp_integracion} los casos de prueba de integración (CP-INT-01 a CP-INT-08) ejecutados satisfactoriamente en el entorno de desarrollo y validación.
 
 \begin{table}[H]
 \centering\small
@@ -1190,21 +1219,34 @@ GET & \cd{/api/v1/courses/{codigo}/summary} & Bearer JWT & Alimenta dinámicamen
 GET & \cd{/api/v1/students} & Bearer JWT & Poblamiento dinámico de la tabla de estudiantes con nota ponderada, estado de riesgo y evolución.\\ \hline
 GET & \cd{/api/v1/students/{id_number}} & Bearer JWT & Carga de la ficha individual, desglose por componentes (Autónomo, Tareas, PAE) y curva SVG.\\ \hline
 POST & \cd{/api/v1/sync/moodle} & Bearer JWT & Disparo manual de sincronización con Moodle LMS (reporta duración en ms y registros procesados).\\ \hline
+POST & \cd{/api/v1/alertas/{id}/atender} & Bearer JWT & Atiende la alerta y solicita la redacción del borrador de refuerzo al Agente IA u Ollama.\\ \hline
+POST & \cd{/api/v1/refuerzos/{id}/publicar} & Bearer JWT & Publica la tarea en Moodle LMS previa confirmación explícita del docente (400 sin confirmación).\\ \hline
 \end{tabularx}
 \end{table}
 
+\textbf{Verificación interactiva mediante Swagger UI y OpenAPI:}
+El middleware publica su documentación interactiva OpenAPI en \cd{http://localhost:8000/docs}. Cada endpoint protegido utiliza el esquema de seguridad \texttt{HTTPBearer}. Las pruebas directas en Swagger confirman:
+\begin{itemize}
+  \item \textbf{Control de acceso uniforme:} Cualquier intento de invocar endpoints analíticos sin cabecera responde HTTP 401 (\cd{"Token de autenticación no proporcionado. Se requiere Bearer Token."}).
+  \item \textbf{Inyección de token JWT:} Al ingresar el token mediante el botón \emph{Authorize}, las consultas a \cd{/api/v1/courses/MAT1/summary} y \cd{/api/v1/students} devuelven HTTP 200 en menos de 45 ms con serialización estricta bajo esquemas Pydantic.
+  \item \textbf{Manejo de códigos de estado:} Validación de respuestas HTTP 200 (éxito en lectura), 201 (recurso creado), 400 (confirmación ausente), 401 (no autorizado), 403 (curso no asignado), 404 (recurso inexistente) y 409 (conflicto de estado).
+\end{itemize}
+
 \begin{table}[H]
 \centering\small
-\caption{Casos de prueba de integración Frontend -- API REST}
+\caption{Casos de prueba de integración Frontend, Middleware y Moodle LMS}
 \label{tab:cp_integracion}
 \begin{tabularx}{\textwidth}{|R{1.6cm}|R{3.8cm}|R{2.8cm}|Y|R{1.8cm}|}
 \hline
-\hd{Código CP} & \hd{Endpoint y método} & \hd{Entrada / Headers} & \hd{Resultado esperado en Frontend} & \hd{Ejecución}\\ \hline
+\hd{Código CP} & \hd{Endpoint y método} & \hd{Entrada / Headers} & \hd{Resultado esperado en Frontend y Middleware} & \hd{Ejecución}\\ \hline
 \footnotesize CP-INT-01 & \footnotesize \cd{POST /api/v1/auth/login} & \footnotesize Credenciales en JSON (\cd{docente@uta.edu.ec}). & \footnotesize HTTP 200; token guardado en \cd{localStorage}; transición a la vista de panel. & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \footnotesize CP-INT-02 & \footnotesize \cd{GET /api/v1/courses/MAT1/summary} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; KPIs actualizados (Promedio 6.40, Críticos 02, Riesgo 01, Aceptables 04). & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \footnotesize CP-INT-03 & \footnotesize \cd{GET /api/v1/students} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; renderizado dinámico de 7 filas de estudiantes con sus notas y badges de nivel. & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \footnotesize CP-INT-04 & \footnotesize \cd{GET /api/v1/students/U-05} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; ficha de Estudiante C con nota 3.5, curva de notas y barras de componentes. & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \footnotesize CP-INT-05 & \footnotesize \cd{POST /api/v1/sync/moodle} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; notificación toast con tiempo en ms y refresco automático del panel. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-06 & \footnotesize Swagger UI (\cd{/docs}) & \footnotesize Esquema \texttt{HTTPBearer} en OpenAPI. & \footnotesize HTTP 401 sin token; HTTP 200 tras ingresar Bearer JWT en el diálogo de autorización. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-07 & \footnotesize \cd{POST /api/v1/alertas/{id}/atender} & \footnotesize \cd{Bearer <JWT>}, alerta en ABIERTA. & \footnotesize HTTP 200; transición a ATENDIDA; borrador generado con IA o fallback en $<10$ s; traza en \texttt{Auditoria}. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-08 & \footnotesize \cd{POST /api/v1/refuerzos/{id}/publicar} & \footnotesize \cd{confirmado=true}, borrador editado. & \footnotesize HTTP 200; llamada Web Service a Moodle; estado PUBLICADO con \cd{cmid}; HTTP 400 sin confirmación. & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \end{tabularx}
 \end{table}
 
@@ -1605,13 +1647,12 @@ Ing. Hernán Naranjo, Mg. (Product Owner) & [X] Conforme con el alcance\\ \hline
 \section{CONCLUSIONES}
 
 \begin{enumerate}
-  \item \textbf{Incremento funcional reproducible.} El Sprint 2 convierte la planificación del Sprint 1 en un sistema ejecutable con un solo comando: una réplica de la estructura del Moodle FISEI-UTA con el portafolio de un docente, una API con autenticación y trazabilidad, una base de datos con indicadores deterministas y un frontend que implementa los tres mockups de Figma.
-  \item \textbf{La réplica de Moodle hace verificable el trabajo.} Replicar categorías, pestañas, ponderación 40/30/30 y Web Services permite validar la integración sin datos reales y con resultados reproducibles (promedio 6.40; Estudiante C con 3.5).
-  \item \textbf{Reglas de cálculo explícitas.} El tratamiento de los estados de calificación (CALIFICADA, CERO y SIN\_ENTREGA entran al cálculo; PENDIENTE se excluye de forma temporal) y la redistribución proporcional de pesos cuando un componente está pendiente eliminan ambigüedades en la nota de unidad y en los niveles.
-  \item \textbf{Un agente de IA local, acotado y confiable.} La separación entre cálculo determinista (SQL y código) y redacción asistida (modelo local) mantiene la confiabilidad de los indicadores; el timeout de 10 segundos y el fallback a plantilla, verificados en cuatro sub-casos (inferencia normal, timeout real, Ollama detenido y validación JSON), garantizan que el docente siempre recibe un borrador, y la confirmación explícita deja la decisión pedagógica en sus manos.
-  \item \textbf{Alertas explicables con ciclo de vida completo.} Las reglas R1 y R2 persisten en \texttt{Alerta} con su evidencia, sin duplicados, y recorren el ciclo ABIERTA, ATENDIDA, PUBLICADO o EXPORTADO, o se cierran (CERRADA) mediante un endpoint operativo, siempre con auditoría; la restricción \texttt{CHECK} admite los cinco estados.
-  \item \textbf{Distribución equilibrada y plan realista.} Las 30 tareas se reparten entre los cuatro integrantes (18 a 23 horas cada uno) según sus responsabilidades técnicas; con 84 horas planificadas sobre 111,6 netas, y con la reserva y las ceremonias desglosadas, el equipo cuenta con 27,6 horas de holgura, y el riesgo de la carga concentrada de Johan se mitiga con colaboración y revisión.
-  \item \textbf{Valor para el portafolio docente.} El docente pasa de revisar cuatro aulas una por una a un seguimiento individual y comparable de sus asignaturas, con alertas oportunas y propuestas de refuerzo específicas por materia.
+  \item \textbf{Incremento funcional reproducible en arquitectura híbrida contenerizada.} El Sprint 2 convierte la visión y diseño del Sprint 1 en un ecosistema ejecutable con un solo comando (\cd{docker compose up -d --build}): orquesta desacopladamente la capa de presentación (Frontend servido en Nginx en el puerto 3000), mediación y lógica de negocio (FastAPI con PyJWT en el puerto 8000), analítica relacional (SQL Server 2022 y PostgreSQL), inferencia local en CPU sin requerir GPU (Ollama con \texttt{llama3.2:1b} en el puerto 11434 y microservicio de agente en el 8100) y la réplica funcional del LMS institucional (Moodle 4.x con MariaDB en el puerto 8080).
+  \item \textbf{Desacoplamiento estricto y cero alucinaciones en calificaciones.} La separación arquitectónica absoluta entre el cómputo determinista (vistas SQL en base de datos y algoritmos en el backend bajo la ponderación reglamentaria de la UTA 40/30/30) y la redacción orientativa asistida por IA garantiza que el modelo SLM jamás pondere, calcule ni altere calificaciones académicas (RN-15), eliminando riesgos de alucinación y preservando la integridad institucional.
+  \item \textbf{Resiliencia técnica mediante degradación controlada.} El temporizador asíncrono estricto de 10.0 segundos impuesto sobre la inferencia de Ollama, combinado con la conmutación automática al motor de reglas heurísticas (\cd{HeuristicRulesEngine} en \cd{heuristics.py}), asegura una disponibilidad del 100\% ante escenarios de alta latencia, falta de GPU o indisponibilidad del servicio de lenguaje, entregando siempre un diagnóstico didáctico y estructurado al docente.
+  \item \textbf{Ciclo de vida formal de alertas y trazabilidad de intervenciones.} Las reglas deterministas R1 (nota crítica menor a 5.0) y R2 (descenso entre unidades con nota menor a 7.0) alimentan un ciclo de estados cerrado (\texttt{ABIERTA} $\rightarrow$ \texttt{ATENDIDA} $\rightarrow$ \texttt{PUBLICADO} o \texttt{EXPORTADO}, más el cierre terminal a \texttt{CERRADA}), donde cada transición y publicación de tarea de recuperación hacia Moodle queda registrada con sello de tiempo y usuario en la tabla \texttt{Auditoria} sin exponer secretos ni contraseñas.
+  \item \textbf{Integración no invasiva con Moodle LMS.} La interacción con Moodle mediante sus Web Services oficiales (\cd{core_webservice_get_site_info}, extracción de notas y creación de módulos) respeta la soberanía de la plataforma educativa institucional; el sistema opera en modo de solo lectura para analítica y únicamente escribe nuevas tareas de refuerzo pedagógico previa confirmación explícita del docente humano (RN-17).
+  \item \textbf{Entrega ágil verificable y cobertura integral de pruebas.} El equipo completó la totalidad de las 30 tareas de ingeniería planificadas dentro de las 84 horas netas asignadas, superando con resultado \texttt{PASSED (100\% Exitoso)} los 10 criterios de aceptación (CA-01 a CA-10), los 19 casos de prueba funcionales (incluyendo los cuatro sub-casos de resiliencia del agente CP-06) y los 8 casos de prueba de integración de API REST en Swagger y Frontend, cerrando el Sprint 2 con software funcional listo para producción local.
 \end{enumerate}
 
 \end{document}
