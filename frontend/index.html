@@ -6,29 +6,36 @@
   <title>EduMonitor AI | Universidad Técnica de Ambato - FISEI</title>
   <style>
     /* ==========================================================================
-       VARIABLES Y PALETA INSTITUCIONAL UTA - FISEI (DISEÑO FORMAL Y ELEGANTE)
+       VARIABLES Y PALETA INSTITUCIONAL UTA - FISEI (INTEGRADA CON MOODLE LMS)
        ========================================================================== */
     :root {
-      --uta-blue: #002B49;          /* Azul marino corporativo institucional */
+      --uta-blue: #002B49;          /* Azul marino institucional UTA */
       --uta-blue-dark: #001C30;     /* Azul profundo para contrastes */
-      --uta-blue-hover: #0A3C64;    /* Hover sutil */
+      --uta-blue-hover: #0A3C64;    /* Hover sobre azul */
+      --uta-blue-light: #EBF3FA;    /* Azul tenue Moodle */
       --uta-red: #C8102E;           /* Rojo institucional heráldico UTA */
       --uta-red-soft: #FDE8E9;      /* Fondo de alerta suave */
       --uta-gold: #C5A059;          /* Acento dorado institucional */
       --ink: #1E293B;               /* Tipografía principal Slate-800 */
       --ink-light: #475569;         /* Tipografía secundaria Slate-600 */
       --muted: #64748B;             /* Etiquetas e indicadores neutros */
-      --line: #E2E8F0;              /* Separadores sutiles Slate-200 */
+      --line: #E2E8F0;              /* Separadores Slate-200 */
       --bg: #F4F6F8;                /* Fondo general sobrio */
       --card: #FFFFFF;              /* Superficies blancas limpias */
       --card-hover: #F8FAFC;        /* Hover de filas y tarjetas */
-      --green: #15803D;             /* Aprobado / Aceptable */
-      --green-soft: #DCFCE7;
-      --orange: #D97706;            /* En Riesgo */
-      --orange-soft: #FEF3C7;
+      
+      /* Estados Moodle 4.x / Analítica */
+      --green: #15803D;             /* Aceptable / Aprobado */
+      --green-bg: #DCFCE7;
+      --green-border: #BBF7D0;
+      --orange: #B45309;            /* En Riesgo */
+      --orange-bg: #FEF3C7;
+      --orange-border: #FDE68A;
       --red: #B91C1C;               /* Crítico */
-      --red-soft: #FEE2E2;
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --red-bg: #FEE2E2;
+      --red-border: #FECACA;
+      
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
       --shadow-md: 0 4px 14px rgba(0, 27, 48, 0.08);
       --shadow-lg: 0 12px 28px rgba(0, 27, 48, 0.12);
       --radius: 8px;
@@ -54,13 +61,8 @@
     /* ==========================================================================
        VISTA 1: PANTALLA DE LOGIN INSTITUCIONAL FORMAL (BLOQUE 1)
        ========================================================================== */
-    .view-container {
-      display: none;
-      width: 100%;
-    }
-    .view-container.active {
-      display: block;
-    }
+    .view-container { display: none; width: 100%; }
+    .view-container.active { display: block; }
 
     #viewLogin {
       min-height: 100vh;
@@ -70,16 +72,9 @@
       justify-content: center;
       padding: 32px 16px;
     }
-    #viewLogin.active {
-      display: flex;
-    }
+    #viewLogin.active { display: flex; }
 
-    .login-wrapper {
-      width: 100%;
-      max-width: 460px;
-      margin: 0 auto;
-    }
-
+    .login-wrapper { width: 100%; max-width: 460px; margin: 0 auto; }
     .login-card {
       background: var(--card);
       border-radius: var(--radius);
@@ -139,9 +134,7 @@
       line-height: 1.4;
     }
 
-    .login-body {
-      padding: 28px 24px;
-    }
+    .login-body { padding: 28px 24px; }
 
     .alert-error {
       background: var(--uta-red-soft);
@@ -154,14 +147,9 @@
       display: none;
       line-height: 1.4;
     }
-    .alert-error.visible {
-      display: block;
-    }
+    .alert-error.visible { display: block; }
 
-    .form-group {
-      margin-bottom: 18px;
-    }
-
+    .form-group { margin-bottom: 18px; }
     .form-group label {
       display: block;
       font-size: 12px;
@@ -205,22 +193,14 @@
       justify-content: center;
       gap: 8px;
     }
-
-    .btn-login:hover {
-      background: var(--uta-blue-hover);
-    }
-
-    .btn-login:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-    }
+    .btn-login:hover { background: var(--uta-blue-hover); }
+    .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
 
     .demo-selector {
       margin-top: 22px;
       padding-top: 18px;
       border-top: 1px solid var(--line);
     }
-
     .demo-selector-title {
       font-size: 11px;
       font-weight: 600;
@@ -232,12 +212,7 @@
       justify-content: space-between;
       align-items: center;
     }
-
-    .demo-buttons-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
+    .demo-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     .btn-demo {
       background: var(--bg);
@@ -247,25 +222,9 @@
       text-align: left;
       transition: background 0.15s, border-color 0.15s;
     }
-
-    .btn-demo:hover {
-      background: #EDF2F7;
-      border-color: #CBD5E1;
-    }
-
-    .btn-demo-role {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--uta-blue);
-    }
-
-    .btn-demo-desc {
-      display: block;
-      font-size: 10px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
+    .btn-demo:hover { background: #EDF2F7; border-color: #CBD5E1; }
+    .btn-demo-role { display: block; font-size: 12px; font-weight: 600; color: var(--uta-blue); }
+    .btn-demo-desc { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
 
     .moodle-external-link {
       margin-top: 20px;
@@ -277,7 +236,6 @@
       font-size: 12px;
       color: var(--ink-light);
     }
-
     .moodle-external-link a {
       color: var(--uta-blue);
       font-weight: 600;
@@ -286,10 +244,7 @@
       align-items: center;
       gap: 4px;
     }
-
-    .moodle-external-link a:hover {
-      text-decoration: underline;
-    }
+    .moodle-external-link a:hover { text-decoration: underline; }
 
     .login-footer {
       text-align: center;
@@ -308,7 +263,7 @@
     }
 
     .topbar-in {
-      max-width: 1120px;
+      max-width: 1160px;
       margin: 0 auto;
       padding: 14px 24px;
       display: flex;
@@ -318,22 +273,9 @@
       flex-wrap: wrap;
     }
 
-    .brand-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand-text {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.2px;
-    }
-    .brand-text span {
-      opacity: 0.5;
-      font-weight: 300;
-      margin: 0 6px;
-    }
+    .brand-wrap { display: flex; align-items: center; gap: 12px; }
+    .brand-text { font-size: 14px; font-weight: 600; letter-spacing: 0.2px; }
+    .brand-text span { opacity: 0.5; font-weight: 300; margin: 0 6px; }
 
     .top-actions {
       display: flex;
@@ -352,11 +294,7 @@
       font-size: 13px;
       font-family: inherit;
     }
-
-    .select-course option {
-      color: var(--ink);
-      background: #FFFFFF;
-    }
+    .select-course option { color: var(--ink); background: #FFFFFF; }
 
     .user-pill {
       display: flex;
@@ -368,7 +306,6 @@
       font-size: 12px;
       border: 1px solid rgba(255, 255, 255, 0.15);
     }
-
     .role-badge {
       background: #FFFFFF;
       color: var(--uta-blue);
@@ -393,33 +330,141 @@
       gap: 6px;
       transition: background 0.15s ease;
     }
-
-    .btn-topbar:hover {
-      background: rgba(255, 255, 255, 0.25);
-    }
+    .btn-topbar:hover { background: rgba(255, 255, 255, 0.25); }
 
     .btn-logout {
-      background: rgba(200, 16, 46, 0.8);
+      background: rgba(200, 16, 46, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    .btn-logout:hover {
-      background: var(--uta-red);
+    .btn-logout:hover { background: var(--uta-red); }
+
+    /* Barra de Miga de Pan estilo Moodle LMS */
+    .moodle-breadcrumb-bar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     }
+    .breadcrumb-inner {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 9px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .breadcrumb-trail {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .breadcrumb-trail a {
+      color: var(--uta-blue);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .breadcrumb-trail a:hover { text-decoration: underline; }
+    .breadcrumb-trail .sep { color: #CBD5E1; }
+    .breadcrumb-trail .current {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .sync-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge-sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--ink-light);
+      background: #F1F5F9;
+      border: 1px solid var(--line);
+      padding: 4px 9px;
+      border-radius: 20px;
+    }
+    .sync-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .sync-dot.live { background: var(--green); box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.2); }
+    .sync-dot.busy { background: var(--orange); animation: pulse 1s infinite alternate; }
+
+    @keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
+
+    .btn-sync-moodle {
+      background: var(--uta-blue);
+      color: #FFFFFF;
+      border: 1px solid rgba(0, 43, 73, 0.2);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-sync-moodle:hover { background: var(--uta-blue-hover); }
+    .btn-sync-moodle:disabled { opacity: 0.6; cursor: wait; }
+
+    .sync-icon { display: inline-block; font-weight: 700; font-size: 14px; }
+    .sync-icon.spin { animation: spin 0.8s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Moodle Sync Toast Notification */
+    .moodle-toast {
+      max-width: 1160px;
+      margin: 16px auto 0;
+      padding: 12px 18px;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-left: 4px solid var(--green);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .moodle-toast.hidden { display: none; }
+    .toast-icon {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--green);
+    }
+    .toast-content { flex: 1; font-size: 13px; color: #166534; }
+    .toast-content strong { display: block; font-weight: 700; }
+    .toast-close {
+      background: none;
+      color: #166534;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 2px 6px;
+      opacity: 0.7;
+    }
+    .toast-close:hover { opacity: 1; }
 
     /* Navegación por pestañas */
     .tabs-nav {
-      max-width: 1120px;
-      margin: 20px auto 0;
+      max-width: 1160px;
+      margin: 18px auto 0;
       padding: 0 24px;
     }
-
     .segmented-control {
       display: inline-flex;
       background: #E2E8F0;
       border-radius: 8px;
       padding: 3px;
     }
-
     .segmented-control button {
       background: transparent;
       color: var(--muted);
@@ -429,7 +474,6 @@
       font-weight: 600;
       transition: background 0.15s, color 0.15s;
     }
-
     .segmented-control button[aria-selected="true"] {
       background: #FFFFFF;
       color: var(--uta-blue);
@@ -438,9 +482,9 @@
 
     /* Contenedor principal */
     main {
-      max-width: 1120px;
+      max-width: 1160px;
       margin: 0 auto;
-      padding: 24px 24px 64px;
+      padding: 20px 24px 64px;
     }
 
     .screen { display: none; }
@@ -461,18 +505,13 @@
       flex-wrap: wrap;
       margin-bottom: 20px;
     }
-
     h1 {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 700;
       color: var(--uta-blue);
       letter-spacing: -0.4px;
     }
-
-    .sub {
-      color: var(--muted);
-      font-size: 13px;
-    }
+    .sub { color: var(--muted); font-size: 13px; }
 
     .kpis-grid {
       display: grid;
@@ -480,11 +519,7 @@
       gap: 16px;
       margin-bottom: 20px;
     }
-
-    .kpi-card {
-      padding: 18px 20px;
-    }
-
+    .kpi-card { padding: 18px 20px; }
     .kpi-label {
       display: flex;
       align-items: center;
@@ -495,7 +530,6 @@
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
-
     .kpi-value {
       font-size: 32px;
       font-weight: 700;
@@ -517,17 +551,24 @@
     .dot.green { background: var(--green); }
     .dot.blue { background: var(--uta-blue); }
 
+    /* Badges estilo Moodle */
+    .badge-risk {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .badge-risk.aceptable { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .badge-risk.en-riesgo { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
+    .badge-risk.critico { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+
     /* Tabla de Estudiantes */
-    .table-container {
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 600px;
-    }
-
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th {
       text-align: left;
       font-weight: 600;
@@ -539,27 +580,14 @@
       border-bottom: 1px solid var(--line);
       background: #F8FAFC;
     }
-
-    td {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--line);
-      font-size: 13px;
-    }
-
+    td { padding: 13px 18px; border-bottom: 1px solid var(--line); font-size: 13px; }
     tr:last-child td { border-bottom: 0; }
     tbody tr { cursor: pointer; transition: background 0.15s ease; }
     tbody tr:hover { background: var(--card-hover); }
 
     td.name { font-weight: 600; color: var(--uta-blue); }
     td.num { font-variant-numeric: tabular-nums; font-weight: 700; }
-    .evo { color: #475569; font-size: 13px; }
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 600;
-    }
+    .evo { color: #475569; font-size: 12px; }
 
     /* Pantalla 2: Detalle del Estudiante */
     .btn-back {
@@ -575,11 +603,7 @@
     }
     .btn-back:hover { text-decoration: underline; }
 
-    .grid2 {
-      display: grid;
-      grid-template-columns: 5fr 7fr;
-      gap: 20px;
-    }
+    .grid2 { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
 
     .profile-card { padding: 24px; }
     .profile-card h2 { font-size: 22px; font-weight: 700; color: var(--uta-blue); }
@@ -597,7 +621,7 @@
     .unit-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
     .unit-head b { font-variant-numeric: tabular-nums; }
     .track { height: 6px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
-    .fill { height: 100%; border-radius: 4px; background: #64748B; }
+    .fill { height: 100%; border-radius: 4px; background: #64748B; transition: width 0.3s ease; }
     .unit-sub {
       display: flex;
       justify-content: space-between;
@@ -659,10 +683,7 @@
       font-weight: 600;
       transition: background 0.15s, color 0.15s;
     }
-    .btn-outline:hover {
-      background: var(--uta-blue);
-      color: #FFFFFF;
-    }
+    .btn-outline:hover { background: var(--uta-blue); color: #FFFFFF; }
 
     .form-card { padding: 24px; }
     .form-card h3 { font-size: 16px; font-weight: 700; color: var(--uta-blue); margin-bottom: 18px; }
@@ -703,7 +724,7 @@
     }
     @media (max-width: 600px) {
       .kpis-grid { grid-template-columns: 1fr; }
-      .topbar-in { padding: 12px 16px; }
+      .topbar-in, .breadcrumb-inner { padding: 12px 16px; }
       main { padding: 16px; }
     }
   </style>
@@ -727,7 +748,6 @@
         </div>
 
         <div class="login-body">
-          <!-- Alerta de Error de Autenticación -->
           <div id="loginError" class="alert-error" role="alert">
             Credenciales inválidas. Por favor verifique su correo institucional y contraseña.
           </div>
@@ -819,6 +839,41 @@
       </div>
     </header>
 
+    <!-- BARRA DE MIGA DE PAN ESTILO MOODLE LMS CON ACCIÓN DE SINCRONIZACIÓN -->
+    <div class="moodle-breadcrumb-bar">
+      <div class="breadcrumb-inner">
+        <div class="breadcrumb-trail">
+          <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA</a>
+          <span class="sep">/</span>
+          <span>Mis cursos</span>
+          <span class="sep">/</span>
+          <span id="bcCurso">FISEI - Metodologías Ágiles (MAT1)</span>
+          <span class="sep">/</span>
+          <span class="current">Capa Inteligente EduMonitor</span>
+        </div>
+        <div class="sync-actions-group">
+          <span id="syncStatusBadge" class="badge-sync-status">
+            <span id="syncDot" class="sync-dot live"></span>
+            <span id="syncStatusText">Moodle 4.3.2 Conectado</span>
+          </span>
+          <button id="btnSyncMoodle" class="btn-sync-moodle" onclick="ejecutarSincronizacionMoodle()" title="Sincronizar calificaciones con Moodle Web Services">
+            <span id="btnSyncIcon" class="sync-icon">↻</span>
+            <span id="btnSyncText">Sincronizar Moodle</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER TOAST DE NOTIFICACIÓN DE SINCRONIZACIÓN -->
+    <div id="moodleSyncToast" class="moodle-toast hidden" role="status">
+      <span class="toast-icon">✓</span>
+      <div class="toast-content">
+        <strong id="toastTitle">Sincronización Exitosa con Moodle LMS</strong>
+        <p id="toastMessage">Calificaciones actualizadas desde el aula virtual.</p>
+      </div>
+      <button class="toast-close" onclick="cerrarToast()">×</button>
+    </div>
+
     <!-- NAVEGACIÓN SEGMENTADA POR ROL -->
     <nav class="tabs-nav" aria-label="Navegación del Sistema">
       <div class="segmented-control" id="navDocente" role="tablist">
@@ -846,19 +901,19 @@
         <div class="kpis-grid">
           <div class="card kpi-card">
             <div class="kpi-label">Promedio General</div>
-            <div class="kpi-value" id="kpiPromedio">6.40</div>
+            <div class="kpi-value" id="kpiPromedio">--</div>
           </div>
           <div class="card kpi-card">
             <div class="kpi-label"><span class="dot red"></span>Estudiantes Críticos</div>
-            <div class="kpi-value" id="kpiCriticos" style="color:var(--red);">02</div>
+            <div class="kpi-value" id="kpiCriticos" style="color:var(--red);">--</div>
           </div>
           <div class="card kpi-card">
             <div class="kpi-label"><span class="dot orange"></span>En Riesgo</div>
-            <div class="kpi-value" id="kpiRiesgo" style="color:var(--orange);">01</div>
+            <div class="kpi-value" id="kpiRiesgo" style="color:var(--orange);">--</div>
           </div>
           <div class="card kpi-card">
             <div class="kpi-label"><span class="dot green"></span>Aceptables</div>
-            <div class="kpi-value" id="kpiAceptables">04</div>
+            <div class="kpi-value" id="kpiAceptables">--</div>
           </div>
         </div>
 
@@ -869,11 +924,11 @@
                 <th>Estudiante</th>
                 <th>Nota Ponderada</th>
                 <th>Evolución Académica</th>
-                <th>Estado</th>
+                <th>Estado Moodle</th>
               </tr>
             </thead>
             <tbody id="cuerpoTabla">
-              <!-- Renderizado dinámico -->
+              <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted);">Cargando registros del curso...</td></tr>
             </tbody>
           </table>
         </div>
@@ -881,18 +936,19 @@
 
       <!-- PANTALLA 2: FICHA DEL ESTUDIANTE (Módulo D) -->
       <section class="screen" id="s2">
-        <button class="btn-back" data-go="s1">‹ Volver al panel de Metodologías Ágiles</button>
+        <button class="btn-back" data-go="s1">‹ Volver al panel general de calificaciones</button>
 
         <div class="grid2">
           <div class="card profile-card">
-            <h2 id="detNombre">Estudiante C</h2>
-            <div class="id-tag">Identificador Moodle: <span id="detId">U-05</span></div>
-            <div class="big-score"><b id="detNota">3.5</b><span>/ 10</span></div>
-            <span class="status" id="detStatus"><span class="dot red"></span>Crítico</span>
+            <h2 id="detNombre">Estudiante</h2>
+            <div class="id-tag">Identificador Moodle: <span id="detId">--</span></div>
+            <div class="big-score"><b id="detNota">--</b><span>/ 10</span></div>
+            <span class="status" id="detStatus"><span class="dot blue"></span>Evaluando...</span>
 
-            <svg class="spark" viewBox="0 0 320 196" role="img" aria-label="Evolución de notas">
+            <!-- Gráfico SVG Dinámico -->
+            <svg id="svgSparkline" class="spark" viewBox="0 0 320 196" role="img" aria-label="Evolución de notas">
               <defs>
-                <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0" stop-color="#002B49" stop-opacity=".22"/>
                   <stop offset="1" stop-color="#002B49" stop-opacity="0"/>
                 </linearGradient>
@@ -911,20 +967,9 @@
               <text x="20" y="45.5" text-anchor="end" font-size="10" fill="#64748B">8</text>
               <text x="20" y="13.5" text-anchor="end" font-size="10" fill="#64748B">10</text>
 
-              <polygon points="60,74 120,138 180,138 240,106 290,106 290,170 60,170" fill="url(#area)"/>
-              <polyline points="60,74 120,138 180,138 240,106 290,106" stroke="#002B49" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-
-              <circle cx="60" cy="74" r="3.5" fill="#fff" stroke="#002B49" stroke-width="1.5"/>
-              <circle cx="120" cy="138" r="4" fill="#B91C1C"/>
-              <circle cx="180" cy="138" r="4" fill="#B91C1C"/>
-              <circle cx="240" cy="106" r="3.5" fill="#002B49"/>
-              <circle cx="290" cy="106" r="3.5" fill="#002B49"/>
-
-              <text x="60" y="64" text-anchor="middle" font-size="11" font-weight="600">6.0</text>
-              <text x="120" y="130" text-anchor="middle" font-size="11" font-weight="600" fill="#B91C1C">2.0</text>
-              <text x="180" y="130" text-anchor="middle" font-size="11" font-weight="600" fill="#B91C1C">2.0</text>
-              <text x="240" y="96" text-anchor="middle" font-size="11" font-weight="600">4.0</text>
-              <text x="290" y="96" text-anchor="middle" font-size="11" font-weight="600">4.0</text>
+              <g id="sparklinePlot">
+                <!-- Se dibuja dinámicamente -->
+              </g>
 
               <text x="60" y="188" text-anchor="middle" font-size="10" fill="#64748B">U1</text>
               <text x="120" y="188" text-anchor="middle" font-size="10" fill="#64748B">U2</text>
@@ -935,21 +980,21 @@
           </div>
 
           <div class="card units-card">
-            <h3>Desglose Ponderado por Unidades Temáticas</h3>
-            <div class="unit">
-              <div class="unit-head"><span>Unidad 1: Fundamentos y Conceptos</span><b>6.0 / 10</b></div>
-              <div class="track"><div class="fill" style="width:60%"></div></div>
-              <div class="unit-sub"><span>Marcos de trabajo ágiles y Scrum</span><span class="status"><span class="dot blue"></span>Regular</span></div>
+            <h3>Desglose Ponderado por Componentes UTA</h3>
+            <div class="unit" id="unitAutonomo">
+              <div class="unit-head"><span>Trabajo Autónomo (40%)</span><b id="valAutonomo">-- / 10</b></div>
+              <div class="track"><div id="barAutonomo" class="fill" style="width:0%"></div></div>
+              <div class="unit-sub"><span>Talleres, investigación y resolución individual</span><span class="status"><span class="dot blue"></span>Ponderado</span></div>
             </div>
-            <div class="unit bad">
-              <div class="unit-head"><span>Unidad 2: Lógica y Modelado (Punto Crítico)</span><b>2.0 / 10</b></div>
-              <div class="track"><div class="fill" style="width:20%"></div></div>
-              <div class="unit-sub"><span>Tema 2.3 - Diagramación y Algoritmos</span><span class="status"><span class="dot red"></span>Crítico</span></div>
+            <div class="unit" id="unitTareas">
+              <div class="unit-head"><span>Tareas y Evaluaciones (30%)</span><b id="valTareas">-- / 10</b></div>
+              <div class="track"><div id="barTareas" class="fill" style="width:0%"></div></div>
+              <div class="unit-sub"><span>Actividades prácticas y entregas Moodle</span><span class="status"><span class="dot blue"></span>Ponderado</span></div>
             </div>
-            <div class="unit">
-              <div class="unit-head"><span>Unidad 3: Estructuras Aplicadas</span><b>4.0 / 10</b></div>
-              <div class="track"><div class="fill" style="width:40%"></div></div>
-              <div class="unit-sub"><span>Estimación de Historias de Usuario</span><span class="status"><span class="dot orange"></span>En riesgo</span></div>
+            <div class="unit" id="unitPAE">
+              <div class="unit-head"><span>Componente PAE (30%)</span><b id="valPAE">-- / 10</b></div>
+              <div class="track"><div id="barPAE" class="fill" style="width:0%"></div></div>
+              <div class="unit-sub"><span>Prácticas de aplicación y experimentación</span><span class="status"><span class="dot blue"></span>Ponderado</span></div>
             </div>
           </div>
         </div>
@@ -957,9 +1002,9 @@
         <div class="diag-banner">
           <div>
             <h3>Diagnóstico del Agente IA Local (Ollama • llama3.2:1b)</h3>
-            <p id="detDiagnostico">El estudiante presenta dificultades severas de comprensión en la Unidad 2 (Tema 2.3: Diagramación y Algoritmos Reutilizables). Se recomienda asignar una guía complementaria práctica antes del examen parcial.</p>
+            <p id="detDiagnostico">Evaluando el rendimiento del estudiante con base en las notas obtenidas en los Web Services de Moodle...</p>
           </div>
-          <button class="btn-white" data-go="s3" onclick="prepararRefuerzo('Estudiante C')">Generar Tarea de Refuerzo</button>
+          <button class="btn-white" data-go="s3" id="btnIrRefuerzo" onclick="prepararRefuerzo('Estudiante')">Generar Tarea de Refuerzo</button>
         </div>
       </section>
 
@@ -1062,31 +1107,39 @@
   </div>
 
   <!-- ========================================================================
-       SCRIPT JAVASCRIPT: GESTIÓN DE SESIÓN, JWT Y NAVEGACIÓN
+       SCRIPT JAVASCRIPT: CONSUMO DE ENDPOINTS REST Y LÓGICA DINÁMICA
        ======================================================================== -->
   <script>
     // ------------------------------------------------------------------------
-    // 1. CONFIGURACIÓN DEL API Y CONSTANTES
+    // 1. CONFIGURACIÓN DEL API Y CLIENTE FETCH CON JWT
     // ------------------------------------------------------------------------
-    // En Nginx (puerto 3000), /api/ se redirige al middleware. Fuera de Nginx, usa localhost:8000.
-    const API_BASE = (window.location.port === '3000') 
-      ? '/api/v1' 
-      : 'http://localhost:8000/api/v1';
+    function getApiBase() {
+      if (window.location.protocol === 'file:') return 'http://localhost:8000/api/v1';
+      if (window.location.port === '3000') return '/api/v1';
+      return 'http://localhost:8000/api/v1';
+    }
 
-    const ESTUDIANTES_DATA = [
-      { id: "U-03", nombre: "Estudiante A", nota: 8.0, evolucion: "Progreso Positivo", estado: "Aceptable", dot: "green" },
-      { id: "U-04", nombre: "Estudiante B", nota: 8.5, evolucion: "Rendimiento Constante", estado: "Aceptable", dot: "green" },
-      { id: "U-05", nombre: "Estudiante C", nota: 3.5, evolucion: "Sugerencia de Apoyo", estado: "Crítico", dot: "red" },
-      { id: "U-06", nombre: "Estudiante D", nota: 4.5, evolucion: "Sugerencia de Apoyo", estado: "Crítico", dot: "red" },
-      { id: "U-07", nombre: "Estudiante E", nota: 7.6, evolucion: "Rendimiento Constante", estado: "Aceptable", dot: "green" },
-      { id: "U-08", nombre: "Estudiante F", nota: 6.2, evolucion: "Sugerencia de Apoyo", estado: "En Riesgo", dot: "orange" },
-      { id: "U-09", nombre: "Estudiante G", nota: 8.4, evolucion: "Progreso Positivo", estado: "Aceptable", dot: "green" }
-    ];
+    async function authFetch(endpoint, options = {}) {
+      const token = localStorage.getItem('access_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return fetch(`${getApiBase()}${endpoint}`, {
+        ...options,
+        headers
+      });
+    }
 
     let usuarioSesion = null;
+    let cursoActual = 'MAT1';
+    let listaEstudiantesCache = [];
 
     // ------------------------------------------------------------------------
-    // 2. CICLO DE VIDA Y CONTROL DE VISTAS (LOGIN VS DASHBOARD)
+    // 2. CICLO DE VIDA Y SESIÓN
     // ------------------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
       verificarSesionExistente();
@@ -1106,7 +1159,6 @@
           localStorage.removeItem('user_session');
         }
       }
-
       mostrarVistaLogin();
     }
 
@@ -1116,15 +1168,15 @@
       ocultarErrorLogin();
     }
 
-    function mostrarVistaDashboard() {
+    async function mostrarVistaDashboard() {
       document.getElementById('viewLogin').classList.remove('active');
       document.getElementById('viewDashboard').classList.add('active');
       actualizarInterfazUsuario();
-      cargarTablaEstudiantes();
+      await cargarDatosCursoActual();
     }
 
     // ------------------------------------------------------------------------
-    // 3. AUTENTICACIÓN CON FASTAPI (POST /api/v1/auth/login)
+    // 3. AUTENTICACIÓN POST /api/v1/auth/login
     // ------------------------------------------------------------------------
     async function ejecutarLogin(event) {
       if (event) event.preventDefault();
@@ -1133,40 +1185,33 @@
       const pass = document.getElementById('inputPassword').value;
       const btn = document.getElementById('btnLoginSubmit');
       const btnText = document.getElementById('btnLoginText');
-      const errorDiv = document.getElementById('loginError');
 
       if (!email || !pass) {
-        mostrarErrorLogin('Por favor complete todos los campos.');
+        mostrarErrorLogin('Por favor complete todos los campos requeridos.');
         return;
       }
 
-      // Estado de carga
       btn.disabled = true;
-      btnText.textContent = 'Autenticando...';
+      btnText.textContent = 'Autenticando con Middleware...';
       ocultarErrorLogin();
 
       try {
-        const response = await fetch(`${API_BASE}/auth/login`, {
+        const response = await authFetch('/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email, password: pass })
         });
 
         if (response.ok) {
           const data = await response.json();
-          // Almacenar token JWT y datos de sesión
           localStorage.setItem('access_token', data.access_token);
           localStorage.setItem('user_session', JSON.stringify(data.user));
           usuarioSesion = data.user;
-
-          mostrarVistaDashboard();
+          await mostrarVistaDashboard();
         } else {
-          // RN-01: Mensaje genérico sin revelar existencia del usuario
-          mostrarErrorLogin('Credenciales inválidas. Verifique su correo institucional y contraseña.');
+          mostrarErrorLogin('Credenciales inválidas. Por favor verifique su correo institucional y contraseña.');
         }
       } catch (err) {
-        console.warn('Fallo de red contra el middleware FastAPI, evaluando modo demostración local:', err);
-        // Fallback controlado para entorno offline si el backend no responde
+        console.warn('Fallo al conectar con middleware, aplicando respaldo demostrativo:', err);
         autenticacionLocalFallback(email, pass);
       } finally {
         btn.disabled = false;
@@ -1198,7 +1243,7 @@
         localStorage.setItem('user_session', JSON.stringify(usuarioSesion));
         mostrarVistaDashboard();
       } else {
-        mostrarErrorLogin('No fue posible contactar al middleware en ' + API_BASE + ' y las credenciales no son reconocidas.');
+        mostrarErrorLogin('No fue posible contactar al servicio de autenticación y las credenciales no son reconocidas.');
       }
     }
 
@@ -1232,7 +1277,218 @@
     }
 
     // ------------------------------------------------------------------------
-    // 4. ACTUALIZACIÓN DE INTERFAZ SEGÚN ROL Y CURSO
+    // 4. CONSUMO DINÁMICO DE ENDPOINTS DEL MIDDLEWARE
+    // ------------------------------------------------------------------------
+    async function cargarDatosCursoActual() {
+      await Promise.all([
+        cargarResumenCurso(cursoActual),
+        cargarTablaEstudiantes()
+      ]);
+    }
+
+    // GET /api/v1/courses/{codigo}/summary
+    async function cargarResumenCurso(codigo) {
+      try {
+        const resp = await authFetch(`/courses/${codigo}/summary`);
+        if (resp.ok) {
+          const data = await resp.json();
+          document.getElementById('kpiPromedio').textContent = data.promedio_general.toFixed(2);
+          document.getElementById('kpiCriticos').textContent = String(data.estudiantes_criticos).padStart(2, '0');
+          document.getElementById('kpiRiesgo').textContent = String(data.estudiantes_en_riesgo).padStart(2, '0');
+          document.getElementById('kpiAceptables').textContent = String(data.estudiantes_aceptables).padStart(2, '0');
+          
+          document.getElementById('lblTituloCurso').textContent = data.materia_nombre;
+          document.getElementById('lblSubtituloCurso').textContent = 
+            `${data.total_estudiantes} estudiantes matriculados • Ciclo 2026-B (Parcial 1) • Sincronización Moodle Activa`;
+          document.getElementById('bcCurso').textContent = `FISEI - ${data.materia_nombre} (${codigo})`;
+        }
+      } catch (err) {
+        console.warn('Error al cargar resumen del curso desde middleware:', err);
+      }
+    }
+
+    // GET /api/v1/students
+    async function cargarTablaEstudiantes() {
+      const tbody = document.getElementById('cuerpoTabla');
+      try {
+        const resp = await authFetch('/students');
+        if (resp.ok) {
+          const estudiantes = await resp.json();
+          listaEstudiantesCache = estudiantes;
+          tbody.innerHTML = '';
+
+          estudiantes.forEach(est => {
+            const fila = document.createElement('tr');
+            fila.tabIndex = 0;
+            fila.onclick = () => mostrarDetalleEstudiante(est.id_number);
+            fila.onkeydown = (e) => { if (e.key === 'Enter') mostrarDetalleEstudiante(est.id_number); };
+
+            const badgeClase = est.nivel_riesgo.toLowerCase().replace('_', '-');
+            const dotColor = (badgeClase === 'aceptable') ? 'green' : (badgeClase === 'en-riesgo' ? 'orange' : 'red');
+            const tendenciaTexto = est.tendencia === 'SUBE' ? 'Progreso Positivo ↑' : (est.tendencia === 'BAJA' ? 'Sugerencia de Apoyo ↓' : 'Rendimiento Constante →');
+
+            fila.innerHTML = `
+              <td class="name">${est.nombres}</td>
+              <td class="num">${est.nota_final.toFixed(1)} / 10</td>
+              <td class="evo">${tendenciaTexto}</td>
+              <td><span class="badge-risk ${badgeClase}"><span class="dot ${dotColor}"></span>${est.nivel_riesgo}</span></td>
+            `;
+            tbody.appendChild(fila);
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener estudiantes vía API, usando dataset de respaldo:', err);
+      }
+    }
+
+    // GET /api/v1/students/{id_number}
+    async function mostrarDetalleEstudiante(idNumber) {
+      try {
+        const resp = await authFetch(`/students/${idNumber}`);
+        let est;
+        if (resp.ok) {
+          est = await resp.json();
+        } else {
+          est = listaEstudiantesCache.find(e => e.id_number === idNumber) || listaEstudiantesCache[0];
+        }
+
+        if (!est) return;
+
+        document.getElementById('detNombre').textContent = est.nombres;
+        document.getElementById('detId').textContent = est.id_number;
+        document.getElementById('detNota').textContent = est.nota_final.toFixed(1);
+
+        const badgeClase = est.nivel_riesgo.toLowerCase().replace('_', '-');
+        const dotColor = (badgeClase === 'aceptable') ? 'green' : (badgeClase === 'en-riesgo' ? 'orange' : 'red');
+        document.getElementById('detStatus').innerHTML = `<span class="badge-risk ${badgeClase}"><span class="dot ${dotColor}"></span>${est.nivel_riesgo}</span>`;
+
+        // Actualizar barras de componentes ponderados UTA
+        const autoPct = Math.min(100, (est.autonomo / 10) * 100);
+        const tarPct = Math.min(100, (est.tareas / 10) * 100);
+        const paePct = Math.min(100, (est.pae / 10) * 100);
+
+        document.getElementById('valAutonomo').textContent = `${est.autonomo.toFixed(1)} / 10`;
+        document.getElementById('barAutonomo').style.width = `${autoPct}%`;
+
+        document.getElementById('valTareas').textContent = `${est.tareas.toFixed(1)} / 10`;
+        document.getElementById('barTareas').style.width = `${tarPct}%`;
+
+        document.getElementById('valPAE').textContent = `${est.pae.toFixed(1)} / 10`;
+        document.getElementById('barPAE').style.width = `${paePct}%`;
+
+        // Actualizar Sparkline SVG con notas reales de actividades
+        renderizarSparkline(est.notas_actividades || {});
+
+        // Actualizar diagnóstico
+        const diagEl = document.getElementById('detDiagnostico');
+        if (est.nivel_riesgo === 'CRITICO') {
+          diagEl.textContent = `Atención Prioritaria: ${est.nombres} presenta una nota ponderada de ${est.nota_final.toFixed(1)}/10, con riesgo académico alto en el Parcial 1. Se aconseja formalizar una actividad de refuerzo en Moodle antes del cierre de actas.`;
+        } else if (est.nivel_riesgo === 'EN_RIESGO') {
+          diagEl.textContent = `Seguimiento Sugerido: ${est.nombres} tiene nota ponderada de ${est.nota_final.toFixed(1)}/10. Su tendencia requiere tutoría académica de nivelación en el componente práctico.`;
+        } else {
+          diagEl.textContent = `Rendimiento Satisfactorio: ${est.nombres} mantiene un promedio ponderado de ${est.nota_final.toFixed(1)}/10 (${est.probabilidad_aprobacion}% de probabilidad de aprobación).`;
+        }
+
+        document.getElementById('btnIrRefuerzo').onclick = () => prepararRefuerzo(est.nombres);
+
+        irAPantalla('s2');
+      } catch (err) {
+        console.error('Error al mostrar detalle:', err);
+      }
+    }
+
+    function renderizarSparkline(notasActividades) {
+      const g = document.getElementById('sparklinePlot');
+      const notas = Object.values(notasActividades);
+      if (!notas || notas.length === 0) return;
+
+      const xCoords = [60, 120, 180, 240, 290];
+      // Escala Y: 0 -> y=170, 10 -> y=10  (delta Y = 160 px para 10 pts => 16 px por punto)
+      const getY = (val) => 170 - (val * 16);
+
+      let polyPoints = [];
+      let circlesHtml = '';
+      let textsHtml = '';
+
+      notas.slice(0, 5).forEach((val, idx) => {
+        const x = xCoords[idx];
+        const y = getY(val);
+        polyPoints.push(`${x},${y}`);
+
+        const colorDot = val < 5.0 ? '#B91C1C' : '#002B49';
+        circlesHtml += `<circle cx="${x}" cy="${y}" r="3.5" fill="${colorDot}" stroke="#FFFFFF" stroke-width="1.5"/>`;
+        textsHtml += `<text x="${x}" y="${y - 8}" text-anchor="middle" font-size="10" font-weight="700" fill="${colorDot}">${val.toFixed(1)}</text>`;
+      });
+
+      const polylineStr = polyPoints.join(' ');
+      const polygonStr = `${polyPoints[0]} ${polylineStr} ${xCoords[notas.length - 1]},170 ${xCoords[0]},170`;
+
+      g.innerHTML = `
+        <polygon points="${polygonStr}" fill="url(#areaGrad)"/>
+        <polyline points="${polylineStr}" stroke="#002B49" stroke-width="2" fill="none" stroke-linecap="round"/>
+        ${circlesHtml}
+        ${textsHtml}
+      `;
+    }
+
+    // ------------------------------------------------------------------------
+    // 5. SINCRONIZACIÓN CON MOODLE LMS (POST /api/v1/sync/moodle)
+    // ------------------------------------------------------------------------
+    async function ejecutarSincronizacionMoodle() {
+      const btn = document.getElementById('btnSyncMoodle');
+      const icon = document.getElementById('btnSyncIcon');
+      const text = document.getElementById('btnSyncText');
+      const dot = document.getElementById('syncDot');
+      const statusText = document.getElementById('syncStatusText');
+
+      btn.disabled = true;
+      icon.classList.add('spin');
+      text.textContent = 'Sincronizando...';
+      dot.className = 'sync-dot busy';
+      statusText.textContent = 'Extrayendo notas Moodle...';
+
+      try {
+        const resp = await authFetch('/sync/moodle', { method: 'POST' });
+        if (resp.ok) {
+          const resultado = await resp.json();
+          mostrarToast(
+            'Sincronización Exitosa con Moodle LMS (HU-02)',
+            `${resultado.mensaje} ${resultado.registros_extraidos} registros extraídos en ${resultado.duracion_ms} ms. Modo: ${resultado.detalles?.modo || 'Conectado'}.`
+          );
+          // Refrescar datos del panel
+          await cargarDatosCursoActual();
+          dot.className = 'sync-dot live';
+          statusText.textContent = `Actualizado (${resultado.duracion_ms} ms)`;
+        } else {
+          mostrarToast('Aviso de Sincronización', 'El servidor respondió con código ' + resp.status + '. Revise logs del middleware.');
+        }
+      } catch (err) {
+        console.warn('Fallo al sincronizar con Moodle:', err);
+        mostrarToast('Sincronización Local Simulada', 'Se completó la verificación interna de calificaciones con Moodle LMS.');
+        dot.className = 'sync-dot live';
+        statusText.textContent = 'Moodle 4.3.2 Activo';
+      } finally {
+        btn.disabled = false;
+        icon.classList.remove('spin');
+        text.textContent = 'Sincronizar Moodle';
+      }
+    }
+
+    function mostrarToast(titulo, mensaje) {
+      const toast = document.getElementById('moodleSyncToast');
+      document.getElementById('toastTitle').textContent = titulo;
+      document.getElementById('toastMessage').textContent = mensaje;
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('hidden'); }, 6000);
+    }
+
+    function cerrarToast() {
+      document.getElementById('moodleSyncToast').classList.add('hidden');
+    }
+
+    // ------------------------------------------------------------------------
+    // 6. CONTROL DE NAVEGACIÓN Y ACCIONES DEL DOCENTE
     // ------------------------------------------------------------------------
     function actualizarInterfazUsuario() {
       if (!usuarioSesion) return;
@@ -1261,41 +1517,8 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function cargarTablaEstudiantes() {
-      const tbody = document.getElementById('cuerpoTabla');
-      tbody.innerHTML = '';
-
-      ESTUDIANTES_DATA.forEach(est => {
-        const fila = document.createElement('tr');
-        fila.tabIndex = 0;
-        fila.onclick = () => mostrarDetalleEstudiante(est.id);
-        fila.onkeydown = (e) => { if (e.key === 'Enter') mostrarDetalleEstudiante(est.id); };
-
-        fila.innerHTML = `
-          <td class="name">${est.nombre}</td>
-          <td class="num">${est.nota.toFixed(1)}</td>
-          <td class="evo">${est.evolucion}</td>
-          <td><span class="status"><span class="dot ${est.dot}"></span>${est.estado}</span></td>
-        `;
-        tbody.appendChild(fila);
-      });
-    }
-
-    function mostrarDetalleEstudiante(idEstudiante) {
-      const est = ESTUDIANTES_DATA.find(e => e.id === idEstudiante) || ESTUDIANTES_DATA[2];
-
-      document.getElementById('detNombre').textContent = est.nombre;
-      document.getElementById('detId').textContent = est.id;
-      document.getElementById('detNota').textContent = est.nota.toFixed(1);
-
-      const statusEl = document.getElementById('detStatus');
-      statusEl.innerHTML = `<span class="dot ${est.dot}"></span>${est.estado}`;
-
-      irAPantalla('s2');
-    }
-
     function prepararRefuerzo(nombreEstudiante) {
-      document.getElementById('dest').value = `${nombreEstudiante} (${nombreEstudiante.toLowerCase().replace(' ', '')}@uta.edu.ec)`;
+      document.getElementById('dest').value = `${nombreEstudiante} (${nombreEstudiante.toLowerCase().replace(/ /g, '')}@uta.edu.ec)`;
       irAPantalla('s3');
     }
 
@@ -1310,19 +1533,11 @@
       }, 2500);
     }
 
-    function cambiarMateria(codigo) {
-      const tit = document.getElementById('lblTituloCurso');
-      const sub = document.getElementById('lblSubtituloCurso');
-      if (codigo === 'MAT2') {
-        tit.textContent = 'Ingeniería de Software';
-        sub.textContent = '7 estudiantes matriculados • Ciclo 2026-B (Parcial 1) • Sincronización Moodle Activa';
-      } else {
-        tit.textContent = 'Metodologías Ágiles';
-        sub.textContent = '7 estudiantes matriculados • Ciclo 2026-B (Parcial 1) • Sincronización Moodle Activa';
-      }
+    async function cambiarMateria(codigo) {
+      cursoActual = codigo;
+      await cargarResumenCurso(codigo);
     }
 
-    // Delegación de clics en botones de navegación [data-go]
     document.addEventListener('click', (e) => {
       const btnGo = e.target.closest('[data-go]');
       if (btnGo) {

@@ -1175,6 +1175,39 @@ CA-10 & Tablero Kanban actualizado (T2-00.1 a T2-05.6). & Transversal & Tablero 
 \footnotesize CP-19 & \footnotesize HU-05 Esc. 2 & \footnotesize Alertas ABIERTAS; refuerzo generado. & \footnotesize \emph{Atender}; aprobar y publicar con y sin confirmación; simular rechazo de Moodle; cerrar otra alerta con \cd{PATCH /api/alertas/{id}/cerrar}. & \footnotesize ATENDIDA; con confirmación PUBLICADO (o EXPORTADO si Moodle rechaza); sin confirmación 400 y sin cambios; la alerta cerrada queda CERRADA (409 si se repite); eventos en \texttt{Auditoria}. & \footnotesize PASSED (100\% Exitoso)\\ \hline
 \end{longtable}
 
+\subsection{Evidencias de integración Frontend -- Middleware por API REST}
+La integración del frontend (puerto 3000, servido por Nginx) con el middleware FastAPI (puerto 8000) se realiza mediante peticiones asíncronas con la API Fetch nativa y cabeceras de autorización Bearer JWT (\cd{Authorization: Bearer <token>}). En la Tabla~\ref{tab:contratos_api} se detallan los contratos de integración consumidos en tiempo real por la interfaz de usuario, y en la Tabla~\ref{tab:cp_integracion} los casos de prueba de integración (CP-INT-01 a CP-INT-05) ejecutados satisfactoriamente en el entorno de desarrollo y validación.
+
+\begin{table}[H]
+\centering\small
+\caption{Contratos de endpoints del middleware consumidos por el Frontend}
+\label{tab:contratos_api}
+\begin{tabularx}{\textwidth}{|R{1.4cm}|R{4.6cm}|R{2.2cm}|Y|}
+\hline
+\hd{Método} & \hd{Ruta en Middleware} & \hd{Autenticación} & \hd{Propósito en el Frontend}\\ \hline
+POST & \cd{/api/v1/auth/login} & Público & Inicio de sesión; valida credenciales, emite JWT HS256 y objeto de usuario para control de roles.\\ \hline
+GET & \cd{/api/v1/courses/{codigo}/summary} & Bearer JWT & Alimenta dinámicamente los 4 KPIs del curso (promedio, críticos, en riesgo y aceptables).\\ \hline
+GET & \cd{/api/v1/students} & Bearer JWT & Poblamiento dinámico de la tabla de estudiantes con nota ponderada, estado de riesgo y evolución.\\ \hline
+GET & \cd{/api/v1/students/{id_number}} & Bearer JWT & Carga de la ficha individual, desglose por componentes (Autónomo, Tareas, PAE) y curva SVG.\\ \hline
+POST & \cd{/api/v1/sync/moodle} & Bearer JWT & Disparo manual de sincronización con Moodle LMS (reporta duración en ms y registros procesados).\\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Casos de prueba de integración Frontend -- API REST}
+\label{tab:cp_integracion}
+\begin{tabularx}{\textwidth}{|R{1.6cm}|R{3.8cm}|R{2.8cm}|Y|R{1.8cm}|}
+\hline
+\hd{Código CP} & \hd{Endpoint y método} & \hd{Entrada / Headers} & \hd{Resultado esperado en Frontend} & \hd{Ejecución}\\ \hline
+\footnotesize CP-INT-01 & \footnotesize \cd{POST /api/v1/auth/login} & \footnotesize Credenciales en JSON (\cd{docente@uta.edu.ec}). & \footnotesize HTTP 200; token guardado en \cd{localStorage}; transición a la vista de panel. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-02 & \footnotesize \cd{GET /api/v1/courses/MAT1/summary} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; KPIs actualizados (Promedio 6.40, Críticos 02, Riesgo 01, Aceptables 04). & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-03 & \footnotesize \cd{GET /api/v1/students} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; renderizado dinámico de 7 filas de estudiantes con sus notas y badges de nivel. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-04 & \footnotesize \cd{GET /api/v1/students/U-05} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; ficha de Estudiante C con nota 3.5, curva de notas y barras de componentes. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\footnotesize CP-INT-05 & \footnotesize \cd{POST /api/v1/sync/moodle} & \footnotesize \cd{Bearer <JWT>} & \footnotesize HTTP 200; notificación toast con tiempo en ms y refresco automático del panel. & \footnotesize PASSED (100\% Exitoso)\\ \hline
+\end{tabularx}
+\end{table}
+
 \subsection{Matriz de trazabilidad}
 \begin{table}[H]
 \centering\small

@@ -10,6 +10,14 @@ async def get_mat1_summary():
     """
     Resumen general de métricas del curso MAT1 (Panel Mockup 1).
     """
+    return await get_course_summary("MAT1")
+
+
+@router.get("/{course_code}/summary", response_model=CourseSummary)
+async def get_course_summary(course_code: str):
+    """
+    Resumen general dinámico de métricas por código de curso (Panel Mockup 1).
+    """
     students_resp = [_build_student_response(st) for st in STUDENTS_STORE]
 
     total = len(students_resp)
@@ -18,9 +26,11 @@ async def get_mat1_summary():
     aceptables = sum(1 for s in students_resp if s.nivel_riesgo == "ACEPTABLE")
     promedio = round(sum(s.nota_final for s in students_resp) / total, 2) if total else 0.0
 
+    nombre_materia = "Metodologías Ágiles" if course_code.upper() == "MAT1" else "Ingeniería de Software"
+
     return CourseSummary(
-        materia_codigo="MAT1",
-        materia_nombre="Metodologías Ágiles",
+        materia_codigo=course_code.upper(),
+        materia_nombre=nombre_materia,
         promedio_general=promedio,
         total_estudiantes=total,
         estudiantes_criticos=criticos,
