@@ -48,10 +48,12 @@ services:
       - MOODLE_USERNAME=admin
       - MOODLE_PASSWORD=MoodleAdmin2026!
       - MOODLE_EMAIL=admin@uta.edu.ec
-      - MOODLE_SITE_NAME=FISEI - Moodle Académico UTA
+      - MOODLE_SITE_NAME=Moodle UTA
+      - MOODLE_LANG=es
       - MOODLE_ENABLE_ENROL_WEBSERVICE=yes
     volumes:
       - moodle_data:/bitnami/moodle
+      - ./docker/moodle:/opt/bitnami/moodle/custom_seed:ro
     depends_on:
       - moodle-db
     networks:
@@ -107,12 +109,22 @@ services:
       - ENVIRONMENT=development
       - DEBUG=True
       - DATABASE_URL=postgresql://analytics_user:analytics_password_secret123@analytics-db:5432/moodle_analytics
-      - MOODLE_URL=http://moodle:8080
-      - MOODLE_WS_TOKEN=ws_mock_token_uta_fisei_sprint1
+      - MOODLE_URL=${MOODLE_URL:-http://moodle:8080}
+      - MOODLE_HOST_HEADER=${MOODLE_HOST_HEADER:-localhost}
+      - MOODLE_TOKEN=${MOODLE_TOKEN:-ws_mock_token_uta_fisei_sprint1}
+      - MOODLE_WS_TOKEN=${MOODLE_TOKEN:-ws_mock_token_uta_fisei_sprint1}
+      - AGENT_URL=${AGENT_URL:-http://agent:8001}
+      - AGENT_SERVICE_TOKEN=${AGENT_SERVICE_TOKEN:-agent_secret_token_uta_2026}
       - OLLAMA_HOST=http://ollama:11434
+      - MSSQL_HOST=sqlserver
+      - MSSQL_PORT=1433
+      - MSSQL_DB=MoodleUTADB
+      - MSSQL_USER=sa
+      - MSSQL_PASSWORD=YourStrong@Passw0rd
     depends_on:
       - analytics-db
       - moodle
+      - agent
     networks:
       - moodle-net
   # ----------------------------------------------------------------------------
@@ -140,10 +152,12 @@ services:
     restart: unless-stopped
     ports:
       - "8001:8001"
+      - "8100:8001"
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=llama3.2:1b
       - AGENT_INFERENCE_TIMEOUT_SECONDS=10
+      - AGENT_SERVICE_TOKEN=${AGENT_SERVICE_TOKEN:-agent_secret_token_uta_2026}
     depends_on:
       - ollama
     networks:

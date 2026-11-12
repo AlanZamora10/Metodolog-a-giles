@@ -44,9 +44,12 @@ services:
       - MOODLE_USERNAME=admin
       - MOODLE_PASSWORD=MoodleAdmin2026!
       - MOODLE_EMAIL=admin@uta.edu.ec
+      - MOODLE_SITE_NAME=Moodle UTA
+      - MOODLE_LANG=es
       - MOODLE_ENABLE_ENROL_WEBSERVICE=yes
     volumes:
       - moodle_data:/bitnami/moodle
+      - ./moodle:/opt/bitnami/moodle/custom_seed:ro
     depends_on:
       - moodle-db
     networks:
