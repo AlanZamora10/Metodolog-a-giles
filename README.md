@@ -2,8 +2,8 @@
 
 ![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi)
-![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC292B?logo=microsoftsqlserver)
-![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql)
+![HTML5/JS](https://img.shields.io/badge/Frontend-HTML5%20%2F%20JS%20%2B%20Nginx-E34F26?logo=html5)
 ![Ollama](https://img.shields.io/badge/Ollama-llama3.2:1b-black?logo=ollama)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -26,7 +26,7 @@
 - [5. Estructura del Monorepo](#5-estructura-del-monorepo)
 - [6. Guía de Despliegue Rápido con Docker Compose](#6-guía-de-despliegue-rápido-con-docker-compose)
 - [7. Catálogo de Endpoints API REST (FastAPI)](#7-catálogo-de-endpoints-api-rest-fastapi)
-- [8. Integración del Agente de IA Local (LangGraph + Ollama)](#8-integración-del-agente-de-ia-local-langgraph--ollama)
+- [8. Integración del Agente de IA Local (FastAPI + Ollama)](#8-integración-del-agente-de-ia-local-fastapi--ollama)
 - [9. Flujo de Alertas y Publicación de Refuerzos](#9-flujo-de-alertas-y-publicación-de-refuerzos)
 - [10. Comandos de Verificación y QA](#10-comandos-de-verificación-y-qa)
 - [11. Convenciones Git y Flujo de Trabajo](#11-convenciones-git-y-flujo-de-trabajo)
@@ -35,7 +35,7 @@
 
 ## 1. Descripción del Proyecto
 
-**EduMonitor AI** es un sistema web de analítica académica orientado al **portafolio de un docente** de la Universidad Técnica de Ambato. Extrae datos de las aulas virtuales Moodle mediante los Web Services REST oficiales, procesa indicadores numéricos deterministas con una regla de ponderación institucional **40% ACD, 30% Tareas y 30% PAE**, y utiliza un **agente de Inteligencia Artificial local** (LangGraph con Ollama `llama3.2:1b`) para diagnosticar subtemas críticos y redactar borradores editables de tareas de refuerzo.
+**EduMonitor AI** es un sistema web de analítica académica orientado al **portafolio de un docente** de la Universidad Técnica de Ambato. Extrae datos de las aulas virtuales Moodle mediante los Web Services REST oficiales (`EduMonitor_WS`), procesa indicadores numéricos deterministas con una regla de ponderación institucional **40% ACD, 30% Tareas y 30% PAE**, y utiliza un **agente de Inteligencia Artificial local** (servicio Python/FastAPI conectado a Ollama `llama3.2:1b` con motor heurístico de respaldo) para diagnosticar subtemas críticos y redactar borradores editables de tareas de refuerzo.
 
 El sistema funciona de forma independiente sin alterar la base de datos nativa de Moodle, operando bajo el principio de que la IA actúa únicamente como una herramienta orientativa para la toma de decisiones pedagógicas del profesor.
 
@@ -45,10 +45,10 @@ El sistema funciona de forma independiente sin alterar la base de datos nativa d
 
 | Integrante | Rol Scrum | Responsabilidad Técnica Principal |
 | :--- | :--- | :--- |
-| **Alvaro Moreta** | Proxy-PO & Developer | Frontend React (Vite), UI/UX, Mockups Figma y Fidelidad Moodle |
-| **Justin Ojeda** | Developer | Backend FastAPI, Integración Moodle Web Services & Docker Compose |
-| **Johan Borja** | Developer | Base de Datos SQL Server (`MoodleUTADB`), Vistas DDL & Analítica |
-| **Alan Zamora** | Scrum Master & Developer | Agente IA Local (LangGraph/Ollama), Pruebas QA & Fallback |
+| **Alvaro Moreta** | Proxy-PO & Developer | Interfaz Web SPA (HTML5/CSS3/JS + Nginx), UI/UX, Mockups Figma y Fidelidad Moodle |
+| **Justin Ojeda** | Developer | Middleware FastAPI, Integración Moodle Web Services & Docker Compose |
+| **Johan Borja** | Developer | Base de Datos PostgreSQL (`moodle_analytics`), Vista Analítica & Datos de Prueba |
+| **Alan Zamora** | Scrum Master & Developer | Agente IA Local (FastAPI + Ollama + Motor Heurístico), Pruebas QA & Fallback |
 
 ---
 
@@ -58,18 +58,18 @@ El sistema funciona de forma independiente sin alterar la base de datos nativa d
   <img src="docs/diagrama_despliegue.png" alt="Arquitectura del Sistema EduMonitor AI" width="850"/>
 </p>
 
-La solución está completamente orquestada en Docker Compose mediante 7 microservicios interconectados:
+La solución está completamente orquestada en Docker Compose mediante 8 servicios interconectados en la red `moodle-net`:
 
 | Servicio | Tecnología | Puerto Host | Descripción / Responsabilidad |
 | :--- | :--- | :--- | :--- |
-| **`frontend`** | React + Vite | `:3000` | Interfaz SPA (Dashboard general, Ficha individual, Centro de Alertas). |
-| **`backend`** | FastAPI (Python 3.12) | `:8000` | API REST, autenticación JWT, sincronización REST Moodle y endpoints. |
-| **`sqlserver`** | SQL Server 2022 | `:1433` | Motor de base de datos relacional (`MoodleUTADB`), vistas y auditoría. |
-| **`agente`** | Python + LangGraph | `:8100` | Grafo de estado para diagnósticos pedagógicos por subtema. |
+| **`frontend`** | HTML5 / CSS3 / JS + Nginx | `:3000` | Interfaz SPA liviana (Panel General, Ficha Individual, Centro de Alertas) y proxy `/api/`. |
+| **`middleware`** | FastAPI (Python 3.11) | `:8000` | API REST (`/api/v1`), autenticación JWT, sincronización REST Moodle y cálculos 40/30/30. |
+| **`analytics-db`** | PostgreSQL 15 | `:5432` | Base de datos analítica (`moodle_analytics`), 11 tablas y vista `vista_panel_curso`. |
+| **`sqlserver`** | SQL Server 2022 | `:1433` | Contenedor de compatibilidad institucional levantado en el stack Docker. |
+| **`agent`** | Python + FastAPI | `:8001` / `:8100` | Servicio de diagnóstico pedagógico con Ollama y motor heurístico de respaldo (`HeuristicRulesEngine`). |
 | **`ollama`** | Ollama (`llama3.2:1b`) | `:11434` | Servidor LLM local sin comunicación con servicios externos cloud. |
-| **`moodle`** | PHP 8.3 + Apache | `:8080` | Réplica funcional Moodle UTA con plugin `local_edumonitor`. |
-| **`moodle-db`** | MariaDB 10.11 | Interno | Base de datos interna del LMS Moodle. |
-
+| **`moodle`** | Moodle 4.3.2 (Bitnami) | `:8080` | Réplica funcional Moodle UTA sembrada automáticamente (`seed.php`) con servicio `EduMonitor_WS`. |
+| **`moodle-db`** | MariaDB 10.11 | Interno (`3306`) | Base de datos interna del LMS Moodle. |
 ---
 
 ## 4. Portafolio Docente Replicado en Moodle UTA
@@ -93,24 +93,27 @@ El entorno de prueba simula la carga horaria real de un docente de Software en l
 ## 5. Estructura del Monorepo
 
 ```text
-Metodolog-a-giles/
-├── backend/                  # Código fuente de FastAPI (Python)
-│   ├── app/                  # Controladores, modelos Pydantic y servicios
-│   ├── tests/                # Pruebas unitarias e integradas con Pytest
-│   └── Dockerfile            # Imagen base del Backend
+Proyecto Agente IA/
+├── agent/                    # Microservicio del Agente de IA (FastAPI + Ollama)
+│   ├── app/                  # main.py, ollama_client.py, heuristics.py
+│   ├── tests/                # Pruebas del agente
+│   └── Dockerfile            # Imagen base del Agente
 ├── database/                 # Scripts DDL y de inicialización
-│   ├── init.sql              # Creación de MoodleUTADB, tablas, vistas y triggers
-│   └── seed_data.sql         # Datos iniciales de docentes, alumnos y parametros
-├── docker/                   # Configuración para la réplica de Moodle
-│   └── moodle/               # Dockerfile, seed_uta.php y plugin local_edumonitor
-├── docs/                     # Diagramas UML, imágenes y documentación
-│   ├── diagrama_casos_uso.png
-│   └── diagrama_despliegue.png
-├── frontend/                 # Aplicación React + Vite
-│   ├── src/                  # Componentes (Dashboard, Ficha, Alertas)
+│   ├── init.sql              # Creación de moodle_analytics, 11 tablas y vista_panel_curso
+│   └── seeds/seed_hu01.sql   # Datos semilla iniciales
+├── docker/                   # Configuración para la réplica de Moodle y Dockerfiles
+│   └── moodle/               # seed.php, entrypoint-seed.sh y README.md
+├── docs/                     # Diagramas UML, guiones y documentación
+│   └── GUION_DEFENSA_SPRINT1.md
+├── frontend/                 # Interfaz Web SPA (HTML5/CSS3/JS + Nginx)
+│   ├── index.html            # Aplicación web de página única
+│   ├── nginx.conf            # Configuración de servidor y proxy reverso /api/
 │   └── Dockerfile            # Imagen base del Frontend
-├── services/                 # Microservicio del Agente de IA
-│   └── agente/               # Implementación de LangGraph y cliente Ollama
-├── .env.example              # Plantilla de variables de entorno (sin llaves reales)
-├── docker-compose.yml        # Orquestador global de los 7 microservicios
+├── middleware/               # Backend principal FastAPI (Python 3.11)
+│   ├── app/                  # config.py, main.py, routers/, schemas/, services/
+│   ├── tests/                # Pruebas unitarias e integradas con Pytest
+│   └── Dockerfile            # Imagen base del Middleware
+├── scripts/                  # Scripts de siembra y verificación E2E
+├── .env.example              # Plantilla de variables de entorno (sin secretos reales)
+├── docker-compose.yml        # Orquestador global de los contenedores
 └── README.md                 # Documentación principal del proyecto
