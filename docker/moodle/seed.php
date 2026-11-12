@@ -1,408 +1,596 @@
 <?php
 /**
- * Script de Siembra Idempotente para Moodle UTA (FISEI)
- * Proyecto: Capa Inteligente de Seguimiento Académico (EduMonitor AI)
- * 
- * Requisitos:
- * 1. Categorías jerárquicas: FISEI -> SOFTWARE -> Julio a Diciembre 2026
- * 2. 1 Docente + 7 Estudiantes ficticios (Estudiante A a Estudiante G)
- * 3. 4 Cursos del portafolio con formato Temas (topics) y ponderación 40/30/30:
- *    - (SOF) PROGRAMACION ORIENTADA A OBJETOS - A
- *    - (SOF) ESTRUCTURA DE DATOS - B
- *    - (SOF) METODOLOGIAS AGILES - B
- *    - (SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A
- * 4. Calificaciones de prueba (incluyendo normales, 0.0, SIN_ENTREGA y PENDIENTE)
- * 5. Habilitación de Web Services REST, servicio EduMonitor_WS y token de integración.
+ * Siembra idempotente de Moodle UTA (FISEI) para EduMonitor AI.
+ *
+ *  1. Sitio "Moodle UTA" en español, inicio en "Mis cursos" e identidad visual UTA (CSS en additionalhtmlhead).
+ *  2. Categorías FISEI -> SOFTWARE -> Julio a Diciembre 2026.
+ *  3. Usuarios: admin, docente titular (hnaranjo) y 20 estudiantes con nombres ficticios.
+ *  4. 4 cursos con nóminas distintas (7 / 10 / 12 / 15 estudiantes); el docente es editingteacher en todos.
+ *  5. Estructura del aula virtual UTA: Informativo | Primer Parcial | Segundo Parcial | Supletorio, con
+ *     Zona de información, ACD (40%), Tareas (30%) y PAE (30%) por parcial.
+ *  6. Libro de calificaciones ponderado 40/30/30 y notas variadas del Primer Parcial
+ *     (aceptables, en riesgo, críticos, nota 0, SIN ENTREGA y PENDIENTE).
+ *  7. Web Services REST, servicio EduMonitor_WS y token de integración.
+ *
+ * Re-ejecutable en cualquier momento: crea lo que falta, actualiza lo existente y
+ * desmatricula a los estudiantes que ya no pertenecen a la nómina de un curso.
  */
 
 define('CLI_SCRIPT', true);
 
-// Detección de ruta de configuración de Moodle en Bitnami o estándar
-$config_paths = [
-    __DIR__ . '/../../config.php',
-    '/opt/bitnami/moodle/config.php',
-    '/var/www/html/config.php'
-];
-
-$config_loaded = false;
-foreach ($config_paths as $path) {
+foreach (['/opt/bitnami/moodle/config.php', '/var/www/html/config.php', __DIR__ . '/../../config.php'] as $path) {
     if (file_exists($path)) {
         require_once($path);
-        $config_loaded = true;
         break;
     }
 }
-
-if (!$config_loaded) {
-    echo "[ERROR] No se pudo localizar config.php de Moodle en ninguna ruta conocida.\n";
+if (!isset($CFG)) {
+    echo "[ERROR] No se pudo localizar config.php de Moodle.\n";
     exit(1);
 }
 
 require_once($CFG->libdir . '/clilib.php');
 require_once($CFG->dirroot . '/course/lib.php');
+require_once($CFG->dirroot . '/course/modlib.php');
 require_once($CFG->dirroot . '/user/lib.php');
-require_once($CFG->dirroot . '/lib/enrollib.php');
-require_once($CFG->libdir . '/gradelib.php'); // Define GRADE_TYPE_VALUE y carga el API de calificaciones
-require_once($CFG->dirroot . '/lib/grade/grade_item.php');
-require_once($CFG->dirroot . '/lib/grade/grade_grade.php');
-require_once($CFG->dirroot . '/lib/grade/grade_category.php');
+require_once($CFG->libdir . '/enrollib.php');
+require_once($CFG->libdir . '/gradelib.php');
+require_once($CFG->libdir . '/grade/grade_item.php');
+require_once($CFG->libdir . '/grade/grade_category.php');
+require_once($CFG->dirroot . '/mod/assign/locallib.php');
+require_once($CFG->dirroot . '/mod/forum/lib.php');
+require_once($CFG->dirroot . '/lib/phpunit/classes/util.php'); // Generadores de datos (igual que tool_generator)
 
-global $DB, $CFG;
+global $DB, $CFG, $USER;
+
+$admin = get_admin();
+\core\session\manager::set_user($admin); // Los generadores y el API de assign requieren un usuario actual
+$gen = phpunit_util::get_data_generator();
+
+function out($msg) { echo $msg . "\n"; }
 
 echo "====================================================================\n";
-echo " INICIANDO SIEMBRA AUTOMATIZADA IDEMPOTENTE: Moodle UTA (FISEI)\n";
+echo " SIEMBRA MOODLE UTA (FISEI) - EduMonitor AI\n";
 echo "====================================================================\n";
 
-// -----------------------------------------------------------------------------
-// 1. Configuración de Nombre de Sitio e Idioma Español
-// -----------------------------------------------------------------------------
-echo "[1/6] Configurando Sitio Moodle UTA e Idioma...\n";
+// =============================================================================
+// 1. SITIO, IDIOMA E IDENTIDAD VISUAL
+// =============================================================================
+out("[1/7] Sitio, idioma e identidad visual UTA...");
 set_config('sitename', 'Moodle UTA');
-set_config('fullname', 'Moodle UTA');
-set_config('shortname', 'Moodle UTA');
 set_config('lang', 'es');
+$DB->set_field('user', 'lang', 'es', ['id' => $admin->id]); // Bitnami crea el admin con idioma 'en'
+set_config('defaulthomepage', defined('HOMEPAGE_MYCOURSES') ? HOMEPAGE_MYCOURSES : 3);
 
 $site = get_site();
-if ($site) {
-    $site->fullname = 'Moodle UTA';
-    $site->shortname = 'Moodle UTA';
-    $DB->update_record('course', $site);
+$site->fullname = 'Moodle UTA';
+$site->shortname = 'Moodle UTA';
+$DB->update_record('course', $site);
+
+if (!array_key_exists('es', get_string_manager()->get_list_of_translations(true))) {
+    try {
+        (new \tool_langimport\controller())->install_languagepacks('es');
+        out("  + Paquete de idioma 'es' instalado");
+    } catch (Throwable $e) {
+        out("  ! No se pudo instalar el paquete 'es': " . $e->getMessage());
+    }
 }
-echo "  -> Nombre de sitio establecido: 'Moodle UTA'\n";
-echo "  -> Idioma predeterminado establecido: 'es' (Español)\n";
 
-// -----------------------------------------------------------------------------
-// 2. Jerarquía de Categorías: FISEI -> SOFTWARE -> Julio a Diciembre 2026
-// -----------------------------------------------------------------------------
-echo "[2/6] Verificando Jerarquía de Categorías...\n";
+$uta_css = <<<'CSS'
+<style id="uta-theme">
+/* ---- Identidad visual UTA (sistemaseducaciononline.uta.edu.ec) ---- */
+:root { --uta-blue:#11297A; --uta-red:#9B1C1C; --uta-line:#DEE2E6; }
+body { background:#F4F6F8; }
+/* Barra superior blanca */
+.navbar.fixed-top { background:#FFFFFF !important; border-bottom:1px solid var(--uta-line); box-shadow:none !important; }
+.navbar.fixed-top .navbar-brand, .navbar.fixed-top .primary-navigation .nav-link { color:var(--uta-blue) !important; font-weight:500; }
+.navbar.fixed-top .primary-navigation .nav-link.active { border-bottom-color:var(--uta-red) !important; font-weight:600; }
+/* Barra secundaria del curso en rojo carmesí */
+.secondary-navigation { background:var(--uta-red); border-radius:6px; padding:0 .75rem; margin-bottom:1.25rem; }
+.secondary-navigation .nav-tabs { border-bottom:0; }
+.secondary-navigation .nav-tabs .nav-link,
+.secondary-navigation .moremenu .dropdown-toggle { color:#FFFFFF !important; border:0 !important; background:transparent; }
+.secondary-navigation .nav-tabs .nav-link.active,
+.secondary-navigation .nav-tabs .nav-link:hover { background:rgba(255,255,255,.14) !important; border-bottom:3px solid #FFFFFF !important; color:#FFFFFF !important; }
+/* Encabezado de página */
+#page-header h1, .page-header-headings h1 { color:var(--uta-blue); }
+/* Secciones del curso como tarjetas blancas */
+.course-content ul.topics > li.section, .course-content li.section.main {
+  background:#FFFFFF; border:1px solid var(--uta-line) !important; border-radius:8px;
+  padding:1rem 1.25rem !important; margin-bottom:1rem;
+}
+.course-content .sectionname, .course-content .sectionname a, .course-section-header h3 a { color:var(--uta-blue) !important; font-weight:700; }
+/* Encabezados de bloque (etiquetas) e iconos de actividad */
+.activity.label .uta-block-title { color:var(--uta-blue); border-left:4px solid var(--uta-red); padding:.35rem .75rem; margin:.5rem 0 0; font-size:1.05rem; font-weight:700; background:#F8F9FB; }
+.block .card-title, .block h5 { color:var(--uta-blue); }
+.card, .block.card { border-color:var(--uta-line); }
+.btn-primary { background-color:var(--uta-blue); border-color:var(--uta-blue); }
+.btn-primary:hover { background-color:#0C1F5E; border-color:#0C1F5E; }
+a { color:var(--uta-blue); }
+</style>
+CSS;
+set_config('additionalhtmlhead', $uta_css);
+out("  -> 'Moodle UTA', idioma 'es', inicio en Mis cursos, CSS institucional aplicado");
 
-function get_or_create_category($name, $idnumber, $parent_id = 0) {
+// =============================================================================
+// 2. CATEGORÍAS
+// =============================================================================
+out("[2/7] Jerarquía de categorías...");
+function get_or_create_category($name, $idnumber, $parent = 0) {
     global $DB;
-    $cat = $DB->get_record('course_categories', ['idnumber' => $idnumber]);
-    if (!$cat) {
-        $cat = $DB->get_record('course_categories', ['name' => $name, 'parent' => $parent_id]);
+    $cat = $DB->get_record('course_categories', ['idnumber' => $idnumber])
+        ?: $DB->get_record('course_categories', ['name' => $name, 'parent' => $parent]);
+    if ($cat) {
+        return $cat->id;
     }
-    if (!$cat) {
-        require_once($GLOBALS['CFG']->dirroot . '/course/classes/category.php');
-        $newcat = new stdClass();
-        $newcat->name = $name;
-        $newcat->idnumber = $idnumber;
-        $newcat->parent = $parent_id;
-        $newcat->description = "Categoría académica institucional $name";
-        $newcat->descriptionformat = FORMAT_HTML;
-        $created = core_course_category::create($newcat);
-        echo "  + Creada categoría: $name (ID: {$created->id})\n";
-        return $created->id;
-    }
-    echo "  = Categoría existente: $name (ID: {$cat->id})\n";
-    return $cat->id;
+    $created = core_course_category::create((object)[
+        'name' => $name, 'idnumber' => $idnumber, 'parent' => $parent,
+        'description' => "Categoría académica $name", 'descriptionformat' => FORMAT_HTML,
+    ]);
+    out("  + Categoría creada: $name");
+    return $created->id;
 }
+$cat_fisei = get_or_create_category('FISEI', 'CAT_FISEI');
+$cat_sof = get_or_create_category('SOFTWARE', 'CAT_SOFTWARE', $cat_fisei);
+$cat_period = get_or_create_category('Julio a Diciembre 2026', 'CAT_2026_JD', $cat_sof);
 
-$cat_fisei_id = get_or_create_category('FISEI', 'CAT_FISEI', 0);
-$cat_sof_id   = get_or_create_category('SOFTWARE', 'CAT_SOFTWARE', $cat_fisei_id);
-$cat_period_id = get_or_create_category('Julio a Diciembre 2026', 'CAT_2026_JD', $cat_sof_id);
+// =============================================================================
+// 3. USUARIOS
+// =============================================================================
+out("[3/7] Usuarios (docente titular y 20 estudiantes)...");
 
-// -----------------------------------------------------------------------------
-// 3. Creación de Usuarios: Docente y 7 Estudiantes (U-03 a U-09)
-// -----------------------------------------------------------------------------
-echo "[3/6] Creando Usuario Docente y 7 Estudiantes...\n";
-
-function get_or_create_user($username, $firstname, $lastname, $email, $idnumber, $password = 'Docente2026!') {
+/** Busca por idnumber, username o email y sincroniza todos los campos (incluida la contraseña). */
+function upsert_user($username, $firstname, $lastname, $email, $idnumber, $password) {
     global $DB, $CFG;
-    $user = $DB->get_record('user', ['username' => $username, 'mnethostid' => $CFG->mnet_localhost_id]);
-    if (!$user) {
-        $user = $DB->get_record('user', ['email' => $email, 'mnethostid' => $CFG->mnet_localhost_id]);
+    $base = ['mnethostid' => $CFG->mnet_localhost_id, 'deleted' => 0];
+    $user = $DB->get_record('user', $base + ['idnumber' => $idnumber])
+        ?: $DB->get_record('user', $base + ['username' => $username])
+        ?: $DB->get_record('user', $base + ['email' => $email]);
+
+    $data = [
+        'username' => $username, 'firstname' => $firstname, 'lastname' => $lastname,
+        'email' => $email, 'idnumber' => $idnumber, 'auth' => 'manual', 'confirmed' => 1,
+        'lang' => 'es', 'city' => 'Ambato', 'country' => 'EC', 'institution' => 'Universidad Técnica de Ambato',
+        'department' => 'FISEI - Software', 'timemodified' => time(),
+    ];
+    if ($user) {
+        $data['id'] = $user->id;
+        $DB->update_record('user', (object)$data);
+        $user = $DB->get_record('user', ['id' => $user->id]);
+    } else {
+        $data += ['mnethostid' => $CFG->mnet_localhost_id, 'timecreated' => time(), 'password' => ''];
+        $user = $DB->get_record('user', ['id' => $DB->insert_record('user', (object)$data)]);
+        out("  + Usuario creado: $username ($firstname $lastname)");
     }
-    if (!$user) {
-        $newuser = new stdClass();
-        $newuser->username = $username;
-        $newuser->password = hash_internal_user_password($password);
-        $newuser->firstname = $firstname;
-        $newuser->lastname = $lastname;
-        $newuser->email = $email;
-        $newuser->idnumber = $idnumber;
-        $newuser->confirmed = 1;
-        $newuser->mnethostid = $CFG->mnet_localhost_id;
-        $newuser->lang = 'es';
-        $newuser->auth = 'manual';
-        $newuser->timecreated = time();
-        $newuser->timemodified = time();
-        $id = $DB->insert_record('user', $newuser);
-        $newuser->id = $id;
-        echo "  + Usuario creado: $username ($firstname $lastname) [ID: $id, IDNumber: $idnumber]\n";
-        return $newuser;
-    }
-    echo "  = Usuario existente: $username [ID: {$user->id}]\n";
+    update_internal_user_password($user, $password);
     return $user;
 }
 
-$docente_user = get_or_create_user(
-    'docente',
-    'Ing. Hernán',
-    'Naranjo, Mg.',
-    'docente@uta.edu.ec',
-    'U-01',
-    'Docente2026!'
-);
+$docente = upsert_user('hnaranjo', 'Ing. Hernán', 'Naranjo, Mg.', 'docente@uta.edu.ec', 'U-01', 'Docente2026!');
+out("  = Docente titular: hnaranjo (Ing. Hernán Naranjo, Mg.)");
 
-$students_data = [
-    ['estudiante_a', 'Estudiante', 'A', 'estudiante.a@uta.edu.ec', 'U-03'],
-    ['estudiante_b', 'Estudiante', 'B', 'estudiante.b@uta.edu.ec', 'U-04'],
-    ['estudiante_c', 'Estudiante', 'C', 'estudiante.c@uta.edu.ec', 'U-05'],
-    ['estudiante_d', 'Estudiante', 'D', 'estudiante.d@uta.edu.ec', 'U-06'],
-    ['estudiante_e', 'Estudiante', 'E', 'estudiante.e@uta.edu.ec', 'U-07'],
-    ['estudiante_f', 'Estudiante', 'F', 'estudiante.f@uta.edu.ec', 'U-08'],
-    ['estudiante_g', 'Estudiante', 'G', 'estudiante.g@uta.edu.ec', 'U-09'],
+// idnumber => [username, nombres, apellidos]
+$students_def = [
+    'U-03' => ['candrade',    'Camila',      'Andrade'],
+    'U-04' => ['dcurillo',    'Diego',       'Curillo'],
+    'U-05' => ['mparedes',    'Mateo',       'Paredes'],
+    'U-06' => ['svillacis',   'Sofía',       'Villacís'],
+    'U-07' => ['cmena',       'Carlos',      'Mena'],
+    'U-08' => ['vortiz',      'Valeria',     'Ortiz'],
+    'U-09' => ['asalazar',    'Andrés',      'Salazar'],
+    'U-10' => ['gviteri',     'Gabriela',    'Viteri'],
+    'U-11' => ['sromero',     'Sebastián',   'Romero'],
+    'U-12' => ['despinoza',   'Daniela',     'Espinoza'],
+    'U-13' => ['jchicaiza',   'Joel',        'Chicaiza'],
+    'U-14' => ['mlozada',     'María José',  'Lozada'],
+    'U-15' => ['ktoapanta',   'Kevin',       'Toapanta'],
+    'U-16' => ['pguaman',     'Paula',       'Guamán'],
+    'U-17' => ['rsanchez',    'Ricardo',     'Sánchez'],
+    'U-18' => ['nbarrera',    'Nicole',      'Barrera'],
+    'U-19' => ['jpilco',      'Jonathan',    'Pilco'],
+    'U-20' => ['faltamirano', 'Fernanda',    'Altamirano'],
+    'U-21' => ['bjacome',     'Bryan',       'Jácome'],
+    'U-22' => ['acevallos',   'Alejandra',   'Cevallos'],
 ];
-
-$student_users = [];
-foreach ($students_data as $s) {
-    $student_users[$s[4]] = get_or_create_user(
-        $s[0], $s[1], $s[2], $s[3], $s[4], 'Estudiante2026!'
-    );
+$students = [];
+foreach ($students_def as $idn => [$uname, $fn, $ln]) {
+    $students[$idn] = upsert_user($uname, $fn, $ln, "$uname@uta.edu.ec", $idn, 'Estudiante2026!');
 }
+out("  = " . count($students) . " estudiantes sincronizados (contraseña Estudiante2026!)");
 
-// -----------------------------------------------------------------------------
-// 4. Creación de los 4 Cursos del Portafolio con Formato Temas (topics)
-// -----------------------------------------------------------------------------
-echo "[4/6] Creando los 4 Cursos del Portafolio...\n";
+// =============================================================================
+// 4. CURSOS Y NÓMINAS
+// =============================================================================
+out("[4/7] Cursos y nóminas por asignatura...");
 
+// Nómina por curso: idnumber => nota base del Primer Parcial (perfil académico del estudiante en esa materia)
 $courses_def = [
-    [
-        'fullname'  => '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A',
-        'shortname' => 'SOF-POO-A',
-        'idnumber'  => 'SOF-POO-A',
-        'summary'   => 'Curso institucional de Programación Orientada a Objetos - Paralelo A'
+    'SOF-POO-A' => [
+        'fullname' => '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A',
+        'summary'  => 'Programación Orientada a Objetos - Paralelo A',
+        'roster'   => ['U-03' => 8.6, 'U-04' => 3.4, 'U-05' => 7.2, 'U-06' => 6.0, 'U-07' => 9.1, 'U-08' => 4.5, 'U-09' => 7.8],
     ],
-    [
-        'fullname'  => '(SOF) ESTRUCTURA DE DATOS - B',
-        'shortname' => 'SOF-ED-B',
-        'idnumber'  => 'SOF-ED-B',
-        'summary'   => 'Curso institucional de Estructura de Datos - Paralelo B'
+    'SOF-ED-B' => [
+        'fullname' => '(SOF) ESTRUCTURA DE DATOS - B',
+        'summary'  => 'Estructura de Datos - Paralelo B',
+        'roster'   => ['U-03' => 7.9, 'U-04' => 4.2, 'U-08' => 5.6, 'U-10' => 8.8, 'U-11' => 6.4,
+                       'U-12' => 9.3, 'U-13' => 3.1, 'U-14' => 7.1, 'U-15' => 5.2, 'U-16' => 8.2],
     ],
-    [
-        'fullname'  => '(SOF) METODOLOGIAS AGILES - B',
-        'shortname' => 'SOF-MA-B',
-        'idnumber'  => 'SOF-MA-B',
-        'summary'   => 'Curso institucional de Metodologías Ágiles de Desarrollo de Software - Paralelo B'
+    'SOF-MA-B' => [
+        'fullname' => '(SOF) METODOLOGIAS AGILES - B',
+        'summary'  => 'Metodologías Ágiles de Desarrollo de Software - Paralelo B',
+        'roster'   => ['U-04' => 4.8, 'U-05' => 6.6, 'U-06' => 8.4, 'U-09' => 7.5, 'U-11' => 5.9, 'U-13' => 4.1,
+                       'U-15' => 7.0, 'U-17' => 9.0, 'U-18' => 6.3, 'U-19' => 8.1, 'U-20' => 2.9, 'U-21' => 7.7],
     ],
-    [
-        'fullname'  => '(SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A',
-        'shortname' => 'SOF-MCS-A',
-        'idnumber'  => 'SOF-MCS-A',
-        'summary'   => 'Curso institucional de Manejo y Configuración del Software - Paralelo A'
-    ]
+    'SOF-MCS-A' => [
+        'fullname' => '(SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A',
+        'summary'  => 'Manejo y Configuración del Software - Paralelo A',
+        'roster'   => ['U-03' => 8.0, 'U-04' => 3.8, 'U-05' => 7.3, 'U-07' => 8.9, 'U-08' => 5.4,
+                       'U-10' => 9.2, 'U-12' => 7.6, 'U-14' => 6.8, 'U-16' => 4.4, 'U-17' => 8.5,
+                       'U-18' => 5.8, 'U-19' => 7.9, 'U-20' => 6.1, 'U-21' => 3.5, 'U-22' => 9.4],
+    ],
 ];
 
-$role_teacher = $DB->get_record('role', ['shortname' => 'editingteacher']);
-$role_student = $DB->get_record('role', ['shortname' => 'student']);
+$role_teacher = $DB->get_record('role', ['shortname' => 'editingteacher'], '*', MUST_EXIST);
+$role_student = $DB->get_record('role', ['shortname' => 'student'], '*', MUST_EXIST);
+$manual = enrol_get_plugin('manual');
 
-$created_courses = [];
-
-foreach ($courses_def as $cdef) {
-    $course = $DB->get_record('course', ['shortname' => $cdef['shortname']]);
+$courses = [];
+foreach ($courses_def as $short => $def) {
+    $course = $DB->get_record('course', ['shortname' => $short]) ?: $DB->get_record('course', ['idnumber' => $short]);
     if (!$course) {
-        $course = $DB->get_record('course', ['idnumber' => $cdef['idnumber']]);
-    }
-    if (!$course) {
-        $cdata = new stdClass();
-        $cdata->category    = $cat_period_id;
-        $cdata->fullname    = $cdef['fullname'];
-        $cdata->shortname   = $cdef['shortname'];
-        $cdata->idnumber    = $cdef['idnumber'];
-        $cdata->summary     = $cdef['summary'];
-        $cdata->format      = 'topics';
-        $cdata->numsections = 4;
-        $cdata->visible     = 1;
-        $cdata->startdate   = time() - 3600 * 24 * 30; // Iniciado hace un mes
-        $course = create_course($cdata);
-        echo "  + Curso creado: {$cdef['fullname']} [ID: {$course->id}]\n";
-    } else {
-        echo "  = Curso existente: {$cdef['fullname']} [ID: {$course->id}]\n";
-    }
-    $created_courses[$cdef['shortname']] = $course;
-
-    // Matricular Docente
-    if ($role_teacher) {
-        enrol_try_internal_enrol($course->id, $docente_user->id, $role_teacher->id);
-    }
-
-    // Matricular los 7 Estudiantes
-    if ($role_student) {
-        foreach ($student_users as $stu) {
-            enrol_try_internal_enrol($course->id, $stu->id, $role_student->id);
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// 5. Configurar Ponderación 40/30/30 y Calificaciones de Prueba
-// -----------------------------------------------------------------------------
-echo "[5/6] Configurando Categorías de Calificación (40/30/30) y Notas de Prueba...\n";
-
-// Definición de notas de prueba para los 7 estudiantes
-// Criterio: Estudiante C y D críticos (< 5.0), F en riesgo con SIN_ENTREGA, G con PENDIENTE
-$mock_grades_by_student = [
-    'U-03' => ['autonomo' => 8.00, 'tareas' => 8.00, 'pae' => 8.00, 'estado' => 'NORMAL'],
-    'U-04' => ['autonomo' => 8.50, 'tareas' => 8.50, 'pae' => 8.50, 'estado' => 'NORMAL'],
-    'U-05' => ['autonomo' => 0.00, 'tareas' => 3.00, 'pae' => 4.00, 'estado' => 'CRITICO_CERO'], // Caso Crítico con 0.0
-    'U-06' => ['autonomo' => 4.50, 'tareas' => 4.00, 'pae' => 5.00, 'estado' => 'CRITICO'],      // Caso Crítico < 5.0
-    'U-07' => ['autonomo' => 8.00, 'tareas' => 7.00, 'pae' => 7.67, 'estado' => 'NORMAL'],
-    'U-08' => ['autonomo' => 6.50, 'tareas' => null, 'pae' => 6.00, 'estado' => 'SIN_ENTREGA'], // SIN ENTREGA en Tareas
-    'U-09' => ['autonomo' => 8.50, 'tareas' => 8.00, 'pae' => -1.0, 'estado' => 'PENDIENTE'],   // PENDIENTE en PAE
-];
-
-foreach ($created_courses as $shortname => $course) {
-    // 5.1 Crear Items de Calificación Manuales para los 3 Componentes
-    // Autónomo (40%), Tareas (30%), PAE (30%)
-    $items = [
-        ['itemname' => 'Componente 1: Evaluación y Trabajo Autónomo (40%)', 'idnumber' => "{$shortname}-AUTONOMO", 'grademax' => 10.00],
-        ['itemname' => 'Componente 2: Tareas y Talleres (30%)',            'idnumber' => "{$shortname}-TAREAS",   'grademax' => 10.00],
-        ['itemname' => 'Componente 3: Prácticas de Aplicación PAE (30%)',  'idnumber' => "{$shortname}-PAE",      'grademax' => 10.00],
-    ];
-
-    $grade_items_map = [];
-
-    foreach ($items as $item_def) {
-        $item = grade_item::fetch([
-            'courseid' => $course->id,
-            'idnumber' => $item_def['idnumber']
+        $course = create_course((object)[
+            'category' => $cat_period, 'fullname' => $def['fullname'], 'shortname' => $short, 'idnumber' => $short,
+            'summary' => $def['summary'], 'format' => 'topics', 'numsections' => 3, 'visible' => 1,
+            'startdate' => strtotime('2026-07-01'),
         ]);
-        if (!$item) {
-            $item = new grade_item();
-            $item->courseid = $course->id;
-            $item->itemname = $item_def['itemname'];
-            $item->idnumber = $item_def['idnumber'];
-            $item->itemtype = 'manual';
-            $item->gradetype = GRADE_TYPE_VALUE;
-            $item->grademax = $item_def['grademax'];
-            $item->grademin = 0.00;
-            $item->insert();
-            echo "  + Item de calificación creado: {$item_def['itemname']} en $shortname\n";
-        }
-        $grade_items_map[$item_def['idnumber']] = $item;
+        out("  + Curso creado: {$def['fullname']}");
+    }
+    $courses[$short] = $course;
+
+    enrol_try_internal_enrol($course->id, $docente->id, $role_teacher->id);
+    foreach (array_keys($def['roster']) as $idn) {
+        enrol_try_internal_enrol($course->id, $students[$idn]->id, $role_student->id);
     }
 
-    // 5.2 Asignar Calificaciones de Prueba a los Estudiantes
-    foreach ($mock_grades_by_student as $idnumber => $gdata) {
-        $stu_user = $student_users[$idnumber];
-
-        // 1. Autónomo
-        $item_auto = $grade_items_map["{$shortname}-AUTONOMO"];
-        if ($gdata['autonomo'] !== null && $gdata['autonomo'] >= 0) {
-            $item_auto->update_final_grade($stu_user->id, $gdata['autonomo'], 'seed');
-        }
-
-        // 2. Tareas (soporta SIN_ENTREGA -> null)
-        $item_tareas = $grade_items_map["{$shortname}-TAREAS"];
-        if ($gdata['tareas'] === null) {
-            // Representa SIN_ENTREGA: no se registra calificación o se marca rawgrade null
-            $item_tareas->update_final_grade($stu_user->id, null, 'seed');
-        } else {
-            $item_tareas->update_final_grade($stu_user->id, $gdata['tareas'], 'seed');
-        }
-
-        // 3. PAE (soporta PENDIENTE -> -1.0 o feedback)
-        $item_pae = $grade_items_map["{$shortname}-PAE"];
-        if ($gdata['pae'] === -1.0) {
-            // Representa PENDIENTE
-            $item_pae->update_final_grade($stu_user->id, null, 'seed', 'PENDIENTE DE REVISIÓN');
-        } else {
-            $item_pae->update_final_grade($stu_user->id, $gdata['pae'], 'seed');
+    // Desmatricular estudiantes que no pertenecen a la nómina de este curso
+    $instance = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'manual'], '*', MUST_EXIST);
+    $sql = "SELECT u.id, u.idnumber FROM {user_enrolments} ue JOIN {user} u ON u.id = ue.userid WHERE ue.enrolid = ?";
+    foreach ($DB->get_records_sql($sql, [$instance->id]) as $u) {
+        if ($u->id != $docente->id && preg_match('/^U-\d+$/', (string)$u->idnumber) && !isset($def['roster'][$u->idnumber])) {
+            $manual->unenrol_user($instance, $u->id);
         }
     }
+    // Usuarios de siembras anteriores (Estudiante A..G) que ya no existen en la definición
+    $sql = "SELECT u.id FROM {user_enrolments} ue JOIN {user} u ON u.id = ue.userid
+             WHERE ue.enrolid = ? AND " . $DB->sql_like('u.username', '?');
+    foreach ($DB->get_records_sql($sql, [$instance->id, 'estudiante\_%']) as $u) {
+        $manual->unenrol_user($instance, $u->id);
+    }
+    out("  = $short: docente + " . count($def['roster']) . " estudiantes");
 }
 
-// -----------------------------------------------------------------------------
-// 6. Configurar Web Services REST, Servicio EduMonitor_WS y Token
-// -----------------------------------------------------------------------------
-echo "[6/6] Configurando Web Services REST y Token de Integración...\n";
+// =============================================================================
+// 5. ESTRUCTURA DEL AULA VIRTUAL
+// =============================================================================
+out("[5/7] Estructura de secciones, bloques y actividades...");
 
-// Habilitar Web Services globalmente
+/** Genera un PDF mínimo válido (una página) para los recursos de lectura. */
+function seed_pdf($title, array $lines) {
+    $esc = function ($s) {
+        $s = mb_convert_encoding($s, 'Windows-1252', 'UTF-8');
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $s);
+    };
+    $content = "BT /F1 16 Tf 60 780 Td (" . $esc($title) . ") Tj ET\n";
+    $y = 745;
+    foreach ($lines as $line) {
+        $content .= "BT /F1 11 Tf 60 $y Td (" . $esc($line) . ") Tj ET\n";
+        $y -= 18;
+    }
+    $objs = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+        "<< /Length " . strlen($content) . " >>\nstream\n" . $content . "endstream",
+    ];
+    $pdf = "%PDF-1.4\n";
+    $offsets = [];
+    foreach ($objs as $i => $obj) {
+        $offsets[] = strlen($pdf);
+        $pdf .= ($i + 1) . " 0 obj\n$obj\nendobj\n";
+    }
+    $xref = strlen($pdf);
+    $pdf .= "xref\n0 " . (count($objs) + 1) . "\n0000000000 65535 f \n";
+    foreach ($offsets as $off) {
+        $pdf .= sprintf("%010d 00000 n \n", $off);
+    }
+    return $pdf . "trailer\n<< /Size " . (count($objs) + 1) . " /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n";
+}
+
+/** Crea un módulo si no existe uno con ese idnumber en el curso. Devuelve el course_module. */
+function ensure_module($course, $section, $modname, $idnumber, array $fields) {
+    global $DB, $gen, $USER;
+    $cm = $DB->get_record('course_modules', ['course' => $course->id, 'idnumber' => $idnumber]);
+    if ($cm) {
+        return $cm;
+    }
+    $record = ['course' => $course->id, 'section' => $section, 'idnumber' => $idnumber] + $fields;
+    if ($modname === 'resource') {
+        $draft = file_get_unused_draft_itemid();
+        get_file_storage()->create_file_from_string([
+            'contextid' => context_user::instance($USER->id)->id, 'component' => 'user', 'filearea' => 'draft',
+            'itemid' => $draft, 'filepath' => '/', 'filename' => $fields['filename'],
+        ], seed_pdf($fields['name'], $fields['lines']));
+        unset($record['filename'], $record['lines']);
+        $record['files'] = $draft;
+    }
+    $instance = $gen->create_module($modname, $record);
+    return $DB->get_record('course_modules', ['id' => $instance->cmid]);
+}
+
+function block_label($course, $section, $key, $title, $subtitle = '') {
+    $html = '<h4 class="uta-block-title">' . s($title) . '</h4>' . ($subtitle ? '<p>' . s($subtitle) . '</p>' : '');
+    ensure_module($course, $section, 'label', "LBL-$key", ['intro' => $html, 'introformat' => FORMAT_HTML]);
+}
+
+function assign_fields($name, $intro, $duedate, $files) {
+    return [
+        'name' => $name, 'intro' => "<p>$intro</p>", 'introformat' => FORMAT_HTML, 'grade' => 10,
+        'duedate' => $duedate, 'allowsubmissionsfromdate' => $duedate - 14 * DAYSECS,
+        'assignsubmission_file_enabled' => $files ? 1 : 0, 'assignsubmission_file_maxfiles' => 5,
+        'assignsubmission_file_maxsizebytes' => 10485760, 'assignsubmission_file_filetypes' => '',
+        'assignsubmission_onlinetext_enabled' => $files ? 1 : 0, 'assignsubmission_onlinetext_wordlimit' => 0,
+        'assignfeedback_comments_enabled' => 1, 'submissiondrafts' => 0,
+    ];
+}
+
+// Plan de actividades por parcial: [sección, unidades, ACD, Tareas, PAE]
+$parciales = [
+    1 => ['nombre' => 'Primer Parcial', 'unidades' => [1, 2], 'inicio' => strtotime('2026-07-13'),
+          'acd' => ['U1-A1' => 'Evaluación Unidad 1', 'U2-A2' => 'Evaluación Unidad 2'],
+          'tareas' => ['U1-T1' => 'Tarea 1: Investigación de conceptos', 'U1-T2' => 'Tarea 2: Taller práctico',
+                       'U2-T3' => 'Tarea 3: Ejercicios aplicados', 'U2-T4' => 'Tarea 4: Informe de laboratorio'],
+          'pae' => ['U1-P1' => 'Práctica 1: Laboratorio guiado', 'U1-P2' => 'Práctica 2: Caso de estudio',
+                    'U2-P3' => 'Práctica 3: Proyecto integrador (avance)']],
+    2 => ['nombre' => 'Segundo Parcial', 'unidades' => [3, 4], 'inicio' => strtotime('2026-09-21'),
+          'acd' => ['U3-A3' => 'Evaluación Unidad 3', 'U4-A4' => 'Evaluación Unidad 4'],
+          'tareas' => ['U3-T5' => 'Tarea 5: Investigación aplicada', 'U3-T6' => 'Tarea 6: Taller de refuerzo',
+                       'U4-T7' => 'Tarea 7: Resolución de problemas', 'U4-T8' => 'Tarea 8: Informe final'],
+          'pae' => ['U3-P4' => 'Práctica 4: Laboratorio avanzado', 'U3-P5' => 'Práctica 5: Simulación',
+                    'U4-P6' => 'Práctica 6: Proyecto integrador (entrega final)']],
+];
+
+$section_names = [0 => 'Informativo', 1 => 'Primer Parcial', 2 => 'Segundo Parcial', 3 => 'Supletorio'];
+
+foreach ($courses as $short => $course) {
+    // Exactamente 4 secciones: 0..3
+    course_create_sections_if_missing($course, array_keys($section_names));
+    $maxsection = (int)$DB->get_field_sql('SELECT MAX(section) FROM {course_sections} WHERE course = ?', [$course->id]);
+    for ($s = $maxsection; $s > 3; $s--) {
+        course_delete_section($course, $s, true);
+    }
+    foreach ($section_names as $num => $name) {
+        $section = $DB->get_record('course_sections', ['course' => $course->id, 'section' => $num]);
+        course_update_section($course, $section, ['name' => $name]);
+    }
+
+    // --- Sección 0: Informativo
+    $news = forum_get_course_forum($course->id, 'news');
+    if (!$DB->record_exists('forum_discussions', ['forum' => $news->id, 'name' => 'Bienvenida al curso'])) {
+        $gen->get_plugin_generator('mod_forum')->create_discussion([
+            'course' => $course->id, 'forum' => $news->id, 'userid' => $docente->id, 'name' => 'Bienvenida al curso',
+            'message' => '<p>Estimados estudiantes, bienvenidos a ' . s($course->fullname) .
+                         '. Revisen el sílabo y el programa analítico en la sección Informativo.</p>',
+        ]);
+    }
+    block_label($course, 0, 'S0-AVISOS', 'Avisos importantes',
+        'Horario de tutorías: martes y jueves de 14:00 a 15:00. Revise el foro de novedades semanalmente.');
+    ensure_module($course, 0, 'resource', 'INFO-SILABO', [
+        'name' => 'Sílabo de la asignatura', 'filename' => 'Silabo_' . $short . '.pdf',
+        'lines' => [$course->fullname, 'Período académico: Julio - Diciembre 2026', 'Docente: Ing. Hernán Naranjo, Mg.',
+                    'Ponderación: ACD 40% | Tareas 30% | PAE 30%'],
+    ]);
+    ensure_module($course, 0, 'resource', 'INFO-PROGRAMA', [
+        'name' => 'Programa Analítico', 'filename' => 'Programa_Analitico_' . $short . '.pdf',
+        'lines' => [$course->fullname, 'Unidad 1 y 2: Primer Parcial', 'Unidad 3 y 4: Segundo Parcial', 'Supletorio'],
+    ]);
+    ensure_module($course, 0, 'url', 'INFO-UTA', [
+        'name' => 'Universidad Técnica de Ambato - Portal institucional', 'externalurl' => 'https://www.uta.edu.ec',
+    ]);
+
+    // --- Secciones 1 y 2: Parciales
+    foreach ($parciales as $sec => $p) {
+        block_label($course, $sec, "S$sec-ZI", 'Zona de información', 'Material de lectura y enlaces de apoyo por unidad.');
+        foreach ($p['unidades'] as $u) {
+            ensure_module($course, $sec, 'resource', "U$u-LECT", [
+                'name' => "Unidad $u - Material de clase (PDF)", 'filename' => "Unidad_{$u}_{$short}.pdf",
+                'lines' => [$course->fullname, "Unidad $u - Material de clase", 'Lectura obligatoria previa a las actividades.'],
+            ]);
+            ensure_module($course, $sec, 'url', "U$u-URL", [
+                'name' => "Unidad $u - Enlace de apoyo", 'externalurl' => 'https://www.uta.edu.ec/v4.0/index.php/biblioteca',
+            ]);
+        }
+        $blocks = [
+            'acd'    => ['ACD', 'Actividades de Aprendizaje en Contacto con el Docente (ACD - 40%)', false],
+            'tareas' => ['TAR', 'Actividades de Aprendizaje Autónomo / Tareas (30%)', true],
+            'pae'    => ['PAE', 'Actividades Prácticas de Aplicación y Experimentación (PAE - 30%)', true],
+        ];
+        foreach ($blocks as $key => [$tag, $title, $files]) {
+            block_label($course, $sec, "S$sec-$tag", $title);
+            $i = 0;
+            foreach ($p[$key] as $idn => $name) {
+                $due = $p['inicio'] + (++$i) * 7 * DAYSECS;
+                $intro = $files ? 'Suba su archivo (PDF, DOCX o ZIP) antes de la fecha límite.' : 'Actividad evaluada en clase con el docente.';
+                ensure_module($course, $sec, 'assign', $idn, assign_fields($name, $intro, $due, $files));
+            }
+        }
+    }
+
+    // --- Sección 3: Supletorio
+    block_label($course, 3, 'S3-INFO', 'Examen Supletorio', 'Solo para estudiantes que no alcanzaron la nota mínima de aprobación (7.00).');
+    ensure_module($course, 3, 'assign', 'SUP-1', assign_fields('Examen Supletorio', 'Evaluación supletoria de todo el contenido.',
+        strtotime('2026-12-14'), false));
+
+    rebuild_course_cache($course->id, true);
+    out("  = $short: 4 secciones y actividades verificadas");
+}
+
+// =============================================================================
+// 6. LIBRO DE CALIFICACIONES 40/30/30 Y NOTAS
+// =============================================================================
+out("[6/7] Libro de calificaciones ponderado y notas del Primer Parcial...");
+
+/** Nota determinística alrededor de la base del estudiante (pasos de 0.25, rango 0-10). */
+function seed_grade($base, $key) {
+    $jitter = ((crc32($key) % 9) - 4) * 0.25;
+    return round(max(0, min(10, $base + $jitter)) * 4) / 4;
+}
+
+$componentes = [
+    'ACD'    => ['Actividades en Contacto con el Docente - ACD (40%)', 40, '/^U\d+-A\d+$/'],
+    'TAREAS' => ['Aprendizaje Autónomo / Tareas (30%)', 30, '/^U\d+-T\d+$/'],
+    'PAE'    => ['Prácticas de Aplicación y Experimentación - PAE (30%)', 30, '/^U\d+-P\d+$/'],
+];
+
+foreach ($courses as $short => $course) {
+    // Eliminar ítems manuales de siembras anteriores (esquema AUTONOMO/TAREAS/PAE)
+    foreach (['AUTONOMO', 'TAREAS', 'PAE'] as $old) {
+        if ($item = grade_item::fetch(['courseid' => $course->id, 'idnumber' => "$short-$old", 'itemtype' => 'manual'])) {
+            $item->delete('seed');
+        }
+    }
+
+    // Categoría del curso: media ponderada
+    $coursecat = grade_category::fetch_course_category($course->id);
+    $coursecat->aggregation = GRADE_AGGREGATE_WEIGHTED_MEAN;
+    $coursecat->update('seed');
+    $courseitem = grade_item::fetch_course_item($course->id);
+    if ((float)$courseitem->grademax !== 10.0) {
+        $courseitem->grademax = 10; // Total del curso sobre 10 (escala UTA)
+        $courseitem->update('seed');
+    }
+
+    $cats = [];
+    foreach ($componentes as $code => [$fullname, $weight]) {
+        $cat = grade_category::fetch(['courseid' => $course->id, 'fullname' => $fullname]);
+        if (!$cat) {
+            $cat = new grade_category(['courseid' => $course->id, 'fullname' => $fullname], false);
+            $cat->aggregation = GRADE_AGGREGATE_MEAN;
+            $cat->aggregateonlygraded = 1;
+            $cat->insert('seed');
+        }
+        $catitem = $cat->load_grade_item();
+        $catitem->idnumber = "CAT-$code";
+        $catitem->aggregationcoef = $weight;
+        $catitem->grademax = 10;
+        $catitem->update('seed');
+        $cats[$code] = $cat;
+    }
+
+    // Ubicar cada tarea en su categoría según su ID number
+    $items = grade_item::fetch_all(['courseid' => $course->id, 'itemtype' => 'mod', 'itemmodule' => 'assign']) ?: [];
+    $items_by_idn = [];
+    foreach ($items as $gi) {
+        $cm = get_coursemodule_from_instance('assign', $gi->iteminstance, $course->id);
+        $items_by_idn[$cm->idnumber] = [$gi, $cm];
+        foreach ($componentes as $code => [, , $regex]) {
+            if (preg_match($regex, $cm->idnumber) && $gi->categoryid != $cats[$code]->id) {
+                $gi->set_parent($cats[$code]->id);
+            }
+        }
+        if ($cm->idnumber === 'SUP-1' && (float)$gi->aggregationcoef !== 0.0) {
+            $gi->aggregationcoef = 0; // El supletorio no pondera en la nota parcial
+            $gi->update('seed');
+        }
+    }
+
+    // Notas del Primer Parcial
+    $roster = array_keys($courses_def[$short]['roster']);
+    $pendiente_idn = end($roster);
+    $graded = 0;
+    foreach ($courses_def[$short]['roster'] as $idn => $base) {
+        $user = $students[$idn];
+        foreach ($items_by_idn as $itemidn => [$gi, $cm]) {
+            if (!preg_match('/^U[12]-[ATP]\d+$/', $itemidn)) {
+                continue; // Segundo Parcial y Supletorio aún no evaluados
+            }
+            $feedback = null;
+            $value = seed_grade($base, "$short|$idn|$itemidn");
+            if ($idn === 'U-04' && $itemidn === 'U1-T2') {
+                $value = 0.0;                                   // Nota 0
+            } else if ($idn === 'U-04' && $itemidn === 'U2-T4') {
+                $value = 0.0; $feedback = 'SIN ENTREGA';        // No subió la tarea: se califica con 0
+            } else if ($idn === $pendiente_idn && $itemidn === 'U2-P3') {
+                $value = null; $feedback = 'PENDIENTE DE REVISIÓN';
+            }
+
+            // Quitar sobrescrituras manuales de siembras anteriores
+            $gg = grade_grade::fetch(['itemid' => $gi->id, 'userid' => $user->id]);
+            if ($gg && $gg->overridden) {
+                $gg->set_overridden(false);
+            }
+
+            $assign = new assign(context_module::instance($cm->id), $cm, $course);
+            $grade = $assign->get_user_grade($user->id, true);
+            $grade->grade = $value === null ? -1 : $value;
+            $grade->grader = $docente->id;
+            // Comentario de retroalimentación (se publica en el libro de calificaciones)
+            $assign->get_feedback_plugin_by_type('comments')->save($grade, (object)[
+                'assignfeedbackcomments_editor' => ['text' => $feedback ?? '', 'format' => FORMAT_PLAIN],
+            ]);
+            $assign->update_grade($grade);
+            $graded++;
+        }
+    }
+    grade_regrade_final_grades($course->id);
+    out("  = $short: categorías 40/30/30, $graded calificaciones registradas");
+}
+
+// =============================================================================
+// 7. WEB SERVICES
+// =============================================================================
+out("[7/7] Web Services REST y token de integración...");
 set_config('enablewebservices', 1);
 set_config('webserviceprotocols', 'rest');
 
-// Verificar o crear servicio externo EduMonitor_WS
-$service_name = 'EduMonitor_WS';
-$service = $DB->get_record('external_services', ['name' => $service_name]);
-
+$service = $DB->get_record('external_services', ['name' => 'EduMonitor_WS']);
 if (!$service) {
-    $service = new stdClass();
-    $service->name = $service_name;
-    $service->shortname = 'edumonitor_ws';
-    $service->enabled = 1;
-    $service->restrictedusers = 0;
-    $service->tokenauthfriendly = 1;
-    $service->timecreated = time();
-    $service->timemodified = time();
-    $service_id = $DB->insert_record('external_services', $service);
-    $service->id = $service_id;
-    echo "  + Creado Servicio Web Externo: $service_name (ID: $service_id)\n";
+    $service = (object)['name' => 'EduMonitor_WS', 'shortname' => 'edumonitor_ws', 'enabled' => 1, 'restrictedusers' => 0,
+                        'timecreated' => time(), 'timemodified' => time()];
+    $service->id = $DB->insert_record('external_services', $service);
+} else if (!$service->enabled) {
+    $DB->set_field('external_services', 'enabled', 1, ['id' => $service->id]);
+}
+foreach (['core_webservice_get_site_info', 'core_course_get_courses', 'core_course_get_courses_by_field',
+          'core_enrol_get_enrolled_users', 'gradereport_user_get_grade_items', 'core_grades_get_grades'] as $fn) {
+    if ($DB->record_exists('external_functions', ['name' => $fn]) &&
+        !$DB->record_exists('external_services_functions', ['externalserviceid' => $service->id, 'functionname' => $fn])) {
+        $DB->insert_record('external_services_functions', (object)['externalserviceid' => $service->id, 'functionname' => $fn]);
+    }
+}
+
+// Moodle limpia el token con PARAM_ALPHANUM: debe ser alfanumérico.
+$token = getenv('MOODLE_TOKEN') ?: getenv('MOODLE_WS_TOKEN') ?: 'edumonitorutadevtoken2026fisei01';
+$rec = $DB->get_record('external_tokens', ['externalserviceid' => $service->id, 'userid' => $admin->id]);
+if ($rec) {
+    $DB->update_record('external_tokens', (object)['id' => $rec->id, 'token' => $token, 'timemodified' => time()]);
 } else {
-    $service->enabled = 1;
-    $DB->update_record('external_services', $service);
-    echo "  = Servicio Web Externo existente: $service_name (ID: {$service->id})\n";
-}
-
-// Agregar funciones esenciales a EduMonitor_WS
-$required_functions = [
-    'core_webservice_get_site_info',
-    'core_course_get_courses',
-    'core_course_get_courses_by_field',
-    'core_enrol_get_enrolled_users',
-    'gradereport_user_get_grade_items',
-    'core_grades_get_grades'
-];
-
-foreach ($required_functions as $func_name) {
-    $func = $DB->get_record('external_functions', ['name' => $func_name]);
-    if ($func) {
-        $link = $DB->get_record('external_services_functions', [
-            'externalserviceid' => $service->id,
-            'functionname' => $func_name
-        ]);
-        if (!$link) {
-            $newlink = new stdClass();
-            $newlink->externalserviceid = $service->id;
-            $newlink->functionname = $func_name;
-            $DB->insert_record('external_services_functions', $newlink);
-            echo "    -> Función agregada: $func_name\n";
-        }
-    }
-}
-
-// Token de Integración: edumonitorutadevtoken2026fisei01
-$target_token = getenv('MOODLE_TOKEN') ?: getenv('MOODLE_WS_TOKEN') ?: 'edumonitorutadevtoken2026fisei01';
-$admin_user = $DB->get_record('user', ['username' => 'admin']);
-
-if ($admin_user) {
-    $token_rec = $DB->get_record('external_tokens', [
-        'externalserviceid' => $service->id,
-        'userid' => $admin_user->id
+    $DB->insert_record('external_tokens', (object)[
+        'token' => $token, 'tokentype' => 0, 'userid' => $admin->id, 'externalserviceid' => $service->id,
+        'contextid' => context_system::instance()->id, 'creatorid' => $admin->id, 'timecreated' => time(), 'timemodified' => time(),
     ]);
-
-    if (!$token_rec) {
-        $token_rec = new stdClass();
-        $token_rec->token = $target_token;
-        $token_rec->privatetoken = null;
-        $token_rec->tokentype = 0; // EXTERNAL_TOKEN_PERMANENT
-        $token_rec->userid = $admin_user->id;
-        $token_rec->externalserviceid = $service->id;
-        $token_rec->contextid = context_system::instance()->id;
-        $token_rec->creatorid = $admin_user->id;
-        $token_rec->timecreated = time();
-        $token_rec->timemodified = time();
-        $DB->insert_record('external_tokens', $token_rec);
-        echo "  + Token generado exitosamente para admin: $target_token\n";
-    } else {
-        $token_rec->token = $target_token;
-        $token_rec->timemodified = time();
-        $DB->update_record('external_tokens', $token_rec);
-        echo "  = Token actualizado para admin: $target_token\n";
-    }
 }
+out("  = Servicio EduMonitor_WS activo, token configurado (" . substr($token, 0, 4) . "…)");
+
+purge_all_caches();
 
 echo "====================================================================\n";
-echo " SIEMBRA DE MOODLE UTA COMPLETADA EXITOSAMENTE (100% IDEMPOTENTE)\n";
-echo " Cursos: 4 | Estudiantes: 7 | Jerarquía: FISEI/SOFTWARE/2026-JD\n";
+echo " SIEMBRA COMPLETADA\n";
+foreach ($courses_def as $short => $def) {
+    printf("  %-10s %2d estudiantes\n", $short, count($def['roster']));
+}
+echo "  Admin: admin / MoodleAdmin2026!\n";
+echo "  Docente: hnaranjo / Docente2026!\n";
+echo "  Estudiante (caso crítico): dcurillo / Estudiante2026!\n";
 echo "====================================================================\n";

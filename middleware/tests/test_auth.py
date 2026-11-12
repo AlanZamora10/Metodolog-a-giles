@@ -21,14 +21,14 @@ def test_login_docente_success():
 def test_login_estudiante_success():
     """Verifica inicio de sesión exitoso como ESTUDIANTE."""
     res = client.post("/api/v1/auth/login", json={
-        "email": "estudiante.c@uta.edu.ec",
+        "email": "dcurillo@uta.edu.ec",
         "password": "Estudiante2026!"
     })
     assert res.status_code == 200
     data = res.json()
     assert "access_token" in data
     assert data["user"]["rol"] == "ESTUDIANTE"
-    assert data["user"]["id_number"] == "U-05"
+    assert data["user"]["id_number"] == "U-04"
 
 
 def test_login_invalid_password():

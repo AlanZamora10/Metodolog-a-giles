@@ -6,27 +6,26 @@
   <title>EduMonitor AI — Moodle UTA</title>
   <style>
     /* ==========================================================================
-       IDENTIDAD VISUAL MOODLE UTA
+       LÍNEA GRÁFICA AULA VIRTUAL UTA (igual que Moodle UTA en :8080)
        ========================================================================== */
     :root {
-      --primary: #11297A;           /* Azul institucional Moodle UTA */
-      --primary-hover: #0C1F5E;
-      --primary-soft: #E8ECF7;
-      --bg: #F4F6F8;                /* Fondo general */
-      --card: #FFFFFF;              /* Tarjetas blancas limpias */
-      --card-hover: #F8FAFC;
-      --ink: #1E293B;
-      --ink-light: #475569;
-      --muted: #64748B;
-      --line: #E2E8F0;
+      --uta-blue: #11297A;          /* Azul institucional: títulos, enlaces, acentos */
+      --uta-blue-hover: #0C1F5E;
+      --uta-blue-soft: #EEF1F9;
+      --uta-red: #9B1C1C;           /* Rojo carmesí: barra secundaria */
+      --uta-red-dark: #7F1717;
+      --bg: #F4F6F8;
+      --card: #FFFFFF;
+      --line: #DEE2E6;              /* Bordes de tarjetas y separadores */
+      --ink: #1D2125;
+      --ink-light: #495057;
+      --muted: #6A737B;
+      --row-hover: #F8F9FA;
 
-      --green: #15803D;  --green-bg: #DCFCE7;  --green-border: #BBF7D0;
-      --orange: #B45309; --orange-bg: #FEF3C7; --orange-border: #FDE68A;
-      --red: #B91C1C;    --red-bg: #FEE2E2;    --red-border: #FECACA;
-
-      --shadow-sm: 0 1px 3px rgba(17, 41, 122, 0.06);
-      --shadow-md: 0 6px 20px rgba(17, 41, 122, 0.10);
-      --radius: 8px;
+      --green: #1E7B34;  --green-bg: #E6F4EA;
+      --orange: #A15C07; --orange-bg: #FFF4E0;
+      --red: #B02A2A;    --red-bg: #FCEAEA;
+      --radius: 6px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,270 +33,240 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg);
       color: var(--ink);
+      font-size: 14px;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
     }
-    button { font: inherit; cursor: pointer; border: 0; }
-    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
-      outline: 2px solid var(--primary);
+    a { color: var(--uta-blue); }
+    button { font: inherit; cursor: pointer; border: 0; background: none; }
+    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible {
+      outline: 2px solid var(--uta-blue);
       outline-offset: 2px;
     }
     [hidden] { display: none !important; }
 
-    .card {
-      background: var(--card);
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow-sm);
-    }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
     /* ==========================================================================
        LOGIN (EXCLUSIVO DOCENTE)
        ========================================================================== */
-    #viewLogin {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 32px 16px;
-    }
-    .login-wrapper { width: 100%; max-width: 420px; }
-    .login-card { overflow: hidden; box-shadow: var(--shadow-md); }
-    .login-header { background: var(--primary); color: #FFFFFF; padding: 26px 24px; text-align: center; }
-    .login-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
-    .login-header p { font-size: 12px; color: rgba(255, 255, 255, 0.82); margin-top: 4px; }
-    .login-body { padding: 26px 24px; }
+    #viewLogin { min-height: 100vh; display: flex; flex-direction: column; }
+    .login-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+    .login-card { width: 100%; max-width: 420px; }
+    .login-head { padding: 24px 24px 0; text-align: center; }
+    .login-head h1 { font-size: 20px; color: var(--uta-blue); font-weight: 700; }
+    .login-head p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .login-body { padding: 20px 24px 24px; }
     .login-role {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: var(--primary-soft); color: var(--primary);
-      font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
-      padding: 4px 10px; border-radius: 20px; margin-bottom: 18px;
+      display: block; text-align: center; margin-bottom: 18px; padding: 6px;
+      background: var(--uta-red); color: #FFFFFF; font-size: 12px; font-weight: 600; letter-spacing: .4px; border-radius: 4px;
     }
-
     .alert-error {
-      background: var(--red-bg);
-      border-left: 4px solid var(--red);
-      color: var(--red);
-      font-size: 13px;
-      padding: 10px 14px;
-      border-radius: 4px;
-      margin-bottom: 18px;
+      background: var(--red-bg); border: 1px solid #F1C4C4; color: var(--red);
+      font-size: 13px; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px;
     }
-
     .form-group { margin-bottom: 16px; }
-    .form-group label {
-      display: block; font-size: 12px; font-weight: 600; color: var(--ink-light);
-      text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;
-    }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-light); margin-bottom: 6px; }
     .form-control {
-      width: 100%; padding: 11px 13px; font-size: 14px; font-family: inherit; color: var(--ink);
-      background: #FFFFFF; border: 1px solid var(--line); border-radius: 6px;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      width: 100%; padding: 9px 12px; font-size: 14px; font-family: inherit; color: var(--ink);
+      background: #FFFFFF; border: 1px solid #CED4DA; border-radius: 4px;
     }
-    .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(17, 41, 122, 0.12); outline: none; }
-
+    .form-control:focus { border-color: var(--uta-blue); box-shadow: 0 0 0 3px rgba(17, 41, 122, .15); outline: none; }
     .btn-primary {
-      width: 100%; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600;
-      padding: 12px; border-radius: 6px; transition: background 0.15s ease;
+      width: 100%; background: var(--uta-blue); color: #FFFFFF; font-size: 14px; font-weight: 600;
+      padding: 10px; border-radius: 4px;
     }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
-    .btn-primary.done { background: var(--green); }
-
-    .login-foot {
-      margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
-      text-align: center; font-size: 12px; color: var(--muted);
-    }
-    .login-foot a { color: var(--primary); font-weight: 600; text-decoration: none; }
-    .login-foot a:hover { text-decoration: underline; }
+    .btn-primary:hover { background: var(--uta-blue-hover); }
+    .btn-primary:disabled { opacity: .7; cursor: not-allowed; }
+    .login-foot { margin-top: 16px; text-align: center; font-size: 13px; color: var(--muted); }
 
     /* ==========================================================================
-       DASHBOARD
+       BARRA SUPERIOR BLANCA (navegación institucional)
        ========================================================================== */
-    .topbar { background: var(--primary); color: #FFFFFF; }
-    .topbar-in {
-      max-width: 1160px; margin: 0 auto; padding: 14px 24px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    .topbar { background: #FFFFFF; border-bottom: 1px solid var(--line); }
+    .topbar-in { display: flex; align-items: center; gap: 24px; min-height: 60px; flex-wrap: wrap; padding-block: 6px; }
+    .brand { font-weight: 700; font-size: 17px; color: var(--uta-blue); text-decoration: none; white-space: nowrap; }
+    .primary-nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+    .primary-nav a {
+      color: var(--ink-light); text-decoration: none; padding: 18px 10px 16px; font-size: 14px;
+      border-bottom: 3px solid transparent;
     }
-    .brand { font-size: 16px; font-weight: 700; letter-spacing: 0.1px; }
-    .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .primary-nav a:hover { color: var(--uta-blue); }
+    .primary-nav a.active { color: var(--uta-blue); font-weight: 600; border-bottom-color: var(--uta-red); }
+    .user-menu { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-light); }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%; background: var(--uta-blue); color: #FFFFFF;
+      display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+    }
+    .btn-link { color: var(--uta-blue); font-size: 13px; font-weight: 600; }
+    .btn-link:hover { text-decoration: underline; }
 
+    /* ==========================================================================
+       ENCABEZADO DE PÁGINA + BARRA SECUNDARIA CARMESÍ
+       ========================================================================== */
+    .page-head { padding-top: 22px; }
+    .breadcrumb { font-size: 13px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
+    .breadcrumb a { text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .page-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 6px 0 16px; }
+    .page-title { font-size: 26px; font-weight: 700; color: var(--uta-blue); line-height: 1.25; }
+    .page-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
     .select-course {
-      appearance: none;
-      background: rgba(255, 255, 255, 0.12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
-      color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px;
-      padding: 7px 32px 7px 12px; font-size: 13px; font-family: inherit; max-width: 340px;
+      font: inherit; font-size: 13px; color: var(--ink); background: #FFFFFF; border: 1px solid #CED4DA;
+      border-radius: 4px; padding: 7px 10px; max-width: 100%;
     }
-    .select-course option { color: var(--ink); background: #FFFFFF; }
 
-    .user-pill {
-      display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.12);
-      padding: 5px 10px; border-radius: 6px; font-size: 12px; border: 1px solid rgba(255, 255, 255, 0.18);
+    .secondary-nav {
+      background: var(--uta-red); border-radius: var(--radius); display: flex; align-items: center;
+      justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 8px 0 4px;
     }
-    .role-badge {
-      background: #FFFFFF; color: var(--primary); font-size: 10px; font-weight: 800;
-      padding: 2px 6px; border-radius: 4px; letter-spacing: 0.4px;
+    .tabs { display: flex; flex-wrap: wrap; }
+    .tabs button {
+      color: #FFFFFF; font-size: 14px; padding: 12px 16px 10px; border-bottom: 3px solid transparent; opacity: .92;
     }
-    .btn-topbar {
-      background: rgba(255, 255, 255, 0.15); color: #FFFFFF; padding: 6px 12px; border-radius: 6px;
-      font-size: 12px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn-topbar:hover { background: rgba(255, 255, 255, 0.28); }
-
-    .subbar { background: #FFFFFF; border-bottom: 1px solid var(--line); }
-    .subbar-in {
-      max-width: 1160px; margin: 0 auto; padding: 10px 24px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    }
-    .breadcrumb { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
-    .breadcrumb a { color: var(--primary); text-decoration: none; font-weight: 500; }
-    .breadcrumb .current { color: var(--ink); font-weight: 600; }
-
-    .sync-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .sync-status {
-      display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-light);
-      background: #F1F5F9; border: 1px solid var(--line); padding: 4px 10px; border-radius: 20px;
-    }
-    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-    .sync-dot.live { background: var(--green); }
-    .sync-dot.busy { background: var(--orange); animation: pulse 1s infinite alternate; }
-    .sync-dot.error { background: var(--red); }
-    @keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
-
+    .tabs button:hover { background: rgba(255, 255, 255, .12); opacity: 1; }
+    .tabs button[aria-selected="true"] { border-bottom-color: #FFFFFF; font-weight: 600; opacity: 1; background: rgba(255, 255, 255, .14); }
+    .sync-group { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
+    .sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255, 255, 255, .9); }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .5); }
+    .sync-dot.live { background: #7DDC92; }
+    .sync-dot.busy { background: #FFD27A; animation: pulse 1s infinite alternate; }
+    .sync-dot.error { background: #FFB4B4; }
+    @keyframes pulse { from { opacity: .4; } to { opacity: 1; } }
     .btn-sync {
-      background: var(--primary); color: #FFFFFF; padding: 7px 16px; border-radius: 6px;
-      font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+      background: #FFFFFF; color: var(--uta-red); padding: 6px 14px; border-radius: 4px;
+      font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
     }
-    .btn-sync:hover { background: var(--primary-hover); }
-    .btn-sync:disabled { opacity: 0.6; cursor: wait; }
-    .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+    .btn-sync:hover { background: #F8E9E9; }
+    .btn-sync:disabled { opacity: .7; cursor: wait; }
+    .spin { display: inline-block; animation: spin .8s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
     .toast {
-      max-width: 1112px; margin: 16px auto 0; padding: 12px 18px; border-radius: 6px;
-      display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--shadow-sm);
-      background: #F0FDF4; border: 1px solid var(--green-border); border-left: 4px solid var(--green); color: #166534;
+      margin-top: 14px; padding: 10px 14px; border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;
+      background: var(--green-bg); border: 1px solid #BFE3C8; color: var(--green);
     }
-    .toast.error { background: var(--red-bg); border-color: var(--red-border); border-left-color: var(--red); color: var(--red); }
+    .toast.error { background: var(--red-bg); border-color: #F1C4C4; color: var(--red); }
     .toast-content { flex: 1; font-size: 13px; }
     .toast-content strong { display: block; }
-    .toast-close { background: none; color: inherit; font-size: 18px; font-weight: 700; opacity: 0.7; }
+    .toast-close { color: inherit; font-size: 18px; line-height: 1; font-weight: 700; opacity: .7; }
 
-    .tabs-nav { max-width: 1160px; margin: 18px auto 0; padding: 0 24px; }
-    .segmented { display: inline-flex; background: #E2E8F0; border-radius: 8px; padding: 3px; flex-wrap: wrap; }
-    .segmented button {
-      background: transparent; color: var(--muted); padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
-    }
-    .segmented button[aria-selected="true"] { background: #FFFFFF; color: var(--primary); box-shadow: var(--shadow-sm); }
-
-    main { max-width: 1160px; margin: 0 auto; padding: 20px 24px 64px; }
+    /* ==========================================================================
+       CONTENIDO
+       ========================================================================== */
+    main { padding-block: 20px 64px; }
     .screen { display: none; }
     .screen.on { display: block; }
 
-    h1.page { font-size: 24px; font-weight: 700; color: var(--primary); letter-spacing: -0.4px; }
-    h2.section { font-size: 15px; font-weight: 700; color: var(--primary); margin: 24px 0 12px; }
-    .sub { color: var(--muted); font-size: 13px; }
-    .title-row { margin-bottom: 18px; }
-
-    .empty-state { padding: 40px 24px; text-align: center; color: var(--muted); font-size: 14px; }
-    .empty-state b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; }
-
-    .courses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-    .course-card {
-      padding: 16px 18px; text-align: left; background: var(--card); width: 100%;
-      transition: border-color 0.15s, box-shadow 0.15s;
+    .section-card { margin-bottom: 18px; }
+    .section-card > h2 {
+      font-size: 17px; font-weight: 700; color: var(--uta-blue); padding: 14px 18px; border-bottom: 1px solid var(--line);
     }
-    .course-card:hover { box-shadow: var(--shadow-md); }
-    .course-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(17, 41, 122, 0.15); }
-    .course-code { font-size: 11px; font-weight: 700; color: var(--primary); letter-spacing: 0.4px; }
-    .course-name { font-size: 13px; font-weight: 600; color: var(--ink); margin: 4px 0 10px; min-height: 38px; }
-    .course-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+    .section-body { padding: 16px 18px; }
+    .empty-state { padding: 36px 24px; text-align: center; color: var(--muted); }
+    .empty-state b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+
+    .courses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+    .course-card { text-align: left; padding: 0; overflow: hidden; width: 100%; }
+    .course-card .bar { height: 6px; background: var(--uta-blue); }
+    .course-card.active { border-color: var(--uta-blue); box-shadow: 0 0 0 1px var(--uta-blue); }
+    .course-card.active .bar { background: var(--uta-red); }
+    .course-card:hover { border-color: #ADB5BD; }
+    .course-card .inner { padding: 12px 14px 14px; }
+    .course-cat { font-size: 11px; color: var(--muted); }
+    .course-name { font-size: 14px; font-weight: 600; color: var(--uta-blue); margin: 2px 0 10px; min-height: 42px; }
+    .course-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
     .course-meta b { color: var(--ink); }
 
     .kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-    .kpi-card { padding: 16px 18px; }
-    .kpi-label {
-      display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.3px;
-    }
-    .kpi-value { font-size: 30px; font-weight: 700; letter-spacing: -0.8px; margin-top: 6px; line-height: 1.1; }
+    .kpi-card { padding: 14px 16px; }
+    .kpi-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .kpi-value { font-size: 28px; font-weight: 700; margin-top: 4px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
     .dot.red { background: var(--red); }
     .dot.orange { background: var(--orange); }
     .dot.green { background: var(--green); }
 
-    .badge-risk {
-      display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 4px;
-      font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px;
+      font-size: 12px; font-weight: 600; white-space: nowrap;
     }
-    .badge-risk.aceptable { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-    .badge-risk.en-riesgo { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
-    .badge-risk.critico { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-    .tag-state { font-size: 10px; font-weight: 700; color: var(--orange); margin-left: 4px; }
+    .badge.aceptable { background: var(--green-bg); color: var(--green); }
+    .badge.en-riesgo { background: var(--orange-bg); color: var(--orange); }
+    .badge.critico { background: var(--red-bg); color: var(--red); }
+    .badge.neutral { background: #EEF0F2; color: var(--ink-light); }
+    .tag-state { font-size: 11px; font-weight: 600; color: var(--orange); margin-left: 4px; }
 
     .table-container { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 680px; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
     th {
-      text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase;
-      letter-spacing: 0.4px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #F8FAFC;
+      text-align: left; font-weight: 600; font-size: 13px; color: var(--ink-light);
+      padding: 10px 14px; border-bottom: 2px solid var(--line); background: #FFFFFF;
     }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
     tr:last-child td { border-bottom: 0; }
     tbody tr.clickable { cursor: pointer; }
-    tbody tr.clickable:hover { background: var(--card-hover); }
-    td.name { font-weight: 600; color: var(--primary); }
+    tbody tr.clickable:hover { background: var(--row-hover); }
+    td.name a { font-weight: 600; text-decoration: none; }
     td.num { font-variant-numeric: tabular-nums; }
     td.final { font-weight: 700; }
+    .sub { color: var(--muted); font-size: 12px; }
 
-    .btn-back { background: none; color: var(--primary); font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    .btn-back { color: var(--uta-blue); font-size: 13px; font-weight: 600; margin-bottom: 14px; }
     .btn-back:hover { text-decoration: underline; }
 
-    .grid2 { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
-    .profile-card, .units-card, .form-card { padding: 24px; }
-    .profile-card h2 { font-size: 22px; font-weight: 700; color: var(--primary); }
-    .id-tag { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .grid2 { display: grid; grid-template-columns: 5fr 7fr; gap: 18px; }
+    .profile { padding: 20px; }
+    .profile h2 { font-size: 21px; font-weight: 700; color: var(--uta-blue); }
+    .id-tag { color: var(--muted); font-size: 13px; margin-top: 2px; }
     .big-score { display: flex; align-items: baseline; gap: 6px; margin: 14px 0 10px; }
-    .big-score b { font-size: 46px; letter-spacing: -1px; line-height: 1; }
+    .big-score b { font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
     .big-score span { font-size: 16px; color: var(--muted); }
-    .units-card h3, .form-card h3 { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 18px; }
-    .unit { margin-bottom: 18px; }
+    .unit { margin-bottom: 16px; }
     .unit:last-child { margin-bottom: 0; }
     .unit-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
     .unit-head b { font-variant-numeric: tabular-nums; }
-    .track { height: 6px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
-    .fill { height: 100%; border-radius: 4px; background: var(--primary); transition: width 0.3s ease; }
+    .track { height: 6px; background: #E9ECEF; border-radius: 4px; overflow: hidden; }
+    .fill { height: 100%; border-radius: 4px; background: var(--uta-blue); }
     .unit.bad .fill { background: var(--red); }
     .unit.bad .unit-head { color: var(--red); font-weight: 600; }
 
-    .diag-banner {
-      background: var(--primary); color: #FFFFFF; border-radius: var(--radius); padding: 22px 24px; margin-top: 20px;
-      display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    .diag {
+      margin-top: 18px; padding: 16px 18px; border-left: 4px solid var(--uta-red);
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
-    .diag-banner h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-    .diag-banner p { max-width: 640px; color: rgba(255, 255, 255, 0.9); font-size: 13px; }
-    .btn-white { background: #FFFFFF; color: var(--primary); padding: 10px 18px; border-radius: 6px; font-weight: 600; font-size: 13px; }
+    .diag h3 { font-size: 15px; color: var(--uta-blue); margin-bottom: 2px; }
+    .diag p { max-width: 720px; color: var(--ink-light); font-size: 13px; }
+    .btn-outline {
+      color: var(--uta-blue); border: 1px solid var(--uta-blue); padding: 6px 14px; border-radius: 4px;
+      font-size: 13px; font-weight: 600; text-decoration: none; display: inline-block;
+    }
+    .btn-outline:hover { background: var(--uta-blue); color: #FFFFFF; }
 
     .alerts-list { display: flex; flex-direction: column; gap: 10px; }
-    .alert-item { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .alert-title { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .alert-item { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .alert-item.critico { border-left: 4px solid var(--red); }
+    .alert-item.en-riesgo { border-left: 4px solid var(--orange); }
+    .alert-title { font-weight: 600; font-size: 14px; color: var(--uta-blue); }
     .alert-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .btn-outline {
-      background: transparent; color: var(--primary); border: 1px solid var(--primary);
-      padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
-    }
-    .btn-outline:hover { background: var(--primary); color: #FFFFFF; }
+    .form-card { padding: 18px; }
+    .form-card h3 { font-size: 16px; color: var(--uta-blue); margin-bottom: 14px; }
+    .btn-block { display: block; text-align: center; text-decoration: none; }
+
+    .footer { border-top: 1px solid var(--line); background: #FFFFFF; color: var(--muted); font-size: 12px; padding-block: 14px; }
 
     @media (max-width: 900px) {
       .kpis-grid { grid-template-columns: repeat(2, 1fr); }
       .grid2 { grid-template-columns: 1fr; }
     }
     @media (max-width: 600px) {
-      .kpis-grid { grid-template-columns: 1fr; }
-      .topbar-in, .subbar-in { padding: 12px 16px; }
-      .tabs-nav { padding: 0 16px; }
-      main { padding: 16px; }
+      .wrap { padding: 0 16px; }
+      .kpis-grid { grid-template-columns: 1fr 1fr; }
+      .primary-nav a { padding: 8px 6px; }
+      .page-title { font-size: 21px; }
     }
   </style>
 </head>
@@ -307,18 +276,21 @@
        LOGIN — ACCESO EXCLUSIVO DOCENTE
        ======================================================================== -->
   <div id="viewLogin">
-    <div class="login-wrapper">
+    <header class="topbar">
+      <div class="wrap topbar-in">
+        <a class="brand" href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA</a>
+        <span class="sub">EduMonitor AI</span>
+      </div>
+    </header>
+    <div class="login-main">
       <div class="card login-card">
-        <div class="login-header">
+        <div class="login-head">
           <h1>EduMonitor AI — Moodle UTA</h1>
           <p>Capa Inteligente de Seguimiento Académico • FISEI</p>
         </div>
-
         <div class="login-body">
-          <span class="login-role">Acceso Docente</span>
-
+          <span class="login-role">Acceso exclusivo para docentes</span>
           <div id="loginError" class="alert-error" role="alert" hidden></div>
-
           <form id="formAuth">
             <div class="form-group">
               <label for="inputEmail">Correo institucional</label>
@@ -326,13 +298,12 @@
             </div>
             <div class="form-group">
               <label for="inputPassword">Contraseña</label>
-              <input type="password" id="inputPassword" class="form-control" required placeholder="••••••••" autocomplete="current-password">
+              <input type="password" id="inputPassword" class="form-control" required autocomplete="current-password">
             </div>
-            <button type="submit" id="btnLoginSubmit" class="btn-primary">Ingresar</button>
+            <button type="submit" id="btnLoginSubmit" class="btn-primary">Acceder</button>
           </form>
-
           <div class="login-foot">
-            Aula virtual: <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA ↗</a>
+            ¿Busca el aula virtual? <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Ir a Moodle UTA ↗</a>
           </div>
         </div>
       </div>
@@ -344,96 +315,94 @@
        ======================================================================== -->
   <div id="viewDashboard" hidden>
     <header class="topbar">
-      <div class="topbar-in">
-        <div class="brand">EduMonitor AI — Moodle UTA</div>
-        <div class="top-actions">
-          <select class="select-course" id="comboCurso" aria-label="Curso" disabled>
-            <option>Sin cursos sincronizados</option>
-          </select>
-          <div class="user-pill">
-            <span class="role-badge">DOCENTE</span>
-            <span id="lblUsuario"></span>
-          </div>
-          <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer" class="btn-topbar">Moodle ↗</a>
-          <button class="btn-topbar" id="btnLogout">Cerrar sesión</button>
+      <div class="wrap topbar-in">
+        <a class="brand" href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA</a>
+        <nav class="primary-nav" aria-label="Navegación institucional">
+          <a href="http://localhost:8080/my/" target="_blank" rel="noopener noreferrer">Área personal</a>
+          <a href="http://localhost:8080/my/courses.php" target="_blank" rel="noopener noreferrer">Mis cursos</a>
+          <a href="#" class="active" aria-current="page">EduMonitor AI</a>
+        </nav>
+        <div class="user-menu">
+          <span id="lblUsuario"></span>
+          <span class="avatar" id="lblAvatar" aria-hidden="true"></span>
+          <button class="btn-link" id="btnLogout">Cerrar sesión</button>
         </div>
       </div>
     </header>
 
-    <div class="subbar">
-      <div class="subbar-in">
-        <div class="breadcrumb">
-          <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA</a>
-          <span>/</span><span>Mis cursos</span><span>/</span>
-          <span class="current" id="bcCurso">EduMonitor AI</span>
+    <div class="wrap page-head">
+      <div class="breadcrumb">
+        <a href="http://localhost:8080/my/courses.php" target="_blank" rel="noopener noreferrer">Mis cursos</a>
+        <span>/</span><span id="bcCurso">EduMonitor AI</span>
+      </div>
+      <div class="page-title-row">
+        <div>
+          <h1 class="page-title" id="lblTitulo">EduMonitor AI</h1>
+          <div class="page-sub" id="lblSubtitulo">Presione «Sincronizar» para importar sus cursos desde Moodle UTA.</div>
+        </div>
+        <select class="select-course" id="comboCurso" aria-label="Curso" disabled>
+          <option>Sin cursos sincronizados</option>
+        </select>
+      </div>
+
+      <div class="secondary-nav">
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected="true" data-go="s1">Panel General</button>
+          <button role="tab" aria-selected="false" data-go="s2">Ficha de Estudiante</button>
+          <button role="tab" aria-selected="false" data-go="s3">Centro de Alertas</button>
         </div>
         <div class="sync-group">
-          <span class="sync-status">
-            <span id="syncDot" class="sync-dot"></span>
-            <span id="syncStatusText">Sin sincronizar</span>
-          </span>
+          <span class="sync-status"><span id="syncDot" class="sync-dot"></span><span id="syncStatusText">Sin sincronizar</span></span>
           <button id="btnSync" class="btn-sync" title="POST /api/sincronizacion">
             <span id="btnSyncIcon">↻</span><span id="btnSyncText">Sincronizar</span>
           </button>
         </div>
       </div>
+
+      <div id="toast" class="toast" role="status" hidden>
+        <div class="toast-content"><strong id="toastTitle"></strong><span id="toastMessage"></span></div>
+        <button class="toast-close" id="btnToastClose" aria-label="Cerrar">×</button>
+      </div>
     </div>
 
-    <div id="toast" class="toast" role="status" hidden>
-      <div class="toast-content">
-        <strong id="toastTitle"></strong>
-        <span id="toastMessage"></span>
-      </div>
-      <button class="toast-close" id="btnToastClose" aria-label="Cerrar">×</button>
-    </div>
-
-    <nav class="tabs-nav" aria-label="Navegación">
-      <div class="segmented" role="tablist">
-        <button role="tab" aria-selected="true" data-go="s1">Panel General</button>
-        <button role="tab" aria-selected="false" data-go="s2">Ficha de Estudiante</button>
-        <button role="tab" aria-selected="false" data-go="s3">Centro de Alertas</button>
-      </div>
-    </nav>
-
-    <main>
+    <main class="wrap">
       <!-- PANEL GENERAL -->
       <section class="screen on" id="s1">
-        <div class="title-row">
-          <h1 class="page" id="lblTituloCurso">Panel del Docente</h1>
-          <span class="sub" id="lblSubtitulo">Presione «Sincronizar» para importar sus cursos desde Moodle UTA.</span>
-        </div>
-
         <div id="emptyState" class="card empty-state">
           <b>Aún no hay datos sincronizados</b>
-          Use el botón «Sincronizar» para traer cursos, estudiantes y calificaciones desde Moodle UTA.
+          Use «Sincronizar» para traer cursos, participantes y calificaciones desde Moodle UTA.
         </div>
 
         <div id="panelDatos" hidden>
-          <h2 class="section" id="lblCursosResumen">Cursos sincronizados</h2>
-          <div class="courses-grid" id="gridCursos"></div>
-
-          <h2 class="section" id="lblCursoActual">Curso</h2>
-          <div class="kpis-grid">
-            <div class="card kpi-card"><div class="kpi-label">Promedio</div><div class="kpi-value" id="kpiPromedio">--</div></div>
-            <div class="card kpi-card"><div class="kpi-label"><span class="dot red"></span>Críticos</div><div class="kpi-value" id="kpiCriticos" style="color:var(--red)">--</div></div>
-            <div class="card kpi-card"><div class="kpi-label"><span class="dot orange"></span>En riesgo</div><div class="kpi-value" id="kpiRiesgo" style="color:var(--orange)">--</div></div>
-            <div class="card kpi-card"><div class="kpi-label"><span class="dot green"></span>Aceptables</div><div class="kpi-value" id="kpiAceptables">--</div></div>
+          <div class="card section-card">
+            <h2 id="lblCursosResumen">Mis cursos</h2>
+            <div class="section-body"><div class="courses-grid" id="gridCursos"></div></div>
           </div>
 
-          <div class="card table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Estudiante</th>
-                  <th>Autónomo (40%)</th>
-                  <th>Tareas (30%)</th>
-                  <th>PAE (30%)</th>
-                  <th>Nota ponderada</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody id="cuerpoTabla"></tbody>
-            </table>
+          <div class="kpis-grid">
+            <div class="card kpi-card"><div class="kpi-label">Promedio del curso</div><div class="kpi-value" id="kpiPromedio">--</div></div>
+            <div class="card kpi-card"><div class="kpi-label"><span class="dot red"></span>Críticos (&lt; 5.00)</div><div class="kpi-value" id="kpiCriticos" style="color:var(--red)">--</div></div>
+            <div class="card kpi-card"><div class="kpi-label"><span class="dot orange"></span>En riesgo (5.00–6.99)</div><div class="kpi-value" id="kpiRiesgo" style="color:var(--orange)">--</div></div>
+            <div class="card kpi-card"><div class="kpi-label"><span class="dot green"></span>Aceptables (≥ 7.00)</div><div class="kpi-value" id="kpiAceptables" style="color:var(--green)">--</div></div>
+          </div>
+
+          <div class="card section-card">
+            <h2 id="lblCursoActual">Calificaciones</h2>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th>ACD (40%)</th>
+                    <th>Tareas (30%)</th>
+                    <th>PAE (30%)</th>
+                    <th>Nota ponderada</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpoTabla"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -447,23 +416,34 @@
         </div>
         <div id="fichaDatos" hidden>
           <div class="grid2">
-            <div class="card profile-card">
+            <div class="card profile">
               <h2 id="detNombre"></h2>
               <div class="id-tag"><span id="detId"></span> • <span id="detEmail"></span></div>
               <div class="big-score"><b id="detNota">--</b><span>/ 10</span></div>
               <span id="detStatus"></span>
             </div>
-            <div class="card units-card">
-              <h3>Desglose ponderado (Moodle UTA)</h3>
-              <div id="detComponentes"></div>
+            <div class="card section-card" style="margin-bottom:0">
+              <h2>Desglose ponderado</h2>
+              <div class="section-body" id="detComponentes"></div>
             </div>
           </div>
-          <div class="diag-banner">
+
+          <div class="card diag">
             <div>
               <h3>Diagnóstico académico</h3>
               <p id="detDiagnostico"></p>
             </div>
-            <button class="btn-white" id="btnIrRefuerzo">Preparar refuerzo</button>
+            <button class="btn-outline" id="btnIrRefuerzo">Preparar refuerzo</button>
+          </div>
+
+          <div class="card section-card" style="margin-top:18px">
+            <h2>Actividades calificadas en Moodle</h2>
+            <div class="table-container">
+              <table>
+                <thead><tr><th>ID number</th><th>Actividad</th><th>Componente</th><th>Nota</th><th>Estado</th></tr></thead>
+                <tbody id="detActividades"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -471,9 +451,9 @@
       <!-- CENTRO DE ALERTAS -->
       <section class="screen" id="s3">
         <div class="grid2">
-          <div>
-            <h2 class="section" style="margin-top:0">Estudiantes que requieren atención</h2>
-            <div class="alerts-list" id="listaAlertas"></div>
+          <div class="card section-card" style="margin-bottom:0">
+            <h2>Estudiantes que requieren atención</h2>
+            <div class="section-body"><div class="alerts-list" id="listaAlertas"></div></div>
           </div>
           <div class="card form-card">
             <h3>Tarea de refuerzo pedagógico</h3>
@@ -489,13 +469,18 @@
               <label for="ins">Instrucciones</label>
               <textarea id="ins" class="form-control" rows="5"></textarea>
             </div>
-            <a class="btn-primary" id="btnAbrirCurso" href="http://localhost:8080" target="_blank" rel="noopener noreferrer"
-               style="display:block;text-align:center;text-decoration:none;">Abrir el curso en Moodle para crear la tarea ↗</a>
-            <p class="sub" style="margin-top:8px;">La publicación automática en Moodle aún no está implementada; el borrador se crea aquí y se registra en el aula virtual.</p>
+            <a class="btn-primary btn-block" id="btnAbrirCurso" href="http://localhost:8080" target="_blank" rel="noopener noreferrer">
+              Abrir el curso en Moodle para crear la tarea ↗
+            </a>
+            <p class="sub" style="margin-top:8px;">La publicación automática en Moodle aún no está implementada; el borrador se prepara aquí y se registra en el aula virtual.</p>
           </div>
         </div>
       </section>
     </main>
+
+    <footer class="footer">
+      <div class="wrap">Universidad Técnica de Ambato • FISEI • EduMonitor AI</div>
+    </footer>
   </div>
 
   <script>
@@ -504,14 +489,17 @@
     // En :3000 Nginx reenvía /api/* al backend FastAPI (middleware:8000).
     // ------------------------------------------------------------------------
     const API_ROOT = (location.port === '3000') ? '' : 'http://localhost:8000';
+    const MOODLE = 'http://localhost:8080';
     const COMPONENTES = [
-      { key: 'autonomo', label: 'Trabajo Autónomo (40%)', estado: 'AUTONOMO' },
-      { key: 'tareas',   label: 'Tareas y Talleres (30%)', estado: 'TAREAS' },
-      { key: 'pae',      label: 'Prácticas PAE (30%)',      estado: 'PAE' },
+      { key: 'acd',    label: 'Contacto con el Docente - ACD (40%)', estado: 'ACD' },
+      { key: 'tareas', label: 'Aprendizaje Autónomo / Tareas (30%)', estado: 'TAREAS' },
+      { key: 'pae',    label: 'Prácticas de Aplicación - PAE (30%)', estado: 'PAE' },
     ];
+    const ETIQUETA_ESTADO = { CALIFICADO: 'Calificado', SIN_ENTREGA: 'Sin entrega', PENDIENTE: 'Pendiente' };
 
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmt = (v) => (v === null || v === undefined) ? '—' : Number(v).toFixed(2);
 
     let usuario = null;
     let cursos = [];
@@ -565,8 +553,6 @@
     async function ejecutarLogin(event) {
       event.preventDefault();
       const btn = $('btnLoginSubmit');
-      const email = $('inputEmail').value.trim();
-      const password = $('inputPassword').value;
       $('loginError').hidden = true;
       btn.disabled = true;
       btn.textContent = 'Verificando...';
@@ -574,7 +560,7 @@
         const resp = await fetch(`${API_ROOT}/api/v1/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email: $('inputEmail').value.trim(), password: $('inputPassword').value })
         });
         if (!resp.ok) throw new Error('Credenciales inválidas. Verifique su correo institucional y contraseña.');
         const data = await resp.json();
@@ -584,12 +570,11 @@
         usuario = data.user;
         mostrarDashboard();
       } catch (err) {
-        const msg = err instanceof TypeError ? 'No se pudo contactar al backend (puerto 8000).' : err.message;
-        $('loginError').textContent = msg;
+        $('loginError').textContent = err instanceof TypeError ? 'No se pudo contactar al backend (puerto 8000).' : err.message;
         $('loginError').hidden = false;
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Ingresar';
+        btn.textContent = 'Acceder';
       }
     }
 
@@ -604,7 +589,9 @@
     async function mostrarDashboard() {
       $('viewLogin').hidden = true;
       $('viewDashboard').hidden = false;
-      $('lblUsuario').textContent = usuario.nombres || usuario.email;
+      const nombre = usuario.nombres || usuario.email;
+      $('lblUsuario').textContent = nombre;
+      $('lblAvatar').textContent = nombre.replace(/^(Ing|Dr|Lic|Msc|Mg)\.?\s+/i, '').split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
       irAPantalla('s1');
       try {
         const estado = await api('/api/sincronizacion');
@@ -644,13 +631,12 @@
       cursos = r.cursos;
       const hora = r.ultima_sincronizacion ? new Date(r.ultima_sincronizacion).toLocaleTimeString('es-EC') : '';
       $('syncDot').className = 'sync-dot live';
-      $('syncStatusText').textContent = `${r.moodle?.sitio || 'Moodle'} ${r.moodle?.version || ''} • ${hora}`;
+      $('syncStatusText').textContent = `Sincronizado ${hora}`;
 
       $('emptyState').hidden = cursos.length > 0;
       $('panelDatos').hidden = cursos.length === 0;
-      $('lblTituloCurso').textContent = 'Panel del Docente';
-      $('lblSubtitulo').textContent = `${r.total_cursos} cursos • ${r.total_estudiantes} estudiantes sincronizados desde Moodle UTA`;
-      $('lblCursosResumen').textContent = `Cursos sincronizados (${r.total_cursos})`;
+      $('lblSubtitulo').textContent = `${r.total_cursos} cursos • ${r.total_estudiantes} estudiantes • ${r.moodle?.sitio || 'Moodle'} ${(r.moodle?.version || '').split(' ')[0]}`;
+      $('lblCursosResumen').textContent = `Mis cursos (${r.total_cursos})`;
 
       const combo = $('comboCurso');
       combo.innerHTML = cursos.map(c => `<option value="${c.id}">${esc(c.fullname)}</option>`).join('');
@@ -658,20 +644,23 @@
 
       renderCursos();
       if (cursos.length) {
-        const sigue = cursos.some(c => c.id === cursoActualId) ? cursoActualId : cursos[0].id;
-        await seleccionarCurso(sigue);
+        await seleccionarCurso(cursos.some(c => c.id === cursoActualId) ? cursoActualId : cursos[0].id);
       }
     }
 
     function renderCursos() {
       $('gridCursos').innerHTML = cursos.map(c => `
         <button class="card course-card ${c.id === cursoActualId ? 'active' : ''}" data-curso="${c.id}">
-          <div class="course-code">${esc(c.shortname)}</div>
-          <div class="course-name">${esc(c.fullname)}</div>
-          <div class="course-meta">
-            <span><b>${c.total_estudiantes}</b> estudiantes</span>
-            <span>Prom. <b>${c.promedio.toFixed(2)}</b></span>
-            <span style="color:var(--red)"><b style="color:inherit">${c.criticos}</b> críticos</span>
+          <div class="bar"></div>
+          <div class="inner">
+            <div class="course-cat">${esc(c.shortname)} • FISEI / SOFTWARE</div>
+            <div class="course-name">${esc(c.fullname)}</div>
+            <div class="course-meta">
+              <span><b>${c.total_estudiantes}</b> estudiantes</span>
+              <span>Promedio <b>${c.promedio.toFixed(2)}</b></span>
+              <span><b style="color:var(--red)">${c.criticos}</b> críticos</span>
+              <span><b style="color:var(--orange)">${c.en_riesgo}</b> en riesgo</span>
+            </div>
           </div>
         </button>`).join('');
       $('gridCursos').querySelectorAll('[data-curso]').forEach(b =>
@@ -686,12 +675,15 @@
       try {
         const data = await api(`/api/cursos/${id}/estudiantes`);
         estudiantesCurso = data.estudiantes;
-        $('lblCursoActual').textContent = data.fullname;
-        $('bcCurso').textContent = `${data.shortname} • EduMonitor AI`;
+        $('lblTitulo').textContent = data.fullname;
+        $('bcCurso').textContent = data.shortname;
+        $('lblCursoActual').textContent = `Calificaciones — ${data.total_estudiantes} participantes`;
         $('kpiPromedio').textContent = data.promedio.toFixed(2);
         $('kpiCriticos').textContent = data.criticos;
         $('kpiRiesgo').textContent = data.en_riesgo;
         $('kpiAceptables').textContent = data.aceptables;
+        $('fichaVacia').hidden = false;
+        $('fichaDatos').hidden = true;
         renderTabla();
         renderAlertas();
       } catch (err) {
@@ -702,15 +694,14 @@
     function riesgoBadge(nivel) {
       const cls = nivel.toLowerCase().replace('_', '-');
       const dot = cls === 'aceptable' ? 'green' : (cls === 'en-riesgo' ? 'orange' : 'red');
-      return `<span class="badge-risk ${cls}"><span class="dot ${dot}"></span>${nivel.replace('_', ' ')}</span>`;
+      const txt = { ACEPTABLE: 'Aceptable', EN_RIESGO: 'En riesgo', CRITICO: 'Crítico' }[nivel] || nivel;
+      return `<span class="badge ${cls}"><span class="dot ${dot}"></span>${txt}</span>`;
     }
 
-    function celdaNota(est, comp) {
-      const v = est[comp.key];
-      if (v === null || v === undefined) {
-        return `—<span class="tag-state">${esc((est.estados || {})[comp.estado] || 'SIN NOTA').replace('_', ' ')}</span>`;
-      }
-      return v.toFixed(2);
+    function celdaComponente(est, comp) {
+      const estado = (est.estados || {})[comp.estado];
+      const tag = (estado && estado !== 'CALIFICADO') ? `<span class="tag-state">${ETIQUETA_ESTADO[estado] || estado}</span>` : '';
+      return fmt(est[comp.key]) + tag;
     }
 
     function renderTabla() {
@@ -721,15 +712,15 @@
       }
       tbody.innerHTML = estudiantesCurso.map(e => `
         <tr class="clickable" tabindex="0" data-est="${esc(e.id_number)}">
-          <td class="name">${esc(e.nombres)}<div class="sub">${esc(e.id_number)}</div></td>
-          ${COMPONENTES.map(c => `<td class="num">${celdaNota(e, c)}</td>`).join('')}
-          <td class="num final">${e.nota_final.toFixed(2)} / 10</td>
+          <td class="name"><a href="#">${esc(e.nombres)}</a><div class="sub">${esc(e.id_number)} • ${esc(e.email || '')}</div></td>
+          ${COMPONENTES.map(c => `<td class="num">${celdaComponente(e, c)}</td>`).join('')}
+          <td class="num final">${e.nota_final.toFixed(2)}</td>
           <td>${riesgoBadge(e.nivel_riesgo)}</td>
         </tr>`).join('');
       tbody.querySelectorAll('tr[data-est]').forEach(tr => {
-        const abrir = () => mostrarFicha(tr.dataset.est);
+        const abrir = (ev) => { ev.preventDefault(); mostrarFicha(tr.dataset.est); };
         tr.addEventListener('click', abrir);
-        tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') abrir(); });
+        tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') abrir(ev); });
       });
     }
 
@@ -749,25 +740,38 @@
 
       $('detComponentes').innerHTML = COMPONENTES.map(c => {
         const v = e[c.key];
+        const sinNota = v === null || v === undefined;
         const estado = (e.estados || {})[c.estado];
-        const valor = (v === null || v === undefined) ? (estado || 'SIN NOTA').replace('_', ' ') : `${v.toFixed(2)} / 10`;
-        const pct = (v === null || v === undefined) ? 0 : Math.min(100, v * 10);
-        const bad = v === null || v === undefined || v < 5;
-        return `<div class="unit ${bad ? 'bad' : ''}">
-          <div class="unit-head"><span>${c.label}</span><b>${esc(valor)}</b></div>
-          <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+        const extra = (estado && estado !== 'CALIFICADO') ? ` · ${ETIQUETA_ESTADO[estado]}` : '';
+        return `<div class="unit ${sinNota || v < 5 ? 'bad' : ''}">
+          <div class="unit-head"><span>${c.label}${extra}</span><b>${sinNota ? 'Sin nota' : `${fmt(v)} / 10`}</b></div>
+          <div class="track"><div class="fill" style="width:${sinNota ? 0 : Math.min(100, v * 10)}%"></div></div>
         </div>`;
       }).join('');
 
+      const acts = e.actividades || [];
+      $('detActividades').innerHTML = acts.length ? acts.map(a => {
+        const cls = a.estado === 'CALIFICADO' ? (a.nota < 5 ? 'critico' : (a.nota < 7 ? 'en-riesgo' : 'aceptable')) : (a.estado === 'SIN_ENTREGA' ? 'critico' : 'neutral');
+        return `<tr>
+          <td class="num">${esc(a.id_number)}</td>
+          <td>${esc(a.nombre)}</td>
+          <td>${esc(a.componente)}</td>
+          <td class="num final">${fmt(a.nota)}</td>
+          <td><span class="badge ${cls}">${ETIQUETA_ESTADO[a.estado] || esc(a.estado)}</span></td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="5" class="empty-state">Sin actividades calificadas.</td></tr>';
+
       const curso = cursos.find(c => c.id === cursoActualId);
       const n = e.nota_final.toFixed(2);
-      const pendientes = Object.entries(e.estados || {}).filter(([, s]) => s !== 'CALIFICADO').map(([k, s]) => `${k} (${s.replace('_', ' ')})`);
+      const incidencias = acts.filter(a => a.estado !== 'CALIFICADO').map(a => `${a.id_number} (${ETIQUETA_ESTADO[a.estado]})`);
+      const ceros = acts.filter(a => a.estado === 'CALIFICADO' && a.nota === 0).map(a => a.id_number);
       let diag = e.nivel_riesgo === 'CRITICO'
         ? `Atención prioritaria: nota ponderada ${n}/10 en ${curso?.shortname || 'el curso'}. Se recomienda una actividad de refuerzo en Moodle.`
         : e.nivel_riesgo === 'EN_RIESGO'
           ? `Seguimiento sugerido: nota ponderada ${n}/10. Conviene una tutoría de nivelación.`
           : `Rendimiento satisfactorio: nota ponderada ${n}/10.`;
-      if (pendientes.length) diag += ` Componentes sin calificar: ${pendientes.join(', ')}.`;
+      if (ceros.length) diag += ` Actividades con nota 0: ${ceros.join(', ')}.`;
+      if (incidencias.length) diag += ` Incidencias: ${incidencias.join(', ')}.`;
       $('detDiagnostico').textContent = diag;
       $('btnIrRefuerzo').onclick = () => prepararRefuerzo(e.id_number);
       irAPantalla('s2');
@@ -780,15 +784,16 @@
       const enAlerta = estudiantesCurso
         .filter(e => e.nivel_riesgo !== 'ACEPTABLE')
         .sort((a, b) => a.nota_final - b.nota_final);
-      $('listaAlertas').innerHTML = enAlerta.length ? enAlerta.map(e => `
-        <div class="card alert-item">
+      $('listaAlertas').innerHTML = enAlerta.length ? enAlerta.map(e => {
+        const cls = e.nivel_riesgo === 'CRITICO' ? 'critico' : 'en-riesgo';
+        return `<div class="card alert-item ${cls}">
           <div>
-            <div class="alert-title"><span class="dot ${e.nivel_riesgo === 'CRITICO' ? 'red' : 'orange'}"></span>${esc(e.nombres)} — ${e.nota_final.toFixed(2)}</div>
-            <div class="alert-sub">${e.nivel_riesgo === 'CRITICO' ? 'Nota ponderada menor a 5.00' : 'Nota ponderada entre 5.00 y 6.99'}</div>
+            <div class="alert-title">${esc(e.nombres)} — ${e.nota_final.toFixed(2)}</div>
+            <div class="alert-sub">${e.nivel_riesgo === 'CRITICO' ? 'Nota ponderada menor a 5.00' : 'Nota ponderada entre 5.00 y 6.99'} • ${esc(e.id_number)}</div>
           </div>
           <button class="btn-outline" data-refuerzo="${esc(e.id_number)}">Atender</button>
-        </div>`).join('')
-        : '<div class="card empty-state">No hay estudiantes en riesgo en este curso.</div>';
+        </div>`;
+      }).join('') : '<div class="empty-state">No hay estudiantes en riesgo en este curso.</div>';
       $('listaAlertas').querySelectorAll('[data-refuerzo]').forEach(b =>
         b.addEventListener('click', () => prepararRefuerzo(b.dataset.refuerzo)));
     }
@@ -801,7 +806,7 @@
       $('dest').value = `${e.nombres} (${e.email || e.id_number})`;
       $('tit').value = `Refuerzo: ${debil.label.replace(/ \(\d+%\)/, '')} — ${curso?.shortname || ''}`;
       $('ins').value = `Actividad de recuperación para fortalecer el componente "${debil.label}". Entregar en Moodle UTA dentro de los próximos 7 días.`;
-      $('btnAbrirCurso').href = `http://localhost:8080/course/view.php?id=${cursoActualId}`;
+      $('btnAbrirCurso').href = `${MOODLE}/course/view.php?id=${cursoActualId}`;
       irAPantalla('s3');
     }
 
@@ -810,7 +815,7 @@
     // ------------------------------------------------------------------------
     function irAPantalla(id) {
       document.querySelectorAll('.screen').forEach(p => p.classList.toggle('on', p.id === id));
-      document.querySelectorAll('.segmented button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.go === id)));
+      document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.go === id)));
     }
 
     let toastTimer = null;

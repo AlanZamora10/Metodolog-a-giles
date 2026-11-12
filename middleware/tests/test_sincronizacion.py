@@ -21,11 +21,11 @@ from app.services.moodle_client import MoodleClient, MoodleError
 client = TestClient(app)
 
 DOCENTE = {"email": "docente@uta.edu.ec", "password": "Docente2026!"}
-ESTUDIANTE = {"email": "estudiante.c@uta.edu.ec", "password": "Estudiante2026!"}
+ESTUDIANTE = {"email": "dcurillo@uta.edu.ec", "password": "Estudiante2026!"}
 
 
-def _gi(curso: str, comp: str, raw=None, feedback=""):
-    return {"idnumber": f"{curso}-{comp}", "graderaw": raw, "feedback": feedback}
+def _gi(idnumber: str, raw=None, feedback="", grademax=10):
+    return {"idnumber": idnumber, "itemname": idnumber, "graderaw": raw, "grademax": grademax, "feedback": feedback}
 
 
 class FakeMoodle:
@@ -60,12 +60,16 @@ class FakeMoodle:
         ]
 
     async def get_grade_items(self, course_id):
-        c = "SOF-MA-B" if course_id == 2 else "SOF-ED-B"
         return [
-            {"userid": 11, "gradeitems": [_gi(c, "AUTONOMO", 8.0), _gi(c, "TAREAS", 8.0), _gi(c, "PAE", 8.0)]},
-            {"userid": 12, "gradeitems": [_gi(c, "AUTONOMO", 6.5), _gi(c, "TAREAS"), _gi(c, "PAE", 6.0)]},
-            {"userid": 13, "gradeitems": [_gi(c, "AUTONOMO", 8.5), _gi(c, "TAREAS", 8.0),
-                                          _gi(c, "PAE", None, "PENDIENTE DE REVISIÓN")]},
+            # Ítems de otros esquemas (categorías, total, supletorio) se ignoran
+            {"userid": 11, "gradeitems": [_gi("U1-A1", 8.0), _gi("U1-T1", 80, grademax=100), _gi("U1-P1", 8.0),
+                                          _gi("CAT-ACD", 8.0), _gi("SUP-1"), _gi("U3-A3")]},
+            # ACD (7+6)/2=6.5 | Tareas (6+0 SIN ENTREGA)/2=3.0 | PAE 6.0
+            {"userid": 12, "gradeitems": [_gi("U1-A1", 7.0), _gi("U2-A2", 6.0), _gi("U1-T1", 6.0),
+                                          _gi("U2-T4", 0, "SIN ENTREGA"), _gi("U1-P1", 6.0)]},
+            # PAE pendiente: sólo cuenta U1-P1
+            {"userid": 13, "gradeitems": [_gi("U1-A1", 8.5), _gi("U1-T1", 8.0), _gi("U1-P1", 7.0),
+                                          _gi("U2-P3", None, "PENDIENTE DE REVISIÓN")]},
         ]
 
 
@@ -155,16 +159,55 @@ def test_calculo_notas_ponderadas_40_30_30():
     assert est["U-03"]["nota_final"] == 8.00
     assert est["U-03"]["nivel_riesgo"] == "ACEPTABLE"
 
-    # SIN_ENTREGA en Tareas cuenta 0: 0.4*6.5 + 0.3*0 + 0.3*6.0 = 4.40
-    assert est["U-08"]["tareas"] is None
-    assert est["U-08"]["estados"]["TAREAS"] == "SIN_ENTREGA"
-    assert est["U-08"]["nota_final"] == 4.40
-    assert est["U-08"]["nivel_riesgo"] == "CRITICO"
+    # Escala 0-100 se normaliza a 10; ítems no Ux-[ATP]y y no evaluados se ignoran
+    assert est["U-03"]["tareas"] == 8.0
+    assert {a["id_number"] for a in est["U-03"]["actividades"]} == {"U1-A1", "U1-T1", "U1-P1"}
 
-    # PENDIENTE en PAE (feedback de Moodle): 0.4*8.5 + 0.3*8.0 = 5.80
+    # SIN ENTREGA cuenta 0: 0.4*6.5 + 0.3*3.0 + 0.3*6.0 = 5.30
+    assert est["U-08"]["acd"] == 6.5
+    assert est["U-08"]["tareas"] == 3.0
+    assert est["U-08"]["estados"]["TAREAS"] == "SIN_ENTREGA"
+    assert est["U-08"]["nota_final"] == 5.30
+    assert est["U-08"]["nivel_riesgo"] == "EN_RIESGO"
+
+    # PENDIENTE no cuenta: 0.4*8.5 + 0.3*8.0 + 0.3*7.0 = 7.90
     assert est["U-09"]["estados"]["PAE"] == "PENDIENTE"
-    assert est["U-09"]["nota_final"] == 5.80
-    assert est["U-09"]["nivel_riesgo"] == "EN_RIESGO"
+    assert est["U-09"]["pae"] == 7.0
+    assert est["U-09"]["nota_final"] == 7.90
+    assert est["U-09"]["nivel_riesgo"] == "ACEPTABLE"
+
+
+def test_calculo_nota_critica_con_cero():
+    e = sync_service.construir_estudiante(
+        {"id": 1, "fullname": "Diego Curillo", "idnumber": "U-04", "roles": [{"shortname": "student"}]},
+        [_gi("U1-A1", 3.0), _gi("U1-T1", 4.0), _gi("U1-T2", 0.0), _gi("U1-P1", 3.5)],
+    )
+    # 0.4*3.0 + 0.3*2.0 + 0.3*3.5 = 2.85
+    assert e["tareas"] == 2.0
+    assert e["nota_final"] == 2.85
+    assert e["nivel_riesgo"] == "CRITICO"
+
+
+def test_sincronizacion_importa_todos_los_matriculados(monkeypatch):
+    class MoodleGrande(FakeMoodle):
+        async def get_courses(self):
+            return [{"id": 5, "shortname": "SOF-MCS-A", "idnumber": "SOF-MCS-A", "fullname": "(SOF) MCS - A"}]
+
+        async def get_enrolled_users(self, course_id):
+            profesor = {"id": 1, "fullname": "Docente", "email": "docente@uta.edu.ec", "roles": [{"shortname": "editingteacher"}]}
+            return [profesor] + [
+                {"id": 100 + i, "fullname": f"Alumno {i}", "email": f"a{i}@uta.edu.ec", "idnumber": f"U-{i:02d}",
+                 "roles": [{"shortname": "student"}]} for i in range(3, 18)
+            ]
+
+        async def get_grade_items(self, course_id):
+            return [{"userid": 100 + i, "gradeitems": [_gi("U1-A1", float(i % 10)), _gi("U1-T1", 7.0), _gi("U1-P1", 7.0)]}
+                    for i in range(3, 18)]
+
+    monkeypatch.setattr(sync_service, "MoodleClient", lambda: MoodleGrande())
+    res = client.post("/api/sincronizacion", headers=_auth(DOCENTE)).json()
+    assert res["total_estudiantes"] == 15
+    assert res["cursos"][0]["total_estudiantes"] == 15
 
 
 # ---------------------------------------------------------------- Cliente Moodle

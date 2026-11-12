@@ -96,11 +96,11 @@ USERS_DB: List[Dict[str, Any]] = [
     },
     {
         "id": 2,
-        "nombres": "Estudiante C",
-        "email": "estudiante.c@uta.edu.ec",
+        "nombres": "Diego Curillo",
+        "email": "dcurillo@uta.edu.ec",
         "password_hash": hash_password("Estudiante2026!"),
         "rol": "ESTUDIANTE",
-        "id_number": "U-05",
+        "id_number": "U-04",
         "activo": True
     },
     {

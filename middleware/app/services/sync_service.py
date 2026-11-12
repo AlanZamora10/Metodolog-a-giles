@@ -1,14 +1,23 @@
 """
 Servicio de sincronización Moodle UTA -> EduMonitor AI.
 
-Extrae los cursos del portafolio, sus docentes/estudiantes matriculados y el libro
-de calificaciones (componentes AUTONOMO 40% / TAREAS 30% / PAE 30%), calcula la nota
-ponderada y el nivel de riesgo, y deja el resultado en memoria (SYNC_STATE).
+Extrae los cursos del portafolio, TODOS sus docentes/estudiantes matriculados y el libro
+de calificaciones, calcula la nota ponderada y el nivel de riesgo, y deja el resultado en
+memoria (SYNC_STATE).
+
+Las actividades se clasifican por su ID number institucional:
+  Ux-Ay -> ACD (40%)   Ux-Ty -> Tareas (30%)   Ux-Py -> PAE (30%)
+Cada componente es el promedio (sobre 10) de sus actividades calificadas:
+  - nota numérica                 -> cuenta (incluye 0)
+  - sin nota + "SIN ENTREGA"      -> cuenta como 0
+  - sin nota + "PENDIENTE"        -> no cuenta (pendiente de revisión)
+  - sin nota y sin comentario     -> no cuenta (aún no evaluada)
 """
 
+import re
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.config import settings
 from app.services.grade_calculator import GradeCalculator
@@ -16,7 +25,10 @@ from app.services.moodle_client import MoodleClient
 
 TEACHER_ROLES = {"editingteacher", "teacher"}
 STUDENT_ROLES = {"student"}
-COMPONENTES = ("AUTONOMO", "TAREAS", "PAE")
+COMPONENTES = ("ACD", "TAREAS", "PAE")
+_PATRON_ACTIVIDAD = re.compile(r"^U(\d+)-([ATP])(\d+)$", re.IGNORECASE)
+_LETRA_COMPONENTE = {"A": "ACD", "T": "TAREAS", "P": "PAE"}
+_PRIORIDAD_ESTADO = {"CALIFICADO": 0, "PENDIENTE": 1, "SIN_ENTREGA": 2}
 
 # Último resultado de sincronización (en memoria)
 SYNC_STATE: Dict[str, Any] = {"ultima_sincronizacion": None, "moodle": None, "cursos": []}
@@ -27,45 +39,68 @@ def _roles(user: Dict[str, Any]) -> set:
 
 
 def _componente(item: Dict[str, Any]) -> Optional[str]:
-    idnumber = (item.get("idnumber") or "").upper()
-    for comp in COMPONENTES:
-        if idnumber.endswith(f"-{comp}"):
-            return comp
-    return None
+    match = _PATRON_ACTIVIDAD.match((item.get("idnumber") or "").strip())
+    return _LETRA_COMPONENTE[match.group(2).upper()] if match else None
+
+
+def _estado_actividad(item: Dict[str, Any]) -> Tuple[str, Optional[float]]:
+    """Devuelve (estado, nota sobre 10 que cuenta para el promedio o None si no cuenta)."""
+    feedback = (item.get("feedback") or "").upper()
+    raw = item.get("graderaw")
+    if raw is not None:
+        grademax = float(item.get("grademax") or 10) or 10.0
+        nota = round(float(raw) * 10.0 / grademax, 2)
+        return ("SIN_ENTREGA" if "SIN ENTREGA" in feedback else "CALIFICADO"), nota
+    if "SIN ENTREGA" in feedback:
+        return "SIN_ENTREGA", 0.0
+    if "PENDIENTE" in feedback:
+        return "PENDIENTE", None
+    return "NO_EVALUADA", None
 
 
 def construir_estudiante(user: Dict[str, Any], gradeitems: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Convierte un usuario de Moodle + sus ítems de calificación en el registro analítico."""
-    notas: Dict[str, Optional[float]] = {c: None for c in COMPONENTES}
+    valores: Dict[str, List[float]] = {c: [] for c in COMPONENTES}
     estados: Dict[str, str] = {}
+    actividades: List[Dict[str, Any]] = []
+
     for item in gradeitems:
         comp = _componente(item)
         if not comp:
             continue
-        raw = item.get("graderaw")
-        if raw is not None:
-            notas[comp] = round(float(raw), 2)
-            estados[comp] = "CALIFICADO"
-        elif "PENDIENTE" in (item.get("feedback") or "").upper():
-            estados[comp] = "PENDIENTE"
-        else:
-            estados[comp] = "SIN_ENTREGA"
+        estado, nota = _estado_actividad(item)
+        if estado == "NO_EVALUADA":
+            continue
+        actividades.append({
+            "id_number": item.get("idnumber"),
+            "nombre": item.get("itemname"),
+            "componente": comp,
+            "nota": nota,
+            "estado": estado,
+        })
+        if nota is not None:
+            valores[comp].append(nota)
+        # El estado del componente refleja la incidencia más relevante: SIN_ENTREGA > PENDIENTE > CALIFICADO
+        if _PRIORIDAD_ESTADO[estado] >= _PRIORIDAD_ESTADO[estados.get(comp, "CALIFICADO")]:
+            estados[comp] = estado
 
-    # Un componente sin nota (SIN_ENTREGA / PENDIENTE) cuenta como 0.00 en el cálculo.
+    promedios = {c: (round(sum(v) / len(v), 2) if v else None) for c, v in valores.items()}
+    # Un componente sin ninguna actividad que cuente aporta 0.00 a la nota ponderada.
     nota_final = GradeCalculator.calculate_weighted_grade(
-        autonomo=notas["AUTONOMO"] or 0.0,
-        tareas=notas["TAREAS"] or 0.0,
-        pae=notas["PAE"] or 0.0,
+        autonomo=promedios["ACD"] or 0.0,
+        tareas=promedios["TAREAS"] or 0.0,
+        pae=promedios["PAE"] or 0.0,
     )
     return {
         "moodle_id": user.get("id"),
         "id_number": user.get("idnumber") or f"MDL-{user.get('id')}",
         "nombres": user.get("fullname"),
         "email": user.get("email"),
-        "autonomo": notas["AUTONOMO"],
-        "tareas": notas["TAREAS"],
-        "pae": notas["PAE"],
+        "acd": promedios["ACD"],
+        "tareas": promedios["TAREAS"],
+        "pae": promedios["PAE"],
         "estados": estados,
+        "actividades": sorted(actividades, key=lambda a: a["id_number"]),
         "nota_final": nota_final,
         "nivel_riesgo": GradeCalculator.classify_risk(nota_final),
     }
