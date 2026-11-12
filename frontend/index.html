@@ -12,8 +12,7 @@
       --uta-blue: #11297A;          /* Azul institucional: títulos, enlaces, acentos */
       --uta-blue-hover: #0C1F5E;
       --uta-blue-soft: #EEF1F9;
-      --uta-red: #9B1C1C;           /* Rojo carmesí: barra secundaria */
-      --uta-red-dark: #7F1717;
+      --uta-blue-line: #C9D2EA;
       --bg: #F4F6F8;
       --card: #FFFFFF;
       --line: #DEE2E6;              /* Bordes de tarjetas y separadores */
@@ -61,7 +60,7 @@
     .login-body { padding: 20px 24px 24px; }
     .login-role {
       display: block; text-align: center; margin-bottom: 18px; padding: 6px;
-      background: var(--uta-red); color: #FFFFFF; font-size: 12px; font-weight: 600; letter-spacing: .4px; border-radius: 4px;
+      background: var(--uta-blue-soft); color: var(--uta-blue); font-size: 12px; font-weight: 600; border-radius: 4px;
     }
     .alert-error {
       background: var(--red-bg); border: 1px solid #F1C4C4; color: var(--red);
@@ -85,7 +84,7 @@
     /* ==========================================================================
        BARRA SUPERIOR BLANCA (navegación institucional)
        ========================================================================== */
-    .topbar { background: #FFFFFF; border-bottom: 1px solid var(--line); }
+    .topbar { background: #FFFFFF; border-top: 3px solid var(--uta-blue); border-bottom: 1px solid var(--line); }
     .topbar-in { display: flex; align-items: center; gap: 24px; min-height: 60px; flex-wrap: wrap; padding-block: 6px; }
     .brand { font-weight: 700; font-size: 17px; color: var(--uta-blue); text-decoration: none; white-space: nowrap; }
     .primary-nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
@@ -94,7 +93,7 @@
       border-bottom: 3px solid transparent;
     }
     .primary-nav a:hover { color: var(--uta-blue); }
-    .primary-nav a.active { color: var(--uta-blue); font-weight: 600; border-bottom-color: var(--uta-red); }
+    .primary-nav a.active { color: var(--uta-blue); font-weight: 600; border-bottom-color: var(--uta-blue); }
     .user-menu { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-light); }
     .avatar {
       width: 34px; height: 34px; border-radius: 50%; background: var(--uta-blue); color: #FFFFFF;
@@ -104,7 +103,7 @@
     .btn-link:hover { text-decoration: underline; }
 
     /* ==========================================================================
-       ENCABEZADO DE PÁGINA + BARRA SECUNDARIA CARMESÍ
+       ENCABEZADO DE PÁGINA + PESTAÑAS
        ========================================================================== */
     .page-head { padding-top: 22px; }
     .breadcrumb { font-size: 13px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
@@ -119,27 +118,28 @@
     }
 
     .secondary-nav {
-      background: var(--uta-red); border-radius: var(--radius); display: flex; align-items: center;
-      justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 8px 0 4px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      border-bottom: 1px solid var(--line);
     }
-    .tabs { display: flex; flex-wrap: wrap; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 4px; }
     .tabs button {
-      color: #FFFFFF; font-size: 14px; padding: 12px 16px 10px; border-bottom: 3px solid transparent; opacity: .92;
+      color: var(--ink-light); font-size: 14px; padding: 10px 14px; margin-bottom: -1px;
+      border-bottom: 2px solid transparent;
     }
-    .tabs button:hover { background: rgba(255, 255, 255, .12); opacity: 1; }
-    .tabs button[aria-selected="true"] { border-bottom-color: #FFFFFF; font-weight: 600; opacity: 1; background: rgba(255, 255, 255, .14); }
-    .sync-group { display: flex; align-items: center; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
-    .sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255, 255, 255, .9); }
-    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .5); }
-    .sync-dot.live { background: #7DDC92; }
-    .sync-dot.busy { background: #FFD27A; animation: pulse 1s infinite alternate; }
-    .sync-dot.error { background: #FFB4B4; }
+    .tabs button:hover { color: var(--uta-blue); }
+    .tabs button[aria-selected="true"] { color: var(--uta-blue); border-bottom-color: var(--uta-blue); font-weight: 600; }
+    .sync-group { display: flex; align-items: center; gap: 12px; padding: 6px 0; flex-wrap: wrap; }
+    .sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #ADB5BD; }
+    .sync-dot.live { background: var(--green); }
+    .sync-dot.busy { background: var(--orange); animation: pulse 1s infinite alternate; }
+    .sync-dot.error { background: var(--red); }
     @keyframes pulse { from { opacity: .4; } to { opacity: 1; } }
     .btn-sync {
-      background: #FFFFFF; color: var(--uta-red); padding: 6px 14px; border-radius: 4px;
-      font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
+      background: var(--uta-blue); color: #FFFFFF; padding: 6px 14px; border-radius: 4px;
+      font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
     }
-    .btn-sync:hover { background: #F8E9E9; }
+    .btn-sync:hover { background: var(--uta-blue-hover); }
     .btn-sync:disabled { opacity: .7; cursor: wait; }
     .spin { display: inline-block; animation: spin .8s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -170,9 +170,9 @@
 
     .courses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
     .course-card { text-align: left; padding: 0; overflow: hidden; width: 100%; }
-    .course-card .bar { height: 6px; background: var(--uta-blue); }
+    .course-card .bar { height: 4px; background: var(--uta-blue-line); }
     .course-card.active { border-color: var(--uta-blue); box-shadow: 0 0 0 1px var(--uta-blue); }
-    .course-card.active .bar { background: var(--uta-red); }
+    .course-card.active .bar { background: var(--uta-blue); }
     .course-card:hover { border-color: #ADB5BD; }
     .course-card .inner { padding: 12px 14px 14px; }
     .course-cat { font-size: 11px; color: var(--muted); }
@@ -235,7 +235,7 @@
     .unit.bad .unit-head { color: var(--red); font-weight: 600; }
 
     .diag {
-      margin-top: 18px; padding: 16px 18px; border-left: 4px solid var(--uta-red);
+      margin-top: 18px; padding: 16px 18px; border-left: 3px solid var(--uta-blue);
       display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
     .diag h3 { font-size: 15px; color: var(--uta-blue); margin-bottom: 2px; }

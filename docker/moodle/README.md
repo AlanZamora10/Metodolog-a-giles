@@ -14,7 +14,7 @@ Es idempotente: crea lo que falta, actualiza lo existente y desmatricula a quien
 | Rol | Usuario | Contraseña | Notas |
 |---|---|---|---|
 | Administrador | `admin` | `MoodleAdmin2026!` | Gestión del sitio |
-| Docente titular | `hnaranjo` (`docente@uta.edu.ec`) | `Docente2026!` | Profesor con permiso de edición en los 4 cursos. También es el usuario de EduMonitor AI (`localhost:3000`, con el correo) |
+| Docente titular | `rgomez` (Ing. Roberto Gómez, `docente@uta.edu.ec`) | `Docente2026!` | Profesor con permiso de edición en los 4 cursos. También es el usuario de EduMonitor AI (`localhost:3000`, con el correo) |
 | Estudiante | `dcurillo` (caso crítico) | `Estudiante2026!` | Matriculado en los 4 cursos. Los 20 estudiantes comparten contraseña; usuario = inicial + apellido (`candrade`, `mparedes`, …) |
 
 ## Cursos y nóminas
@@ -42,9 +42,20 @@ distintas en cada curso: aceptables, en riesgo y críticos. Además hay estos ca
 - `dcurillo`: `U1-T2` = 0 y `U2-T4` = 0 con comentario **SIN ENTREGA**.
 - El último estudiante de cada nómina tiene `U2-P3` sin nota, con comentario **PENDIENTE DE REVISIÓN**.
 
+Las tareas calificadas tienen una entrega registrada 1-3 días antes del vencimiento, salvo las de SIN ENTREGA.
+
+## Fechas
+Se calculan desde el día en que corre la siembra (23:59, hora de Ecuador) y se re-alinean en cada ejecución:
+- **Primer Parcial** (cerrado): cada bloque vence semana a semana; la última actividad venció hace 7 días.
+- **Segundo Parcial** (en curso): la primera actividad de cada bloque vence en 7 días y las siguientes cada semana.
+- **Supletorio**: vence en 6 semanas.
+
+Para mover el calendario a la fecha actual basta con volver a ejecutar la siembra.
+
 ## Identidad visual
-CSS inyectado en `additionalhtmlhead`: barra superior blanca, barra secundaria del curso en carmesí `#9B1C1C`,
-secciones en tarjetas blancas con borde `#DEE2E6` y títulos en azul `#11297A`. La página de inicio es "Mis cursos".
+CSS inyectado en `additionalhtmlhead`, en azul institucional `#11297A` y blanco: barra superior blanca con filete azul,
+pestañas del curso subrayadas en azul, secciones en tarjetas blancas con borde `#DEE2E6` y títulos en azul.
+La página de inicio es "Mis cursos".
 
 ## Web Services
 Servicio `EduMonitor_WS` (REST) con token = `MOODLE_TOKEN` del `.env`. El token debe ser alfanumérico

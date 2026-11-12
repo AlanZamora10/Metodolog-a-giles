@@ -41,7 +41,7 @@ CREATE TABLE materias (
     codigo VARCHAR(20) UNIQUE NOT NULL,       -- ej: MAT1, MAT2
     nombre VARCHAR(150) NOT NULL,              -- ej: Metodologías Ágiles
     carrera VARCHAR(100) DEFAULT 'Ingeniería de Software - FISEI',
-    docente_titular VARCHAR(150) DEFAULT 'Ing. Hernán Naranjo, Mg.',
+    docente_titular VARCHAR(150) DEFAULT 'Ing. Roberto Gómez',
     creditos INT DEFAULT 3,
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -229,14 +229,14 @@ JOIN parciales p ON cp.parcial_id = p.id;
 
 -- 0. Insertar Usuarios Base (HU-14: Docente, Estudiante, Administrador)
 INSERT INTO usuarios (nombres, email, password_hash, rol, id_number) VALUES
-('Ing. Hernán Naranjo, Mg.', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
+('Ing. Roberto Gómez', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
 ('Diego Curillo', 'dcurillo@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
 ('Administrador 1', 'admin@uta.edu.ec', 'e3a1f822$7b5c11029e88', 'ADMIN', 'U-02');
 
 -- 1. Insertar Materias
 INSERT INTO materias (codigo, nombre, docente_titular) VALUES
-('MAT1', 'Metodologías Ágiles', 'Ing. Hernán Naranjo, Mg.'),
-('MAT2', 'Ingeniería de Software', 'Ing. Hernán Naranjo, Mg.');
+('MAT1', 'Metodologías Ágiles', 'Ing. Roberto Gómez'),
+('MAT2', 'Ingeniería de Software', 'Ing. Roberto Gómez');
 
 -- 2. Insertar Periodo y Parciales
 INSERT INTO periodos (codigo, nombre, fecha_inicio, fecha_fin) VALUES

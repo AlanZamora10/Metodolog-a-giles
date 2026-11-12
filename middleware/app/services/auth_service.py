@@ -87,7 +87,7 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
 USERS_DB: List[Dict[str, Any]] = [
     {
         "id": 1,
-        "nombres": "Ing. Hernán Naranjo, Mg.",
+        "nombres": "Ing. Roberto Gómez",
         "email": "docente@uta.edu.ec",
         "password_hash": hash_password("Docente2026!"),
         "rol": "DOCENTE",

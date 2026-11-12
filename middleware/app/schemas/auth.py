@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class UserRegisterRequest(BaseModel):
-    nombres: str = Field(..., min_length=3, max_length=120, json_schema_extra={"example": "Ing. Hernán Naranjo"})
+    nombres: str = Field(..., min_length=3, max_length=120, json_schema_extra={"example": "Ing. Roberto Gómez"})
     email: str = Field(..., json_schema_extra={"example": "docente@uta.edu.ec"})
     password: str = Field(..., min_length=6, json_schema_extra={"example": "Docente2026!"})
     rol: str = Field(..., json_schema_extra={"example": "DOCENTE"}) # DOCENTE, ESTUDIANTE, ADMIN

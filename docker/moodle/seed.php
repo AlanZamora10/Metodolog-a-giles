@@ -4,10 +4,12 @@
  *
  *  1. Sitio "Moodle UTA" en español, inicio en "Mis cursos" e identidad visual UTA (CSS en additionalhtmlhead).
  *  2. Categorías FISEI -> SOFTWARE -> Julio a Diciembre 2026.
- *  3. Usuarios: admin, docente titular (hnaranjo) y 20 estudiantes con nombres ficticios.
+ *  3. Usuarios: admin, docente titular (rgomez) y 20 estudiantes con nombres ficticios.
  *  4. 4 cursos con nóminas distintas (7 / 10 / 12 / 15 estudiantes); el docente es editingteacher en todos.
  *  5. Estructura del aula virtual UTA: Informativo | Primer Parcial | Segundo Parcial | Supletorio, con
  *     Zona de información, ACD (40%), Tareas (30%) y PAE (30%) por parcial.
+ *     Las fechas se calculan desde el día de ejecución: Primer Parcial cerrado (vencimientos en las últimas
+ *     semanas, con entregas y notas) y Segundo Parcial en curso (vencimientos en las próximas semanas).
  *  6. Libro de calificaciones ponderado 40/30/30 y notas variadas del Primer Parcial
  *     (aceptables, en riesgo, críticos, nota 0, SIN ENTREGA y PENDIENTE).
  *  7. Web Services REST, servicio EduMonitor_WS y token de integración.
@@ -61,6 +63,9 @@ set_config('sitename', 'Moodle UTA');
 set_config('lang', 'es');
 $DB->set_field('user', 'lang', 'es', ['id' => $admin->id]); // Bitnami crea el admin con idioma 'en'
 set_config('defaulthomepage', defined('HOMEPAGE_MYCOURSES') ? HOMEPAGE_MYCOURSES : 3);
+// Hora de Ecuador para todos: los vencimientos se muestran a las 23:59 locales
+set_config('timezone', 'America/Guayaquil');
+set_config('forcetimezone', 'America/Guayaquil');
 
 $site = get_site();
 $site->fullname = 'Moodle UTA';
@@ -79,19 +84,19 @@ if (!array_key_exists('es', get_string_manager()->get_list_of_translations(true)
 $uta_css = <<<'CSS'
 <style id="uta-theme">
 /* ---- Identidad visual UTA (sistemaseducaciononline.uta.edu.ec) ---- */
-:root { --uta-blue:#11297A; --uta-red:#9B1C1C; --uta-line:#DEE2E6; }
+:root { --uta-blue:#11297A; --uta-line:#DEE2E6; }
 body { background:#F4F6F8; }
-/* Barra superior blanca */
-.navbar.fixed-top { background:#FFFFFF !important; border-bottom:1px solid var(--uta-line); box-shadow:none !important; }
+/* Barra superior blanca con filete azul institucional */
+.navbar.fixed-top { background:#FFFFFF !important; border-top:3px solid var(--uta-blue); border-bottom:1px solid var(--uta-line); box-shadow:none !important; }
 .navbar.fixed-top .navbar-brand, .navbar.fixed-top .primary-navigation .nav-link { color:var(--uta-blue) !important; font-weight:500; }
-.navbar.fixed-top .primary-navigation .nav-link.active { border-bottom-color:var(--uta-red) !important; font-weight:600; }
-/* Barra secundaria del curso en rojo carmesí */
-.secondary-navigation { background:var(--uta-red); border-radius:6px; padding:0 .75rem; margin-bottom:1.25rem; }
+.navbar.fixed-top .primary-navigation .nav-link.active { border-bottom-color:var(--uta-blue) !important; font-weight:600; }
+/* Navegación secundaria del curso: pestañas sobrias con subrayado azul */
+.secondary-navigation { border-bottom:1px solid var(--uta-line); margin-bottom:1.25rem; }
 .secondary-navigation .nav-tabs { border-bottom:0; }
 .secondary-navigation .nav-tabs .nav-link,
-.secondary-navigation .moremenu .dropdown-toggle { color:#FFFFFF !important; border:0 !important; background:transparent; }
-.secondary-navigation .nav-tabs .nav-link.active,
-.secondary-navigation .nav-tabs .nav-link:hover { background:rgba(255,255,255,.14) !important; border-bottom:3px solid #FFFFFF !important; color:#FFFFFF !important; }
+.secondary-navigation .moremenu .dropdown-toggle { color:#495057 !important; border:0 !important; background:transparent; }
+.secondary-navigation .nav-tabs .nav-link:hover { color:var(--uta-blue) !important; }
+.secondary-navigation .nav-tabs .nav-link.active { color:var(--uta-blue) !important; font-weight:600; border-bottom:2px solid var(--uta-blue) !important; background:transparent !important; }
 /* Encabezado de página */
 #page-header h1, .page-header-headings h1 { color:var(--uta-blue); }
 /* Secciones del curso como tarjetas blancas */
@@ -101,7 +106,7 @@ body { background:#F4F6F8; }
 }
 .course-content .sectionname, .course-content .sectionname a, .course-section-header h3 a { color:var(--uta-blue) !important; font-weight:700; }
 /* Encabezados de bloque (etiquetas) e iconos de actividad */
-.activity.label .uta-block-title { color:var(--uta-blue); border-left:4px solid var(--uta-red); padding:.35rem .75rem; margin:.5rem 0 0; font-size:1.05rem; font-weight:700; background:#F8F9FB; }
+.activity.label .uta-block-title { color:var(--uta-blue); border-left:3px solid var(--uta-blue); padding:.35rem .75rem; margin:.5rem 0 0; font-size:1.05rem; font-weight:700; background:#F8F9FB; }
 .block .card-title, .block h5 { color:var(--uta-blue); }
 .card, .block.card { border-color:var(--uta-line); }
 .btn-primary { background-color:var(--uta-blue); border-color:var(--uta-blue); }
@@ -166,8 +171,9 @@ function upsert_user($username, $firstname, $lastname, $email, $idnumber, $passw
     return $user;
 }
 
-$docente = upsert_user('hnaranjo', 'Ing. Hernán', 'Naranjo, Mg.', 'docente@uta.edu.ec', 'U-01', 'Docente2026!');
-out("  = Docente titular: hnaranjo (Ing. Hernán Naranjo, Mg.)");
+const DOCENTE_NOMBRE = 'Ing. Roberto Gómez';
+$docente = upsert_user('rgomez', 'Ing. Roberto', 'Gómez', 'docente@uta.edu.ec', 'U-01', 'Docente2026!');
+out("  = Docente titular: rgomez (" . DOCENTE_NOMBRE . ")");
 
 // idnumber => [username, nombres, apellidos]
 $students_def = [
@@ -334,10 +340,15 @@ function block_label($course, $section, $key, $title, $subtitle = '') {
     ensure_module($course, $section, 'label', "LBL-$key", ['intro' => $html, 'introformat' => FORMAT_HTML]);
 }
 
+/** Fechas de una tarea: abre 14 días antes del vencimiento y se califica hasta 7 días después. */
+function assign_dates($duedate) {
+    return ['duedate' => $duedate, 'allowsubmissionsfromdate' => $duedate - 14 * DAYSECS,
+            'gradingduedate' => $duedate + 7 * DAYSECS, 'cutoffdate' => 0];
+}
+
 function assign_fields($name, $intro, $duedate, $files) {
-    return [
+    return assign_dates($duedate) + [
         'name' => $name, 'intro' => "<p>$intro</p>", 'introformat' => FORMAT_HTML, 'grade' => 10,
-        'duedate' => $duedate, 'allowsubmissionsfromdate' => $duedate - 14 * DAYSECS,
         'assignsubmission_file_enabled' => $files ? 1 : 0, 'assignsubmission_file_maxfiles' => 5,
         'assignsubmission_file_maxsizebytes' => 10485760, 'assignsubmission_file_filetypes' => '',
         'assignsubmission_onlinetext_enabled' => $files ? 1 : 0, 'assignsubmission_onlinetext_wordlimit' => 0,
@@ -345,15 +356,48 @@ function assign_fields($name, $intro, $duedate, $files) {
     ];
 }
 
+/** Crea la tarea si falta y, si ya existe, alinea sus fechas (y eventos de calendario) con las actuales. */
+function ensure_assign($course, $section, $idnumber, $name, $intro, $duedate, $files) {
+    global $DB;
+    $cm = ensure_module($course, $section, 'assign', $idnumber, assign_fields($name, $intro, $duedate, $files));
+    $dates = assign_dates($duedate);
+    $current = $DB->get_record('assign', ['id' => $cm->instance], implode(',', array_keys($dates)), MUST_EXIST);
+    if (array_map('intval', (array)$current) != $dates) {
+        $DB->update_record('assign', (object)(['id' => $cm->instance, 'timemodified' => time()] + $dates));
+        $cminfo = get_coursemodule_from_id('assign', $cm->id, $course->id, false, MUST_EXIST);
+        (new assign(context_module::instance($cm->id), $cminfo, $course))->update_calendar($cm->id);
+    }
+    return $cm;
+}
+
+/** Reemplaza el PDF de un recurso existente (p. ej. el sílabo cuando cambia el docente). */
+function refresh_resource_pdf($cm, $filename, $title, array $lines) {
+    $fs = get_file_storage();
+    $context = context_module::instance($cm->id);
+    $content = seed_pdf($title, $lines);
+    $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'id', false);
+    $file = reset($files);
+    if ($file && $file->get_filename() === $filename && $file->get_contenthash() === sha1($content)) {
+        return;
+    }
+    $fs->delete_area_files($context->id, 'mod_resource', 'content');
+    $fs->create_file_from_string(['contextid' => $context->id, 'component' => 'mod_resource', 'filearea' => 'content',
+        'itemid' => 0, 'filepath' => '/', 'filename' => $filename, 'sortorder' => 1], $content);
+}
+
+// Calendario relativo al día de ejecución (23:59, hora de Ecuador): el Primer Parcial ya terminó
+// (vencimientos en las últimas semanas) y el Segundo Parcial está en curso (vencimientos en las próximas).
+$hoy = usergetmidnight(time(), 'America/Guayaquil') + DAYSECS - MINSECS;
+
 // Plan de actividades por parcial: [sección, unidades, ACD, Tareas, PAE]
 $parciales = [
-    1 => ['nombre' => 'Primer Parcial', 'unidades' => [1, 2], 'inicio' => strtotime('2026-07-13'),
+    1 => ['nombre' => 'Primer Parcial', 'unidades' => [1, 2], 'cerrado' => true,
           'acd' => ['U1-A1' => 'Evaluación Unidad 1', 'U2-A2' => 'Evaluación Unidad 2'],
           'tareas' => ['U1-T1' => 'Tarea 1: Investigación de conceptos', 'U1-T2' => 'Tarea 2: Taller práctico',
                        'U2-T3' => 'Tarea 3: Ejercicios aplicados', 'U2-T4' => 'Tarea 4: Informe de laboratorio'],
           'pae' => ['U1-P1' => 'Práctica 1: Laboratorio guiado', 'U1-P2' => 'Práctica 2: Caso de estudio',
                     'U2-P3' => 'Práctica 3: Proyecto integrador (avance)']],
-    2 => ['nombre' => 'Segundo Parcial', 'unidades' => [3, 4], 'inicio' => strtotime('2026-09-21'),
+    2 => ['nombre' => 'Segundo Parcial', 'unidades' => [3, 4], 'cerrado' => false,
           'acd' => ['U3-A3' => 'Evaluación Unidad 3', 'U4-A4' => 'Evaluación Unidad 4'],
           'tareas' => ['U3-T5' => 'Tarea 5: Investigación aplicada', 'U3-T6' => 'Tarea 6: Taller de refuerzo',
                        'U4-T7' => 'Tarea 7: Resolución de problemas', 'U4-T8' => 'Tarea 8: Informe final'],
@@ -386,11 +430,13 @@ foreach ($courses as $short => $course) {
     }
     block_label($course, 0, 'S0-AVISOS', 'Avisos importantes',
         'Horario de tutorías: martes y jueves de 14:00 a 15:00. Revise el foro de novedades semanalmente.');
-    ensure_module($course, 0, 'resource', 'INFO-SILABO', [
+    $silabo = [
         'name' => 'Sílabo de la asignatura', 'filename' => 'Silabo_' . $short . '.pdf',
-        'lines' => [$course->fullname, 'Período académico: Julio - Diciembre 2026', 'Docente: Ing. Hernán Naranjo, Mg.',
+        'lines' => [$course->fullname, 'Período académico: Julio - Diciembre 2026', 'Docente: ' . DOCENTE_NOMBRE,
                     'Ponderación: ACD 40% | Tareas 30% | PAE 30%'],
-    ]);
+    ];
+    $cm_silabo = ensure_module($course, 0, 'resource', 'INFO-SILABO', $silabo);
+    refresh_resource_pdf($cm_silabo, $silabo['filename'], $silabo['name'], $silabo['lines']);
     ensure_module($course, 0, 'resource', 'INFO-PROGRAMA', [
         'name' => 'Programa Analítico', 'filename' => 'Programa_Analitico_' . $short . '.pdf',
         'lines' => [$course->fullname, 'Unidad 1 y 2: Primer Parcial', 'Unidad 3 y 4: Segundo Parcial', 'Supletorio'],
@@ -419,18 +465,21 @@ foreach ($courses as $short => $course) {
         foreach ($blocks as $key => [$tag, $title, $files]) {
             block_label($course, $sec, "S$sec-$tag", $title);
             $i = 0;
+            $n = count($p[$key]);
             foreach ($p[$key] as $idn => $name) {
-                $due = $p['inicio'] + (++$i) * 7 * DAYSECS;
+                $i++;
+                // Cerrado: la última actividad venció hace 1 semana. En curso: la primera vence dentro de 1 semana.
+                $due = $p['cerrado'] ? $hoy - ($n - $i + 1) * 7 * DAYSECS : $hoy + $i * 7 * DAYSECS;
                 $intro = $files ? 'Suba su archivo (PDF, DOCX o ZIP) antes de la fecha límite.' : 'Actividad evaluada en clase con el docente.';
-                ensure_module($course, $sec, 'assign', $idn, assign_fields($name, $intro, $due, $files));
+                ensure_assign($course, $sec, $idn, $name, $intro, $due, $files);
             }
         }
     }
 
     // --- Sección 3: Supletorio
     block_label($course, 3, 'S3-INFO', 'Examen Supletorio', 'Solo para estudiantes que no alcanzaron la nota mínima de aprobación (7.00).');
-    ensure_module($course, 3, 'assign', 'SUP-1', assign_fields('Examen Supletorio', 'Evaluación supletoria de todo el contenido.',
-        strtotime('2026-12-14'), false));
+    ensure_assign($course, 3, 'SUP-1', 'Examen Supletorio', 'Evaluación supletoria de todo el contenido.',
+        $hoy + 6 * 7 * DAYSECS, false);
 
     rebuild_course_cache($course->id, true);
     out("  = $short: 4 secciones y actividades verificadas");
@@ -452,6 +501,36 @@ $componentes = [
     'TAREAS' => ['Aprendizaje Autónomo / Tareas (30%)', 30, '/^U\d+-T\d+$/'],
     'PAE'    => ['Prácticas de Aplicación y Experimentación - PAE (30%)', 30, '/^U\d+-P\d+$/'],
 ];
+
+/**
+ * Registra la entrega del estudiante (enviada 1-3 días antes del vencimiento) para que Moodle no muestre como
+ * atrasadas las tareas ya calificadas. Con SIN ENTREGA no hay envío y la tarea sí figura como atrasada.
+ */
+function seed_submission(assign $assign, $userid, $entregada, $key) {
+    global $DB;
+    $submission = $assign->get_user_submission($userid, true);
+    $instance = $assign->get_instance();
+    $status = $entregada ? ASSIGN_SUBMISSION_STATUS_SUBMITTED : ASSIGN_SUBMISSION_STATUS_NEW;
+    $time = $entregada
+        ? $instance->duedate - (1 + crc32($key) % 3) * DAYSECS - (crc32("h$key") % 8) * HOURSECS
+        : (int)$submission->timemodified;
+    if ($submission->status !== $status || (int)$submission->timemodified !== $time) {
+        $DB->update_record('assign_submission', (object)[
+            'id' => $submission->id, 'status' => $status, 'timemodified' => $time,
+            'timecreated' => min($time, (int)$submission->timecreated),
+        ]);
+    }
+    $online = $assign->get_submission_plugin_by_type('onlinetext');
+    if (!$entregada) {
+        $DB->delete_records('assignsubmission_onlinetext', ['submission' => $submission->id]);
+    } else if ($online && $online->is_enabled()
+            && !$DB->record_exists('assignsubmission_onlinetext', ['submission' => $submission->id])) {
+        $DB->insert_record('assignsubmission_onlinetext', (object)[
+            'assignment' => $instance->id, 'submission' => $submission->id, 'onlineformat' => FORMAT_HTML,
+            'onlinetext' => '<p>Adjunto el desarrollo de la actividad: ' . s($instance->name) . '.</p>',
+        ]);
+    }
+}
 
 foreach ($courses as $short => $course) {
     // Eliminar ítems manuales de siembras anteriores (esquema AUTONOMO/TAREAS/PAE)
@@ -532,6 +611,7 @@ foreach ($courses as $short => $course) {
             }
 
             $assign = new assign(context_module::instance($cm->id), $cm, $course);
+            seed_submission($assign, $user->id, $feedback !== 'SIN ENTREGA', "$short|$idn|$itemidn");
             $grade = $assign->get_user_grade($user->id, true);
             $grade->grade = $value === null ? -1 : $value;
             $grade->grader = $docente->id;
@@ -591,6 +671,6 @@ foreach ($courses_def as $short => $def) {
     printf("  %-10s %2d estudiantes\n", $short, count($def['roster']));
 }
 echo "  Admin: admin / MoodleAdmin2026!\n";
-echo "  Docente: hnaranjo / Docente2026!\n";
+echo "  Docente: rgomez (docente@uta.edu.ec) / Docente2026!\n";
 echo "  Estudiante (caso crítico): dcurillo / Estudiante2026!\n";
 echo "====================================================================\n";

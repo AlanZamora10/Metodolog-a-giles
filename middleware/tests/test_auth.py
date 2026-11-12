@@ -15,7 +15,7 @@ def test_login_docente_success():
     assert "access_token" in data
     assert data["token_type"] == "bearer"
     assert data["user"]["rol"] == "DOCENTE"
-    assert "Hernán Naranjo" in data["user"]["nombres"]
+    assert "Roberto Gómez" in data["user"]["nombres"]
 
 
 def test_login_estudiante_success():

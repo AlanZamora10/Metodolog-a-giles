@@ -51,7 +51,7 @@ async def list_courses():
             "codigo": "MAT1",
             "nombre": "Metodologías Ágiles",
             "carrera": "Ingeniería de Software - FISEI",
-            "docente": "Ing. Hernán Naranjo, Mg.",
+            "docente": "Ing. Roberto Gómez",
             "parciales": [1, 2],
             "unidades": ["Unidad 1", "Unidad 2", "Unidad 3", "Unidad 4"]
         },
@@ -59,7 +59,7 @@ async def list_courses():
             "codigo": "MAT2",
             "nombre": "Ingeniería de Software",
             "carrera": "Ingeniería de Software - FISEI",
-            "docente": "Ing. Hernán Naranjo, Mg.",
+            "docente": "Ing. Roberto Gómez",
             "parciales": [1, 2],
             "unidades": ["Unidad 1", "Unidad 2", "Unidad 3", "Unidad 4"]
         }
