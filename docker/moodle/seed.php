@@ -42,6 +42,7 @@ require_once($CFG->libdir . '/clilib.php');
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/user/lib.php');
 require_once($CFG->dirroot . '/lib/enrollib.php');
+require_once($CFG->libdir . '/gradelib.php'); // Define GRADE_TYPE_VALUE y carga el API de calificaciones
 require_once($CFG->dirroot . '/lib/grade/grade_item.php');
 require_once($CFG->dirroot . '/lib/grade/grade_grade.php');
 require_once($CFG->dirroot . '/lib/grade/grade_category.php');
@@ -370,8 +371,8 @@ foreach ($required_functions as $func_name) {
     }
 }
 
-// Token de Integración: ws_mock_token_uta_fisei_sprint1
-$target_token = getenv('MOODLE_TOKEN') ?: getenv('MOODLE_WS_TOKEN') ?: 'ws_mock_token_uta_fisei_sprint1';
+// Token de Integración: edumonitorutadevtoken2026fisei01
+$target_token = getenv('MOODLE_TOKEN') ?: getenv('MOODLE_WS_TOKEN') ?: 'edumonitorutadevtoken2026fisei01';
 $admin_user = $DB->get_record('user', ['username' => 'admin']);
 
 if ($admin_user) {

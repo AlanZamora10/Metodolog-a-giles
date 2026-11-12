@@ -98,7 +98,7 @@ services:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql://analytics_user:analytics_password_secret123@analytics-db:5432/moodle_analytics
       - MOODLE_URL=http://moodle:8080
-      - MOODLE_WS_TOKEN=ws_mock_token_uta_fisei_sprint1
+      - MOODLE_WS_TOKEN=edumonitorutadevtoken2026fisei01
       - OLLAMA_HOST=http://ollama:11434
     depends_on:
       - analytics-db

@@ -3,46 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EduMonitor AI | Universidad Técnica de Ambato - FISEI</title>
+  <title>EduMonitor AI — Moodle UTA</title>
   <style>
     /* ==========================================================================
-       VARIABLES Y PALETA INSTITUCIONAL UTA - FISEI (INTEGRADA CON MOODLE LMS)
+       IDENTIDAD VISUAL MOODLE UTA
        ========================================================================== */
     :root {
-      --uta-blue: #002B49;          /* Azul marino institucional UTA */
-      --uta-blue-dark: #001C30;     /* Azul profundo para contrastes */
-      --uta-blue-hover: #0A3C64;    /* Hover sobre azul */
-      --uta-blue-light: #EBF3FA;    /* Azul tenue Moodle */
-      --uta-red: #C8102E;           /* Rojo institucional heráldico UTA */
-      --uta-red-soft: #FDE8E9;      /* Fondo de alerta suave */
-      --uta-gold: #C5A059;          /* Acento dorado institucional */
-      --ink: #1E293B;               /* Tipografía principal Slate-800 */
-      --ink-light: #475569;         /* Tipografía secundaria Slate-600 */
-      --muted: #64748B;             /* Etiquetas e indicadores neutros */
-      --line: #E2E8F0;              /* Separadores Slate-200 */
-      --bg: #F4F6F8;                /* Fondo general sobrio */
-      --card: #FFFFFF;              /* Superficies blancas limpias */
-      --card-hover: #F8FAFC;        /* Hover de filas y tarjetas */
-      
-      /* Estados Moodle 4.x / Analítica */
-      --green: #15803D;             /* Aceptable / Aprobado */
-      --green-bg: #DCFCE7;
-      --green-border: #BBF7D0;
-      --orange: #B45309;            /* En Riesgo */
-      --orange-bg: #FEF3C7;
-      --orange-border: #FDE68A;
-      --red: #B91C1C;               /* Crítico */
-      --red-bg: #FEE2E2;
-      --red-border: #FECACA;
-      
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 14px rgba(0, 27, 48, 0.08);
-      --shadow-lg: 0 12px 28px rgba(0, 27, 48, 0.12);
+      --primary: #11297A;           /* Azul institucional Moodle UTA */
+      --primary-hover: #0C1F5E;
+      --primary-soft: #E8ECF7;
+      --bg: #F4F6F8;                /* Fondo general */
+      --card: #FFFFFF;              /* Tarjetas blancas limpias */
+      --card-hover: #F8FAFC;
+      --ink: #1E293B;
+      --ink-light: #475569;
+      --muted: #64748B;
+      --line: #E2E8F0;
+
+      --green: #15803D;  --green-bg: #DCFCE7;  --green-border: #BBF7D0;
+      --orange: #B45309; --orange-bg: #FEF3C7; --orange-border: #FDE68A;
+      --red: #B91C1C;    --red-bg: #FEE2E2;    --red-border: #FECACA;
+
+      --shadow-sm: 0 1px 3px rgba(17, 41, 122, 0.06);
+      --shadow-md: 0 6px 20px rgba(17, 41, 122, 0.10);
       --radius: 8px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg);
@@ -51,672 +38,256 @@
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
     }
-
     button { font: inherit; cursor: pointer; border: 0; }
     button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
-      outline: 2px solid var(--uta-blue);
+      outline: 2px solid var(--primary);
       outline-offset: 2px;
+    }
+    [hidden] { display: none !important; }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-sm);
     }
 
     /* ==========================================================================
-       VISTA 1: PANTALLA DE LOGIN INSTITUCIONAL FORMAL (BLOQUE 1)
+       LOGIN (EXCLUSIVO DOCENTE)
        ========================================================================== */
-    .view-container { display: none; width: 100%; }
-    .view-container.active { display: block; }
-
     #viewLogin {
       min-height: 100vh;
-      background: linear-gradient(180deg, #001E33 0%, #002B49 100%);
-      display: none;
+      display: flex;
       align-items: center;
       justify-content: center;
       padding: 32px 16px;
     }
-    #viewLogin.active { display: flex; }
-
-    .login-wrapper { width: 100%; max-width: 460px; margin: 0 auto; }
-    .login-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      overflow: hidden;
+    .login-wrapper { width: 100%; max-width: 420px; }
+    .login-card { overflow: hidden; box-shadow: var(--shadow-md); }
+    .login-header { background: var(--primary); color: #FFFFFF; padding: 26px 24px; text-align: center; }
+    .login-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+    .login-header p { font-size: 12px; color: rgba(255, 255, 255, 0.82); margin-top: 4px; }
+    .login-body { padding: 26px 24px; }
+    .login-role {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--primary-soft); color: var(--primary);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 20px; margin-bottom: 18px;
     }
-
-    .login-header {
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      padding: 28px 24px;
-      text-align: center;
-      border-bottom: 3px solid var(--uta-red);
-    }
-
-    .login-badge-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .badge-uta {
-      background: var(--uta-red);
-      color: #FFFFFF;
-      font-weight: 800;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      letter-spacing: 0.8px;
-    }
-
-    .badge-fisei {
-      background: rgba(255, 255, 255, 0.15);
-      color: #FFFFFF;
-      font-weight: 700;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      letter-spacing: 0.8px;
-    }
-
-    .login-header h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.2px;
-      margin-bottom: 4px;
-      color: #FFFFFF;
-    }
-
-    .login-header p {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.8);
-      font-weight: 400;
-      line-height: 1.4;
-    }
-
-    .login-body { padding: 28px 24px; }
 
     .alert-error {
-      background: var(--uta-red-soft);
-      border-left: 4px solid var(--uta-red);
+      background: var(--red-bg);
+      border-left: 4px solid var(--red);
       color: var(--red);
       font-size: 13px;
       padding: 10px 14px;
       border-radius: 4px;
       margin-bottom: 18px;
-      display: none;
-      line-height: 1.4;
     }
-    .alert-error.visible { display: block; }
 
-    .form-group { margin-bottom: 18px; }
+    .form-group { margin-bottom: 16px; }
     .form-group label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--ink-light);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-bottom: 6px;
+      display: block; font-size: 12px; font-weight: 600; color: var(--ink-light);
+      text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;
     }
-
     .form-control {
-      width: 100%;
-      padding: 11px 13px;
-      font-size: 14px;
-      font-family: inherit;
-      color: var(--ink);
-      background: #FFFFFF;
-      border: 1px solid var(--line);
-      border-radius: 6px;
+      width: 100%; padding: 11px 13px; font-size: 14px; font-family: inherit; color: var(--ink);
+      background: #FFFFFF; border: 1px solid var(--line); border-radius: 6px;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
+    .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(17, 41, 122, 0.12); outline: none; }
 
-    .form-control:focus {
-      border-color: var(--uta-blue);
-      box-shadow: 0 0 0 3px rgba(0, 43, 73, 0.1);
-      outline: none;
+    .btn-primary {
+      width: 100%; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600;
+      padding: 12px; border-radius: 6px; transition: background 0.15s ease;
     }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+    .btn-primary.done { background: var(--green); }
 
-    .btn-login {
-      width: 100%;
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 4px;
-      transition: background 0.15s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+    .login-foot {
+      margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
+      text-align: center; font-size: 12px; color: var(--muted);
     }
-    .btn-login:hover { background: var(--uta-blue-hover); }
-    .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
-
-    .demo-selector {
-      margin-top: 22px;
-      padding-top: 18px;
-      border-top: 1px solid var(--line);
-    }
-    .demo-selector-title {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: var(--muted);
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .demo-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-    .btn-demo {
-      background: var(--bg);
-      border: 1px solid var(--line);
-      padding: 8px 10px;
-      border-radius: 6px;
-      text-align: left;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .btn-demo:hover { background: #EDF2F7; border-color: #CBD5E1; }
-    .btn-demo-role { display: block; font-size: 12px; font-weight: 600; color: var(--uta-blue); }
-    .btn-demo-desc { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
-
-    .moodle-external-link {
-      margin-top: 20px;
-      padding: 12px;
-      background: #F8FAFC;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--ink-light);
-    }
-    .moodle-external-link a {
-      color: var(--uta-blue);
-      font-weight: 600;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .moodle-external-link a:hover { text-decoration: underline; }
-
-    .login-footer {
-      text-align: center;
-      margin-top: 16px;
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.6);
-    }
+    .login-foot a { color: var(--primary); font-weight: 600; text-decoration: none; }
+    .login-foot a:hover { text-decoration: underline; }
 
     /* ==========================================================================
-       VISTA 2: PANEL DE SEGUIMIENTO ACADÉMICO (DASHBOARD)
+       DASHBOARD
        ========================================================================== */
-    .topbar {
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      border-bottom: 3px solid var(--uta-red);
-    }
-
+    .topbar { background: var(--primary); color: #FFFFFF; }
     .topbar-in {
-      max-width: 1160px;
-      margin: 0 auto;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
+      max-width: 1160px; margin: 0 auto; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
-
-    .brand-wrap { display: flex; align-items: center; gap: 12px; }
-    .brand-text { font-size: 14px; font-weight: 600; letter-spacing: 0.2px; }
-    .brand-text span { opacity: 0.5; font-weight: 300; margin: 0 6px; }
-
-    .top-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+    .brand { font-size: 16px; font-weight: 700; letter-spacing: 0.1px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
     .select-course {
       appearance: none;
       background: rgba(255, 255, 255, 0.12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
-      color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
-      padding: 7px 32px 7px 12px;
-      font-size: 13px;
-      font-family: inherit;
+      color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px;
+      padding: 7px 32px 7px 12px; font-size: 13px; font-family: inherit; max-width: 340px;
     }
     .select-course option { color: var(--ink); background: #FFFFFF; }
 
     .user-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.12);
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.12);
+      padding: 5px 10px; border-radius: 6px; font-size: 12px; border: 1px solid rgba(255, 255, 255, 0.18);
     }
     .role-badge {
-      background: #FFFFFF;
-      color: var(--uta-blue);
-      font-size: 10px;
-      font-weight: 800;
-      padding: 2px 5px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
+      background: #FFFFFF; color: var(--primary); font-size: 10px; font-weight: 800;
+      padding: 2px 6px; border-radius: 4px; letter-spacing: 0.4px;
     }
-
     .btn-topbar {
-      background: rgba(255, 255, 255, 0.15);
-      color: #FFFFFF;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.15s ease;
+      background: rgba(255, 255, 255, 0.15); color: #FFFFFF; padding: 6px 12px; border-radius: 6px;
+      font-size: 12px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
     }
-    .btn-topbar:hover { background: rgba(255, 255, 255, 0.25); }
+    .btn-topbar:hover { background: rgba(255, 255, 255, 0.28); }
 
-    .btn-logout {
-      background: rgba(200, 16, 46, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .subbar { background: #FFFFFF; border-bottom: 1px solid var(--line); }
+    .subbar-in {
+      max-width: 1160px; margin: 0 auto; padding: 10px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
-    .btn-logout:hover { background: var(--uta-red); }
+    .breadcrumb { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
+    .breadcrumb a { color: var(--primary); text-decoration: none; font-weight: 500; }
+    .breadcrumb .current { color: var(--ink); font-weight: 600; }
 
-    /* Barra de Miga de Pan estilo Moodle LMS */
-    .moodle-breadcrumb-bar {
-      background: #FFFFFF;
-      border-bottom: 1px solid var(--line);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    .sync-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .sync-status {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-light);
+      background: #F1F5F9; border: 1px solid var(--line); padding: 4px 10px; border-radius: 20px;
     }
-    .breadcrumb-inner {
-      max-width: 1160px;
-      margin: 0 auto;
-      padding: 9px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .breadcrumb-trail {
-      font-size: 12px;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .breadcrumb-trail a {
-      color: var(--uta-blue);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .breadcrumb-trail a:hover { text-decoration: underline; }
-    .breadcrumb-trail .sep { color: #CBD5E1; }
-    .breadcrumb-trail .current {
-      color: var(--ink);
-      font-weight: 600;
-    }
-
-    .sync-actions-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .badge-sync-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--ink-light);
-      background: #F1F5F9;
-      border: 1px solid var(--line);
-      padding: 4px 9px;
-      border-radius: 20px;
-    }
-    .sync-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--muted);
-    }
-    .sync-dot.live { background: var(--green); box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.2); }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .sync-dot.live { background: var(--green); }
     .sync-dot.busy { background: var(--orange); animation: pulse 1s infinite alternate; }
-
+    .sync-dot.error { background: var(--red); }
     @keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
 
-    .btn-sync-moodle {
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      border: 1px solid rgba(0, 43, 73, 0.2);
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.15s, transform 0.1s;
+    .btn-sync {
+      background: var(--primary); color: #FFFFFF; padding: 7px 16px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
     }
-    .btn-sync-moodle:hover { background: var(--uta-blue-hover); }
-    .btn-sync-moodle:disabled { opacity: 0.6; cursor: wait; }
-
-    .sync-icon { display: inline-block; font-weight: 700; font-size: 14px; }
-    .sync-icon.spin { animation: spin 0.8s linear infinite; }
+    .btn-sync:hover { background: var(--primary-hover); }
+    .btn-sync:disabled { opacity: 0.6; cursor: wait; }
+    .spin { display: inline-block; animation: spin 0.8s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* Moodle Sync Toast Notification */
-    .moodle-toast {
-      max-width: 1160px;
-      margin: 16px auto 0;
-      padding: 12px 18px;
-      background: #F0FDF4;
-      border: 1px solid #BBF7D0;
-      border-left: 4px solid var(--green);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: var(--shadow-sm);
+    .toast {
+      max-width: 1112px; margin: 16px auto 0; padding: 12px 18px; border-radius: 6px;
+      display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--shadow-sm);
+      background: #F0FDF4; border: 1px solid var(--green-border); border-left: 4px solid var(--green); color: #166534;
     }
-    .moodle-toast.hidden { display: none; }
-    .toast-icon {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--green);
-    }
-    .toast-content { flex: 1; font-size: 13px; color: #166534; }
-    .toast-content strong { display: block; font-weight: 700; }
-    .toast-close {
-      background: none;
-      color: #166534;
-      font-size: 18px;
-      font-weight: 700;
-      padding: 2px 6px;
-      opacity: 0.7;
-    }
-    .toast-close:hover { opacity: 1; }
+    .toast.error { background: var(--red-bg); border-color: var(--red-border); border-left-color: var(--red); color: var(--red); }
+    .toast-content { flex: 1; font-size: 13px; }
+    .toast-content strong { display: block; }
+    .toast-close { background: none; color: inherit; font-size: 18px; font-weight: 700; opacity: 0.7; }
 
-    /* Navegación por pestañas */
-    .tabs-nav {
-      max-width: 1160px;
-      margin: 18px auto 0;
-      padding: 0 24px;
+    .tabs-nav { max-width: 1160px; margin: 18px auto 0; padding: 0 24px; }
+    .segmented { display: inline-flex; background: #E2E8F0; border-radius: 8px; padding: 3px; flex-wrap: wrap; }
+    .segmented button {
+      background: transparent; color: var(--muted); padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
     }
-    .segmented-control {
-      display: inline-flex;
-      background: #E2E8F0;
-      border-radius: 8px;
-      padding: 3px;
-    }
-    .segmented-control button {
-      background: transparent;
-      color: var(--muted);
-      padding: 7px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      transition: background 0.15s, color 0.15s;
-    }
-    .segmented-control button[aria-selected="true"] {
-      background: #FFFFFF;
-      color: var(--uta-blue);
-      box-shadow: var(--shadow-sm);
-    }
+    .segmented button[aria-selected="true"] { background: #FFFFFF; color: var(--primary); box-shadow: var(--shadow-sm); }
 
-    /* Contenedor principal */
-    main {
-      max-width: 1160px;
-      margin: 0 auto;
-      padding: 20px 24px 64px;
-    }
-
+    main { max-width: 1160px; margin: 0 auto; padding: 20px 24px 64px; }
     .screen { display: none; }
     .screen.on { display: block; }
-    .card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--line);
-    }
 
-    /* Pantalla 1: Panel General */
-    .title-row {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-    h1 {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--uta-blue);
-      letter-spacing: -0.4px;
-    }
+    h1.page { font-size: 24px; font-weight: 700; color: var(--primary); letter-spacing: -0.4px; }
+    h2.section { font-size: 15px; font-weight: 700; color: var(--primary); margin: 24px 0 12px; }
     .sub { color: var(--muted); font-size: 13px; }
+    .title-row { margin-bottom: 18px; }
 
-    .kpis-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 20px;
+    .empty-state { padding: 40px 24px; text-align: center; color: var(--muted); font-size: 14px; }
+    .empty-state b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; }
+
+    .courses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+    .course-card {
+      padding: 16px 18px; text-align: left; background: var(--card); width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .kpi-card { padding: 18px 20px; }
+    .course-card:hover { box-shadow: var(--shadow-md); }
+    .course-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(17, 41, 122, 0.15); }
+    .course-code { font-size: 11px; font-weight: 700; color: var(--primary); letter-spacing: 0.4px; }
+    .course-name { font-size: 13px; font-weight: 600; color: var(--ink); margin: 4px 0 10px; min-height: 38px; }
+    .course-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+    .course-meta b { color: var(--ink); }
+
+    .kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi-card { padding: 16px 18px; }
     .kpi-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
+      display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.3px;
     }
-    .kpi-value {
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: -0.8px;
-      margin-top: 6px;
-      line-height: 1.1;
-      color: var(--ink);
-    }
+    .kpi-value { font-size: 30px; font-weight: 700; letter-spacing: -0.8px; margin-top: 6px; line-height: 1.1; }
 
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-      flex: none;
-    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
     .dot.red { background: var(--red); }
     .dot.orange { background: var(--orange); }
     .dot.green { background: var(--green); }
-    .dot.blue { background: var(--uta-blue); }
 
-    /* Badges estilo Moodle */
     .badge-risk {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
+      display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
     }
     .badge-risk.aceptable { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
     .badge-risk.en-riesgo { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
     .badge-risk.critico { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+    .tag-state { font-size: 10px; font-weight: 700; color: var(--orange); margin-left: 4px; }
 
-    /* Tabla de Estudiantes */
     .table-container { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    table { width: 100%; border-collapse: collapse; min-width: 680px; }
     th {
-      text-align: left;
-      font-weight: 600;
-      font-size: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--line);
-      background: #F8FAFC;
+      text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.4px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #F8FAFC;
     }
-    td { padding: 13px 18px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
     tr:last-child td { border-bottom: 0; }
-    tbody tr { cursor: pointer; transition: background 0.15s ease; }
-    tbody tr:hover { background: var(--card-hover); }
+    tbody tr.clickable { cursor: pointer; }
+    tbody tr.clickable:hover { background: var(--card-hover); }
+    td.name { font-weight: 600; color: var(--primary); }
+    td.num { font-variant-numeric: tabular-nums; }
+    td.final { font-weight: 700; }
 
-    td.name { font-weight: 600; color: var(--uta-blue); }
-    td.num { font-variant-numeric: tabular-nums; font-weight: 700; }
-    .evo { color: #475569; font-size: 12px; }
-
-    /* Pantalla 2: Detalle del Estudiante */
-    .btn-back {
-      background: none;
-      color: var(--uta-blue);
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
+    .btn-back { background: none; color: var(--primary); font-size: 13px; font-weight: 600; margin-bottom: 16px; }
     .btn-back:hover { text-decoration: underline; }
 
     .grid2 { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
-
-    .profile-card { padding: 24px; }
-    .profile-card h2 { font-size: 22px; font-weight: 700; color: var(--uta-blue); }
-    .profile-card .id-tag { color: var(--muted); font-size: 12px; margin-top: 2px; }
-    .big-score { display: flex; align-items: baseline; gap: 6px; margin: 14px 0 8px; }
-    .big-score b { font-size: 46px; letter-spacing: -1px; line-height: 1; color: var(--ink); }
+    .profile-card, .units-card, .form-card { padding: 24px; }
+    .profile-card h2 { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .id-tag { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .big-score { display: flex; align-items: baseline; gap: 6px; margin: 14px 0 10px; }
+    .big-score b { font-size: 46px; letter-spacing: -1px; line-height: 1; }
     .big-score span { font-size: 16px; color: var(--muted); }
-
-    .spark { margin-top: 20px; width: 100%; height: auto; display: block; }
-
-    .units-card { padding: 24px; }
-    .units-card h3 { font-size: 16px; font-weight: 700; color: var(--uta-blue); margin-bottom: 18px; }
+    .units-card h3, .form-card h3 { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 18px; }
     .unit { margin-bottom: 18px; }
     .unit:last-child { margin-bottom: 0; }
     .unit-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
     .unit-head b { font-variant-numeric: tabular-nums; }
     .track { height: 6px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
-    .fill { height: 100%; border-radius: 4px; background: #64748B; transition: width 0.3s ease; }
-    .unit-sub {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-top: 6px;
-      font-size: 11px;
-      color: var(--muted);
-    }
+    .fill { height: 100%; border-radius: 4px; background: var(--primary); transition: width 0.3s ease; }
     .unit.bad .fill { background: var(--red); }
     .unit.bad .unit-head { color: var(--red); font-weight: 600; }
 
-    /* Tarjeta de Diagnóstico IA */
     .diag-banner {
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-      flex-wrap: wrap;
-      border-left: 4px solid var(--uta-red);
+      background: var(--primary); color: #FFFFFF; border-radius: var(--radius); padding: 22px 24px; margin-top: 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
     }
     .diag-banner h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-    .diag-banner p { max-width: 620px; color: rgba(255, 255, 255, 0.9); font-size: 13px; line-height: 1.5; }
-    .btn-white {
-      background: #FFFFFF;
-      color: var(--uta-blue);
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      transition: background 0.15s ease;
-    }
-    .btn-white:hover { background: #F1F5F9; }
+    .diag-banner p { max-width: 640px; color: rgba(255, 255, 255, 0.9); font-size: 13px; }
+    .btn-white { background: #FFFFFF; color: var(--primary); padding: 10px 18px; border-radius: 6px; font-weight: 600; font-size: 13px; }
 
-    /* Pantalla 3: Alertas y Refuerzos */
     .alerts-list { display: flex; flex-direction: column; gap: 10px; }
-    .alert-item {
-      padding: 16px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .alert-info-title { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-    .alert-info-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
+    .alert-item { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .alert-title { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .alert-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
     .btn-outline {
-      background: transparent;
-      color: var(--uta-blue);
-      border: 1px solid var(--uta-blue);
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      transition: background 0.15s, color 0.15s;
+      background: transparent; color: var(--primary); border: 1px solid var(--primary);
+      padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
     }
-    .btn-outline:hover { background: var(--uta-blue); color: #FFFFFF; }
-
-    .form-card { padding: 24px; }
-    .form-card h3 { font-size: 16px; font-weight: 700; color: var(--uta-blue); margin-bottom: 18px; }
-    .btn-action-primary {
-      width: 100%;
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      margin-top: 6px;
-      transition: background 0.15s ease;
-    }
-    .btn-action-primary:hover { background: var(--uta-blue-hover); }
-    .btn-action-primary.done { background: var(--green); }
-
-    /* Portal del Estudiante */
-    .student-welcome {
-      background: var(--uta-blue);
-      color: #FFFFFF;
-      padding: 24px 28px;
-      border-radius: var(--radius);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-      border-left: 4px solid var(--uta-red);
-    }
-    .student-welcome h2 { font-size: 20px; font-weight: 700; }
-    .student-welcome p { color: rgba(255, 255, 255, 0.8); font-size: 13px; margin-top: 2px; }
+    .btn-outline:hover { background: var(--primary); color: #FFFFFF; }
 
     @media (max-width: 900px) {
       .kpis-grid { grid-template-columns: repeat(2, 1fr); }
@@ -724,7 +295,8 @@
     }
     @media (max-width: 600px) {
       .kpis-grid { grid-template-columns: 1fr; }
-      .topbar-in, .breadcrumb-inner { padding: 12px 16px; }
+      .topbar-in, .subbar-in { padding: 12px 16px; }
+      .tabs-nav { padding: 0 16px; }
       main { padding: 16px; }
     }
   </style>
@@ -732,861 +304,524 @@
 <body>
 
   <!-- ========================================================================
-       BLOQUE 1: PANTALLA DE LOGIN INSTITUCIONAL FORMAL (UTA / FISEI)
+       LOGIN — ACCESO EXCLUSIVO DOCENTE
        ======================================================================== -->
-  <div id="viewLogin" class="view-container active">
+  <div id="viewLogin">
     <div class="login-wrapper">
-      <div class="login-card">
+      <div class="card login-card">
         <div class="login-header">
-          <div class="login-badge-row">
-            <span class="badge-uta">UTA</span>
-            <span class="badge-fisei">FISEI</span>
-          </div>
-          <h1>Universidad Técnica de Ambato</h1>
-          <p>Facultad de Ingeniería en Sistemas, Electrónica e Industrial<br>
-          <strong>Capa Inteligente de Seguimiento Académico (EduMonitor AI)</strong></p>
+          <h1>EduMonitor AI — Moodle UTA</h1>
+          <p>Capa Inteligente de Seguimiento Académico • FISEI</p>
         </div>
 
         <div class="login-body">
-          <div id="loginError" class="alert-error" role="alert">
-            Credenciales inválidas. Por favor verifique su correo institucional y contraseña.
-          </div>
+          <span class="login-role">Acceso Docente</span>
 
-          <form id="formAuth" onsubmit="ejecutarLogin(event)">
+          <div id="loginError" class="alert-error" role="alert" hidden></div>
+
+          <form id="formAuth">
             <div class="form-group">
-              <label for="inputEmail">Correo Electrónico Institucional</label>
-              <input type="email" id="inputEmail" class="form-control" required placeholder="ejemplo@uta.edu.ec" value="docente@uta.edu.ec" autocomplete="email">
+              <label for="inputEmail">Correo institucional</label>
+              <input type="email" id="inputEmail" class="form-control" required placeholder="docente@uta.edu.ec" autocomplete="username">
             </div>
-
             <div class="form-group">
               <label for="inputPassword">Contraseña</label>
-              <input type="password" id="inputPassword" class="form-control" required placeholder="••••••••" value="Docente2026!" autocomplete="current-password">
+              <input type="password" id="inputPassword" class="form-control" required placeholder="••••••••" autocomplete="current-password">
             </div>
-
-            <button type="submit" id="btnLoginSubmit" class="btn-login">
-              <span id="btnLoginText">Ingresar al Sistema</span>
-            </button>
+            <button type="submit" id="btnLoginSubmit" class="btn-primary">Ingresar</button>
           </form>
 
-          <!-- Atajos de Demostración para Pruebas Ágiles del Sprint 2 -->
-          <div class="demo-selector">
-            <div class="demo-selector-title">
-              <span>Accesos Rápidos de Prueba (HU-01)</span>
-              <span style="font-weight:400;text-transform:none;">Entorno Local</span>
-            </div>
-            <div class="demo-buttons-grid">
-              <button type="button" class="btn-demo" onclick="cargarCredenciales('docente')">
-                <span class="btn-demo-role">👨‍🏫 Docente</span>
-                <span class="btn-demo-desc">Ing. Hernán Naranjo</span>
-              </button>
-              <button type="button" class="btn-demo" onclick="cargarCredenciales('estudiante')">
-                <span class="btn-demo-role">🎓 Estudiante</span>
-                <span class="btn-demo-desc">Estudiante C (Caso Crítico)</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Enlace Directo a Moodle LMS UTA -->
-          <div class="moodle-external-link">
-            <span>¿Desea ingresar directamente al aula virtual?</span><br>
-            <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">
-              Acceder a Moodle LMS FISEI (Puerto 8080) ↗
-            </a>
+          <div class="login-foot">
+            Aula virtual: <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA ↗</a>
           </div>
         </div>
-      </div>
-
-      <div class="login-footer">
-        Carrera de Ingeniería en Software • Ciclo Académico 2026
       </div>
     </div>
   </div>
 
   <!-- ========================================================================
-       VISTA DEL SISTEMA: PANEL DE SEGUIMIENTO ACADÉMICO (POST-AUTENTICACIÓN)
+       DASHBOARD DOCENTE
        ======================================================================== -->
-  <div id="viewDashboard" class="view-container">
-
-    <!-- BARRA SUPERIOR INSTITUCIONAL -->
+  <div id="viewDashboard" hidden>
     <header class="topbar">
       <div class="topbar-in">
-        <div class="brand-wrap">
-          <span class="badge-uta" style="font-size:12px;padding:3px 8px;">UTA</span>
-          <div class="brand-text">FISEI<span>|</span>Capa Inteligente de Seguimiento Académico</div>
-        </div>
-
+        <div class="brand">EduMonitor AI — Moodle UTA</div>
         <div class="top-actions">
-          <!-- Selector de Materia Autorizada -->
-          <select class="select-course" id="comboCurso" onchange="cambiarMateria(this.value)">
-            <option value="MAT1">Metodologías Ágiles - Paralelo A</option>
-            <option value="MAT2">Ingeniería de Software - Paralelo B</option>
+          <select class="select-course" id="comboCurso" aria-label="Curso" disabled>
+            <option>Sin cursos sincronizados</option>
           </select>
-
-          <!-- Píldora de Identificación de Usuario y Rol (HU-14) -->
           <div class="user-pill">
-            <span class="role-badge" id="lblRol">DOCENTE</span>
-            <span id="lblUsuario">Ing. Hernán Naranjo</span>
+            <span class="role-badge">DOCENTE</span>
+            <span id="lblUsuario"></span>
           </div>
-
-          <!-- Enlace directo con Moodle LMS -->
-          <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer" class="btn-topbar" title="Abrir Moodle LMS en nueva pestaña">
-            Moodle LMS ↗
-          </a>
-
-          <!-- Botón de Cerrar Sesión -->
-          <button class="btn-topbar btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+          <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer" class="btn-topbar">Moodle ↗</a>
+          <button class="btn-topbar" id="btnLogout">Cerrar sesión</button>
         </div>
       </div>
     </header>
 
-    <!-- BARRA DE MIGA DE PAN ESTILO MOODLE LMS CON ACCIÓN DE SINCRONIZACIÓN -->
-    <div class="moodle-breadcrumb-bar">
-      <div class="breadcrumb-inner">
-        <div class="breadcrumb-trail">
+    <div class="subbar">
+      <div class="subbar-in">
+        <div class="breadcrumb">
           <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Moodle UTA</a>
-          <span class="sep">/</span>
-          <span>Mis cursos</span>
-          <span class="sep">/</span>
-          <span id="bcCurso">FISEI - Metodologías Ágiles (MAT1)</span>
-          <span class="sep">/</span>
-          <span class="current">Capa Inteligente EduMonitor</span>
+          <span>/</span><span>Mis cursos</span><span>/</span>
+          <span class="current" id="bcCurso">EduMonitor AI</span>
         </div>
-        <div class="sync-actions-group">
-          <span id="syncStatusBadge" class="badge-sync-status">
-            <span id="syncDot" class="sync-dot live"></span>
-            <span id="syncStatusText">Moodle 4.3.2 Conectado</span>
+        <div class="sync-group">
+          <span class="sync-status">
+            <span id="syncDot" class="sync-dot"></span>
+            <span id="syncStatusText">Sin sincronizar</span>
           </span>
-          <button id="btnSyncMoodle" class="btn-sync-moodle" onclick="ejecutarSincronizacionMoodle()" title="Sincronizar calificaciones con Moodle Web Services">
-            <span id="btnSyncIcon" class="sync-icon">↻</span>
-            <span id="btnSyncText">Sincronizar Moodle</span>
+          <button id="btnSync" class="btn-sync" title="POST /api/sincronizacion">
+            <span id="btnSyncIcon">↻</span><span id="btnSyncText">Sincronizar</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- BANNER TOAST DE NOTIFICACIÓN DE SINCRONIZACIÓN -->
-    <div id="moodleSyncToast" class="moodle-toast hidden" role="status">
-      <span class="toast-icon">✓</span>
+    <div id="toast" class="toast" role="status" hidden>
       <div class="toast-content">
-        <strong id="toastTitle">Sincronización Exitosa con Moodle LMS</strong>
-        <p id="toastMessage">Calificaciones actualizadas desde el aula virtual.</p>
+        <strong id="toastTitle"></strong>
+        <span id="toastMessage"></span>
       </div>
-      <button class="toast-close" onclick="cerrarToast()">×</button>
+      <button class="toast-close" id="btnToastClose" aria-label="Cerrar">×</button>
     </div>
 
-    <!-- NAVEGACIÓN SEGMENTADA POR ROL -->
-    <nav class="tabs-nav" aria-label="Navegación del Sistema">
-      <div class="segmented-control" id="navDocente" role="tablist">
+    <nav class="tabs-nav" aria-label="Navegación">
+      <div class="segmented" role="tablist">
         <button role="tab" aria-selected="true" data-go="s1">Panel General</button>
         <button role="tab" aria-selected="false" data-go="s2">Ficha de Estudiante</button>
         <button role="tab" aria-selected="false" data-go="s3">Centro de Alertas</button>
       </div>
-
-      <div class="segmented-control" id="navEstudiante" style="display:none;" role="tablist">
-        <button role="tab" aria-selected="true" data-go="s-estudiante">Mi Rendimiento Académico</button>
-      </div>
     </nav>
 
-    <!-- CONTENIDO DE PANTALLAS -->
     <main>
-      <!-- PANTALLA 1: PANEL GENERAL (DOCENTE) -->
+      <!-- PANEL GENERAL -->
       <section class="screen on" id="s1">
         <div class="title-row">
-          <div>
-            <h1 id="lblTituloCurso">Metodologías Ágiles</h1>
-            <span class="sub" id="lblSubtituloCurso">7 estudiantes matriculados • Ciclo 2026-B (Parcial 1) • Sincronización Moodle Activa</span>
-          </div>
+          <h1 class="page" id="lblTituloCurso">Panel del Docente</h1>
+          <span class="sub" id="lblSubtitulo">Presione «Sincronizar» para importar sus cursos desde Moodle UTA.</span>
         </div>
 
-        <div class="kpis-grid">
-          <div class="card kpi-card">
-            <div class="kpi-label">Promedio General</div>
-            <div class="kpi-value" id="kpiPromedio">--</div>
-          </div>
-          <div class="card kpi-card">
-            <div class="kpi-label"><span class="dot red"></span>Estudiantes Críticos</div>
-            <div class="kpi-value" id="kpiCriticos" style="color:var(--red);">--</div>
-          </div>
-          <div class="card kpi-card">
-            <div class="kpi-label"><span class="dot orange"></span>En Riesgo</div>
-            <div class="kpi-value" id="kpiRiesgo" style="color:var(--orange);">--</div>
-          </div>
-          <div class="card kpi-card">
-            <div class="kpi-label"><span class="dot green"></span>Aceptables</div>
-            <div class="kpi-value" id="kpiAceptables">--</div>
-          </div>
+        <div id="emptyState" class="card empty-state">
+          <b>Aún no hay datos sincronizados</b>
+          Use el botón «Sincronizar» para traer cursos, estudiantes y calificaciones desde Moodle UTA.
         </div>
 
-        <div class="card table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Estudiante</th>
-                <th>Nota Ponderada</th>
-                <th>Evolución Académica</th>
-                <th>Estado Moodle</th>
-              </tr>
-            </thead>
-            <tbody id="cuerpoTabla">
-              <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted);">Cargando registros del curso...</td></tr>
-            </tbody>
-          </table>
+        <div id="panelDatos" hidden>
+          <h2 class="section" id="lblCursosResumen">Cursos sincronizados</h2>
+          <div class="courses-grid" id="gridCursos"></div>
+
+          <h2 class="section" id="lblCursoActual">Curso</h2>
+          <div class="kpis-grid">
+            <div class="card kpi-card"><div class="kpi-label">Promedio</div><div class="kpi-value" id="kpiPromedio">--</div></div>
+            <div class="card kpi-card"><div class="kpi-label"><span class="dot red"></span>Críticos</div><div class="kpi-value" id="kpiCriticos" style="color:var(--red)">--</div></div>
+            <div class="card kpi-card"><div class="kpi-label"><span class="dot orange"></span>En riesgo</div><div class="kpi-value" id="kpiRiesgo" style="color:var(--orange)">--</div></div>
+            <div class="card kpi-card"><div class="kpi-label"><span class="dot green"></span>Aceptables</div><div class="kpi-value" id="kpiAceptables">--</div></div>
+          </div>
+
+          <div class="card table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Estudiante</th>
+                  <th>Autónomo (40%)</th>
+                  <th>Tareas (30%)</th>
+                  <th>PAE (30%)</th>
+                  <th>Nota ponderada</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="cuerpoTabla"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
-      <!-- PANTALLA 2: FICHA DEL ESTUDIANTE (Módulo D) -->
+      <!-- FICHA DEL ESTUDIANTE -->
       <section class="screen" id="s2">
-        <button class="btn-back" data-go="s1">‹ Volver al panel general de calificaciones</button>
-
-        <div class="grid2">
-          <div class="card profile-card">
-            <h2 id="detNombre">Estudiante</h2>
-            <div class="id-tag">Identificador Moodle: <span id="detId">--</span></div>
-            <div class="big-score"><b id="detNota">--</b><span>/ 10</span></div>
-            <span class="status" id="detStatus"><span class="dot blue"></span>Evaluando...</span>
-
-            <!-- Gráfico SVG Dinámico -->
-            <svg id="svgSparkline" class="spark" viewBox="0 0 320 196" role="img" aria-label="Evolución de notas">
-              <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#002B49" stop-opacity=".22"/>
-                  <stop offset="1" stop-color="#002B49" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <line x1="28" y1="170" x2="310" y2="170" stroke="#E2E8F0" stroke-width="1"/>
-              <line x1="28" y1="138" x2="310" y2="138" stroke="#E2E8F0" stroke-width="1"/>
-              <line x1="28" y1="106" x2="310" y2="106" stroke="#E2E8F0" stroke-width="1"/>
-              <line x1="28" y1="74" x2="310" y2="74" stroke="#E2E8F0" stroke-width="1"/>
-              <line x1="28" y1="42" x2="310" y2="42" stroke="#E2E8F0" stroke-width="1"/>
-              <line x1="28" y1="10" x2="310" y2="10" stroke="#E2E8F0" stroke-width="1"/>
-
-              <text x="20" y="173.5" text-anchor="end" font-size="10" fill="#64748B">0</text>
-              <text x="20" y="141.5" text-anchor="end" font-size="10" fill="#64748B">2</text>
-              <text x="20" y="109.5" text-anchor="end" font-size="10" fill="#64748B">4</text>
-              <text x="20" y="77.5" text-anchor="end" font-size="10" fill="#64748B">6</text>
-              <text x="20" y="45.5" text-anchor="end" font-size="10" fill="#64748B">8</text>
-              <text x="20" y="13.5" text-anchor="end" font-size="10" fill="#64748B">10</text>
-
-              <g id="sparklinePlot">
-                <!-- Se dibuja dinámicamente -->
-              </g>
-
-              <text x="60" y="188" text-anchor="middle" font-size="10" fill="#64748B">U1</text>
-              <text x="120" y="188" text-anchor="middle" font-size="10" fill="#64748B">U2</text>
-              <text x="180" y="188" text-anchor="middle" font-size="10" fill="#64748B">U3</text>
-              <text x="240" y="188" text-anchor="middle" font-size="10" fill="#64748B">U4</text>
-              <text x="290" y="188" text-anchor="middle" font-size="10" fill="#64748B">Ex</text>
-            </svg>
-          </div>
-
-          <div class="card units-card">
-            <h3>Desglose Ponderado por Componentes UTA</h3>
-            <div class="unit" id="unitAutonomo">
-              <div class="unit-head"><span>Trabajo Autónomo (40%)</span><b id="valAutonomo">-- / 10</b></div>
-              <div class="track"><div id="barAutonomo" class="fill" style="width:0%"></div></div>
-              <div class="unit-sub"><span>Talleres, investigación y resolución individual</span><span class="status"><span class="dot blue"></span>Ponderado</span></div>
-            </div>
-            <div class="unit" id="unitTareas">
-              <div class="unit-head"><span>Tareas y Evaluaciones (30%)</span><b id="valTareas">-- / 10</b></div>
-              <div class="track"><div id="barTareas" class="fill" style="width:0%"></div></div>
-              <div class="unit-sub"><span>Actividades prácticas y entregas Moodle</span><span class="status"><span class="dot blue"></span>Ponderado</span></div>
-            </div>
-            <div class="unit" id="unitPAE">
-              <div class="unit-head"><span>Componente PAE (30%)</span><b id="valPAE">-- / 10</b></div>
-              <div class="track"><div id="barPAE" class="fill" style="width:0%"></div></div>
-              <div class="unit-sub"><span>Prácticas de aplicación y experimentación</span><span class="status"><span class="dot blue"></span>Ponderado</span></div>
-            </div>
-          </div>
+        <button class="btn-back" data-go="s1">‹ Volver al panel general</button>
+        <div id="fichaVacia" class="card empty-state">
+          <b>Seleccione un estudiante</b>
+          Haga clic sobre un estudiante en el panel general para ver su ficha.
         </div>
-
-        <div class="diag-banner">
-          <div>
-            <h3>Diagnóstico del Agente IA Local (Ollama • llama3.2:1b)</h3>
-            <p id="detDiagnostico">Evaluando el rendimiento del estudiante con base en las notas obtenidas en los Web Services de Moodle...</p>
+        <div id="fichaDatos" hidden>
+          <div class="grid2">
+            <div class="card profile-card">
+              <h2 id="detNombre"></h2>
+              <div class="id-tag"><span id="detId"></span> • <span id="detEmail"></span></div>
+              <div class="big-score"><b id="detNota">--</b><span>/ 10</span></div>
+              <span id="detStatus"></span>
+            </div>
+            <div class="card units-card">
+              <h3>Desglose ponderado (Moodle UTA)</h3>
+              <div id="detComponentes"></div>
+            </div>
           </div>
-          <button class="btn-white" data-go="s3" id="btnIrRefuerzo" onclick="prepararRefuerzo('Estudiante')">Generar Tarea de Refuerzo</button>
+          <div class="diag-banner">
+            <div>
+              <h3>Diagnóstico académico</h3>
+              <p id="detDiagnostico"></p>
+            </div>
+            <button class="btn-white" id="btnIrRefuerzo">Preparar refuerzo</button>
+          </div>
         </div>
       </section>
 
-      <!-- PANTALLA 3: ALERTAS Y PUBLICACIÓN DE REFUERZOS (Módulo E) -->
+      <!-- CENTRO DE ALERTAS -->
       <section class="screen" id="s3">
         <div class="grid2">
-          <div class="alerts-list">
-            <div class="card alert-item">
-              <div>
-                <div class="alert-info-title"><span class="dot red"></span>Estudiante C - Nota 3.5</div>
-                <div class="alert-info-sub">Regla R1: Nota menor a 5.0 en Unidad 2</div>
-              </div>
-              <button class="btn-outline" onclick="prepararRefuerzo('Estudiante C')">Atender</button>
-            </div>
-
-            <div class="card alert-item">
-              <div>
-                <div class="alert-info-title"><span class="dot red"></span>Estudiante D - Nota 4.5</div>
-                <div class="alert-info-sub">Regla R1: Falla en Unidad 1 (Fundamentos)</div>
-              </div>
-              <button class="btn-outline" onclick="prepararRefuerzo('Estudiante D')">Atender</button>
-            </div>
-
-            <div class="card alert-item">
-              <div>
-                <div class="alert-info-title"><span class="dot orange"></span>Estudiante F - Nota 6.2</div>
-                <div class="alert-info-sub">Regla R2: Descenso de U1 a U2</div>
-              </div>
-              <button class="btn-outline" onclick="prepararRefuerzo('Estudiante F')">Atender</button>
-            </div>
+          <div>
+            <h2 class="section" style="margin-top:0">Estudiantes que requieren atención</h2>
+            <div class="alerts-list" id="listaAlertas"></div>
           </div>
-
           <div class="card form-card">
-            <h3>Tarea de Refuerzo Pedagógico para Moodle</h3>
+            <h3>Tarea de refuerzo pedagógico</h3>
             <div class="form-group">
               <label for="dest">Destinatario</label>
-              <input id="dest" class="form-control" value="Estudiante C (estudiante.c@uta.edu.ec)" readonly>
+              <input id="dest" class="form-control" readonly placeholder="Seleccione un estudiante de la lista">
             </div>
             <div class="form-group">
-              <label for="tit">Título de la Actividad</label>
-              <input id="tit" class="form-control" value="Refuerzo Práctico: Guiado de Diagramación (Unidad 2)">
+              <label for="tit">Título de la actividad</label>
+              <input id="tit" class="form-control">
             </div>
             <div class="form-group">
               <label for="ins">Instrucciones</label>
-              <textarea id="ins" class="form-control" rows="5">Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF a Moodle. Esta tarea otorgará puntaje de recuperación en el trabajo autónomo del Parcial 1.</textarea>
+              <textarea id="ins" class="form-control" rows="5"></textarea>
             </div>
-            <button class="btn-action-primary" id="btnPublish" onclick="aprobarYPublicar()">Aprobar y Publicar en Moodle</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- PANTALLA EXCLUSIVA: PORTAL DEL ESTUDIANTE -->
-      <section class="screen" id="s-estudiante">
-        <div class="student-welcome">
-          <div>
-            <h2>Portal del Estudiante</h2>
-            <p>Bienvenido, <b id="estNombreBanner">Estudiante C</b> • Metodologías Ágiles (MAT1)</p>
-          </div>
-          <div style="text-align:right;">
-            <span style="font-size:11px;opacity:0.8;display:block;">Tu Nota Ponderada</span>
-            <b style="font-size:32px;line-height:1;" id="estNotaBanner">3.5 / 10</b>
-          </div>
-        </div>
-
-        <div class="grid2">
-          <div class="card units-card">
-            <h3>Tus Calificaciones por Unidad</h3>
-            <div class="unit">
-              <div class="unit-head"><span>Unidad 1: Fundamentos</span><b>6.0 / 10</b></div>
-              <div class="track"><div class="fill" style="width:60%"></div></div>
-            </div>
-            <div class="unit bad">
-              <div class="unit-head"><span>Unidad 2: Lógica y Modelado</span><b>2.0 / 10</b></div>
-              <div class="track"><div class="fill" style="width:20%"></div></div>
-              <div class="unit-sub" style="color:var(--red);"><span>Requiere refuerzo pedagógico urgente</span></div>
-            </div>
-            <div class="unit">
-              <div class="unit-head"><span>Unidad 3: Estructuras Aplicadas</span><b>4.0 / 10</b></div>
-              <div class="track"><div class="fill" style="width:40%"></div></div>
-            </div>
-          </div>
-
-          <div class="card form-card">
-            <h3>Tarea de Refuerzo Asignada</h3>
-            <div class="form-group">
-              <label>Actividad</label>
-              <input class="form-control" value="Refuerzo Práctico: Guiado de Diagramación (Unidad 2)" readonly>
-            </div>
-            <div class="form-group">
-              <label>Instrucciones de tu Docente</label>
-              <textarea class="form-control" rows="4" readonly>Resolver los 3 ejercicios prácticos de diagramación adjuntos y subirlos en formato PDF. Esta tarea otorgará puntaje de recuperación en el trabajo autónomo del Parcial 1.</textarea>
-            </div>
-            <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer" class="btn-action-primary" style="display:inline-block;text-align:center;text-decoration:none;">
-              Subir Entrega en Moodle LMS ↗
-            </a>
+            <a class="btn-primary" id="btnAbrirCurso" href="http://localhost:8080" target="_blank" rel="noopener noreferrer"
+               style="display:block;text-align:center;text-decoration:none;">Abrir el curso en Moodle para crear la tarea ↗</a>
+            <p class="sub" style="margin-top:8px;">La publicación automática en Moodle aún no está implementada; el borrador se crea aquí y se registra en el aula virtual.</p>
           </div>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- ========================================================================
-       SCRIPT JAVASCRIPT: CONSUMO DE ENDPOINTS REST Y LÓGICA DINÁMICA
-       ======================================================================== -->
   <script>
     // ------------------------------------------------------------------------
-    // 1. CONFIGURACIÓN DEL API Y CLIENTE FETCH CON JWT
+    // CONFIGURACIÓN DEL API
+    // En :3000 Nginx reenvía /api/* al backend FastAPI (middleware:8000).
     // ------------------------------------------------------------------------
-    function getApiBase() {
-      if (window.location.protocol === 'file:') return 'http://localhost:8000/api/v1';
-      if (window.location.port === '3000') return '/api/v1';
-      return 'http://localhost:8000/api/v1';
+    const API_ROOT = (location.port === '3000') ? '' : 'http://localhost:8000';
+    const COMPONENTES = [
+      { key: 'autonomo', label: 'Trabajo Autónomo (40%)', estado: 'AUTONOMO' },
+      { key: 'tareas',   label: 'Tareas y Talleres (30%)', estado: 'TAREAS' },
+      { key: 'pae',      label: 'Prácticas PAE (30%)',      estado: 'PAE' },
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    let usuario = null;
+    let cursos = [];
+    let cursoActualId = null;
+    let estudiantesCurso = [];
+
+    function storage(op, key, value) {
+      try {
+        if (op === 'get') return localStorage.getItem(key);
+        if (op === 'set') localStorage.setItem(key, value);
+        if (op === 'del') localStorage.removeItem(key);
+      } catch (e) { return null; }
     }
 
-    async function authFetch(endpoint, options = {}) {
-      const token = localStorage.getItem('access_token');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      return fetch(`${getApiBase()}${endpoint}`, {
-        ...options,
-        headers
-      });
+    async function api(path, options = {}) {
+      const token = storage('get', 'access_token');
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const resp = await fetch(`${API_ROOT}${path}`, { ...options, headers });
+      if (resp.status === 401) { cerrarSesion(); throw new Error('Sesión expirada. Inicie sesión nuevamente.'); }
+      let data = null;
+      try { data = await resp.json(); } catch (e) { /* sin cuerpo */ }
+      if (!resp.ok) throw new Error((data && data.detail) || `Error HTTP ${resp.status}`);
+      return data;
     }
 
-    let usuarioSesion = null;
-    let cursoActual = 'MAT1';
-    let listaEstudiantesCache = [];
-
     // ------------------------------------------------------------------------
-    // 2. CICLO DE VIDA Y SESIÓN
+    // SESIÓN (sólo DOCENTE)
     // ------------------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
-      verificarSesionExistente();
+      $('formAuth').addEventListener('submit', ejecutarLogin);
+      $('btnLogout').addEventListener('click', cerrarSesion);
+      $('btnSync').addEventListener('click', sincronizar);
+      $('btnToastClose').addEventListener('click', () => { $('toast').hidden = true; });
+      $('comboCurso').addEventListener('change', (e) => seleccionarCurso(Number(e.target.value)));
+      document.addEventListener('click', (e) => {
+        const go = e.target.closest('[data-go]');
+        if (go) irAPantalla(go.dataset.go);
+      });
+
+      const raw = storage('get', 'user_session');
+      if (storage('get', 'access_token') && raw) {
+        try {
+          const u = JSON.parse(raw);
+          if (u && u.rol === 'DOCENTE') { usuario = u; mostrarDashboard(); return; }
+        } catch (e) { /* sesión corrupta */ }
+      }
+      cerrarSesion();
     });
 
-    function verificarSesionExistente() {
-      const token = localStorage.getItem('access_token');
-      const userRaw = localStorage.getItem('user_session');
-
-      if (token && userRaw) {
-        try {
-          usuarioSesion = JSON.parse(userRaw);
-          mostrarVistaDashboard();
-          return;
-        } catch (e) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('user_session');
-        }
-      }
-      mostrarVistaLogin();
-    }
-
-    function mostrarVistaLogin() {
-      document.getElementById('viewLogin').classList.add('active');
-      document.getElementById('viewDashboard').classList.remove('active');
-      ocultarErrorLogin();
-    }
-
-    async function mostrarVistaDashboard() {
-      document.getElementById('viewLogin').classList.remove('active');
-      document.getElementById('viewDashboard').classList.add('active');
-      actualizarInterfazUsuario();
-      await cargarDatosCursoActual();
-    }
-
-    // ------------------------------------------------------------------------
-    // 3. AUTENTICACIÓN POST /api/v1/auth/login
-    // ------------------------------------------------------------------------
     async function ejecutarLogin(event) {
-      if (event) event.preventDefault();
-      
-      const email = document.getElementById('inputEmail').value.trim();
-      const pass = document.getElementById('inputPassword').value;
-      const btn = document.getElementById('btnLoginSubmit');
-      const btnText = document.getElementById('btnLoginText');
-
-      if (!email || !pass) {
-        mostrarErrorLogin('Por favor complete todos los campos requeridos.');
-        return;
-      }
-
+      event.preventDefault();
+      const btn = $('btnLoginSubmit');
+      const email = $('inputEmail').value.trim();
+      const password = $('inputPassword').value;
+      $('loginError').hidden = true;
       btn.disabled = true;
-      btnText.textContent = 'Autenticando con Middleware...';
-      ocultarErrorLogin();
-
+      btn.textContent = 'Verificando...';
       try {
-        const response = await authFetch('/auth/login', {
+        const resp = await fetch(`${API_ROOT}/api/v1/auth/login`, {
           method: 'POST',
-          body: JSON.stringify({ email: email, password: pass })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
         });
-
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem('access_token', data.access_token);
-          localStorage.setItem('user_session', JSON.stringify(data.user));
-          usuarioSesion = data.user;
-          await mostrarVistaDashboard();
-        } else {
-          mostrarErrorLogin('Credenciales inválidas. Por favor verifique su correo institucional y contraseña.');
-        }
+        if (!resp.ok) throw new Error('Credenciales inválidas. Verifique su correo institucional y contraseña.');
+        const data = await resp.json();
+        if (data.user.rol !== 'DOCENTE') throw new Error('EduMonitor AI es de uso exclusivo para docentes.');
+        storage('set', 'access_token', data.access_token);
+        storage('set', 'user_session', JSON.stringify(data.user));
+        usuario = data.user;
+        mostrarDashboard();
       } catch (err) {
-        console.warn('Fallo al conectar con middleware, aplicando respaldo demostrativo:', err);
-        autenticacionLocalFallback(email, pass);
+        const msg = err instanceof TypeError ? 'No se pudo contactar al backend (puerto 8000).' : err.message;
+        $('loginError').textContent = msg;
+        $('loginError').hidden = false;
       } finally {
         btn.disabled = false;
-        btnText.textContent = 'Ingresar al Sistema';
+        btn.textContent = 'Ingresar';
       }
-    }
-
-    function autenticacionLocalFallback(email, pass) {
-      if (email === 'docente@uta.edu.ec' && pass === 'Docente2026!') {
-        usuarioSesion = {
-          id: 1,
-          nombres: "Ing. Hernán Naranjo, Mg.",
-          email: "docente@uta.edu.ec",
-          rol: "DOCENTE",
-          id_number: "U-01"
-        };
-        localStorage.setItem('access_token', 'mock_jwt_docente_uta_2026');
-        localStorage.setItem('user_session', JSON.stringify(usuarioSesion));
-        mostrarVistaDashboard();
-      } else if (email === 'estudiante.c@uta.edu.ec' && pass === 'Estudiante2026!') {
-        usuarioSesion = {
-          id: 2,
-          nombres: "Estudiante C",
-          email: "estudiante.c@uta.edu.ec",
-          rol: "ESTUDIANTE",
-          id_number: "U-05"
-        };
-        localStorage.setItem('access_token', 'mock_jwt_estudiante_uta_2026');
-        localStorage.setItem('user_session', JSON.stringify(usuarioSesion));
-        mostrarVistaDashboard();
-      } else {
-        mostrarErrorLogin('No fue posible contactar al servicio de autenticación y las credenciales no son reconocidas.');
-      }
-    }
-
-    function mostrarErrorLogin(msg) {
-      const errorDiv = document.getElementById('loginError');
-      errorDiv.textContent = msg;
-      errorDiv.classList.add('visible');
-    }
-
-    function ocultarErrorLogin() {
-      const errorDiv = document.getElementById('loginError');
-      errorDiv.classList.remove('visible');
     }
 
     function cerrarSesion() {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user_session');
-      usuarioSesion = null;
-      mostrarVistaLogin();
+      storage('del', 'access_token');
+      storage('del', 'user_session');
+      usuario = null;
+      $('viewDashboard').hidden = true;
+      $('viewLogin').hidden = false;
     }
 
-    function cargarCredenciales(tipo) {
-      if (tipo === 'docente') {
-        document.getElementById('inputEmail').value = 'docente@uta.edu.ec';
-        document.getElementById('inputPassword').value = 'Docente2026!';
-      } else {
-        document.getElementById('inputEmail').value = 'estudiante.c@uta.edu.ec';
-        document.getElementById('inputPassword').value = 'Estudiante2026!';
-      }
-      ocultarErrorLogin();
-    }
-
-    // ------------------------------------------------------------------------
-    // 4. CONSUMO DINÁMICO DE ENDPOINTS DEL MIDDLEWARE
-    // ------------------------------------------------------------------------
-    async function cargarDatosCursoActual() {
-      await Promise.all([
-        cargarResumenCurso(cursoActual),
-        cargarTablaEstudiantes()
-      ]);
-    }
-
-    // GET /api/v1/courses/{codigo}/summary
-    async function cargarResumenCurso(codigo) {
+    async function mostrarDashboard() {
+      $('viewLogin').hidden = true;
+      $('viewDashboard').hidden = false;
+      $('lblUsuario').textContent = usuario.nombres || usuario.email;
+      irAPantalla('s1');
       try {
-        const resp = await authFetch(`/courses/${codigo}/summary`);
-        if (resp.ok) {
-          const data = await resp.json();
-          document.getElementById('kpiPromedio').textContent = data.promedio_general.toFixed(2);
-          document.getElementById('kpiCriticos').textContent = String(data.estudiantes_criticos).padStart(2, '0');
-          document.getElementById('kpiRiesgo').textContent = String(data.estudiantes_en_riesgo).padStart(2, '0');
-          document.getElementById('kpiAceptables').textContent = String(data.estudiantes_aceptables).padStart(2, '0');
-          
-          document.getElementById('lblTituloCurso').textContent = data.materia_nombre;
-          document.getElementById('lblSubtituloCurso').textContent = 
-            `${data.total_estudiantes} estudiantes matriculados • Ciclo 2026-B (Parcial 1) • Sincronización Moodle Activa`;
-          document.getElementById('bcCurso').textContent = `FISEI - ${data.materia_nombre} (${codigo})`;
-        }
+        const estado = await api('/api/sincronizacion');
+        if (estado.cursos.length) await aplicarSincronizacion(estado);
       } catch (err) {
-        console.warn('Error al cargar resumen del curso desde middleware:', err);
+        console.warn('No se pudo recuperar la última sincronización:', err);
       }
-    }
-
-    // GET /api/v1/students
-    async function cargarTablaEstudiantes() {
-      const tbody = document.getElementById('cuerpoTabla');
-      try {
-        const resp = await authFetch('/students');
-        if (resp.ok) {
-          const estudiantes = await resp.json();
-          listaEstudiantesCache = estudiantes;
-          tbody.innerHTML = '';
-
-          estudiantes.forEach(est => {
-            const fila = document.createElement('tr');
-            fila.tabIndex = 0;
-            fila.onclick = () => mostrarDetalleEstudiante(est.id_number);
-            fila.onkeydown = (e) => { if (e.key === 'Enter') mostrarDetalleEstudiante(est.id_number); };
-
-            const badgeClase = est.nivel_riesgo.toLowerCase().replace('_', '-');
-            const dotColor = (badgeClase === 'aceptable') ? 'green' : (badgeClase === 'en-riesgo' ? 'orange' : 'red');
-            const tendenciaTexto = est.tendencia === 'SUBE' ? 'Progreso Positivo ↑' : (est.tendencia === 'BAJA' ? 'Sugerencia de Apoyo ↓' : 'Rendimiento Constante →');
-
-            fila.innerHTML = `
-              <td class="name">${est.nombres}</td>
-              <td class="num">${est.nota_final.toFixed(1)} / 10</td>
-              <td class="evo">${tendenciaTexto}</td>
-              <td><span class="badge-risk ${badgeClase}"><span class="dot ${dotColor}"></span>${est.nivel_riesgo}</span></td>
-            `;
-            tbody.appendChild(fila);
-          });
-          return;
-        }
-      } catch (err) {
-        console.warn('Fallo al obtener estudiantes vía API, usando dataset de respaldo:', err);
-      }
-    }
-
-    // GET /api/v1/students/{id_number}
-    async function mostrarDetalleEstudiante(idNumber) {
-      try {
-        const resp = await authFetch(`/students/${idNumber}`);
-        let est;
-        if (resp.ok) {
-          est = await resp.json();
-        } else {
-          est = listaEstudiantesCache.find(e => e.id_number === idNumber) || listaEstudiantesCache[0];
-        }
-
-        if (!est) return;
-
-        document.getElementById('detNombre').textContent = est.nombres;
-        document.getElementById('detId').textContent = est.id_number;
-        document.getElementById('detNota').textContent = est.nota_final.toFixed(1);
-
-        const badgeClase = est.nivel_riesgo.toLowerCase().replace('_', '-');
-        const dotColor = (badgeClase === 'aceptable') ? 'green' : (badgeClase === 'en-riesgo' ? 'orange' : 'red');
-        document.getElementById('detStatus').innerHTML = `<span class="badge-risk ${badgeClase}"><span class="dot ${dotColor}"></span>${est.nivel_riesgo}</span>`;
-
-        // Actualizar barras de componentes ponderados UTA
-        const autoPct = Math.min(100, (est.autonomo / 10) * 100);
-        const tarPct = Math.min(100, (est.tareas / 10) * 100);
-        const paePct = Math.min(100, (est.pae / 10) * 100);
-
-        document.getElementById('valAutonomo').textContent = `${est.autonomo.toFixed(1)} / 10`;
-        document.getElementById('barAutonomo').style.width = `${autoPct}%`;
-
-        document.getElementById('valTareas').textContent = `${est.tareas.toFixed(1)} / 10`;
-        document.getElementById('barTareas').style.width = `${tarPct}%`;
-
-        document.getElementById('valPAE').textContent = `${est.pae.toFixed(1)} / 10`;
-        document.getElementById('barPAE').style.width = `${paePct}%`;
-
-        // Actualizar Sparkline SVG con notas reales de actividades
-        renderizarSparkline(est.notas_actividades || {});
-
-        // Actualizar diagnóstico
-        const diagEl = document.getElementById('detDiagnostico');
-        if (est.nivel_riesgo === 'CRITICO') {
-          diagEl.textContent = `Atención Prioritaria: ${est.nombres} presenta una nota ponderada de ${est.nota_final.toFixed(1)}/10, con riesgo académico alto en el Parcial 1. Se aconseja formalizar una actividad de refuerzo en Moodle antes del cierre de actas.`;
-        } else if (est.nivel_riesgo === 'EN_RIESGO') {
-          diagEl.textContent = `Seguimiento Sugerido: ${est.nombres} tiene nota ponderada de ${est.nota_final.toFixed(1)}/10. Su tendencia requiere tutoría académica de nivelación en el componente práctico.`;
-        } else {
-          diagEl.textContent = `Rendimiento Satisfactorio: ${est.nombres} mantiene un promedio ponderado de ${est.nota_final.toFixed(1)}/10 (${est.probabilidad_aprobacion}% de probabilidad de aprobación).`;
-        }
-
-        document.getElementById('btnIrRefuerzo').onclick = () => prepararRefuerzo(est.nombres);
-
-        irAPantalla('s2');
-      } catch (err) {
-        console.error('Error al mostrar detalle:', err);
-      }
-    }
-
-    function renderizarSparkline(notasActividades) {
-      const g = document.getElementById('sparklinePlot');
-      const notas = Object.values(notasActividades);
-      if (!notas || notas.length === 0) return;
-
-      const xCoords = [60, 120, 180, 240, 290];
-      // Escala Y: 0 -> y=170, 10 -> y=10  (delta Y = 160 px para 10 pts => 16 px por punto)
-      const getY = (val) => 170 - (val * 16);
-
-      let polyPoints = [];
-      let circlesHtml = '';
-      let textsHtml = '';
-
-      notas.slice(0, 5).forEach((val, idx) => {
-        const x = xCoords[idx];
-        const y = getY(val);
-        polyPoints.push(`${x},${y}`);
-
-        const colorDot = val < 5.0 ? '#B91C1C' : '#002B49';
-        circlesHtml += `<circle cx="${x}" cy="${y}" r="3.5" fill="${colorDot}" stroke="#FFFFFF" stroke-width="1.5"/>`;
-        textsHtml += `<text x="${x}" y="${y - 8}" text-anchor="middle" font-size="10" font-weight="700" fill="${colorDot}">${val.toFixed(1)}</text>`;
-      });
-
-      const polylineStr = polyPoints.join(' ');
-      const polygonStr = `${polyPoints[0]} ${polylineStr} ${xCoords[notas.length - 1]},170 ${xCoords[0]},170`;
-
-      g.innerHTML = `
-        <polygon points="${polygonStr}" fill="url(#areaGrad)"/>
-        <polyline points="${polylineStr}" stroke="#002B49" stroke-width="2" fill="none" stroke-linecap="round"/>
-        ${circlesHtml}
-        ${textsHtml}
-      `;
     }
 
     // ------------------------------------------------------------------------
-    // 5. SINCRONIZACIÓN CON MOODLE LMS (POST /api/v1/sync/moodle)
+    // SINCRONIZACIÓN — POST /api/sincronizacion
     // ------------------------------------------------------------------------
-    async function ejecutarSincronizacionMoodle() {
-      const btn = document.getElementById('btnSyncMoodle');
-      const icon = document.getElementById('btnSyncIcon');
-      const text = document.getElementById('btnSyncText');
-      const dot = document.getElementById('syncDot');
-      const statusText = document.getElementById('syncStatusText');
-
+    async function sincronizar() {
+      const btn = $('btnSync');
       btn.disabled = true;
-      icon.classList.add('spin');
-      text.textContent = 'Sincronizando...';
-      dot.className = 'sync-dot busy';
-      statusText.textContent = 'Extrayendo notas Moodle...';
-
+      $('btnSyncIcon').classList.add('spin');
+      $('btnSyncText').textContent = 'Sincronizando...';
+      $('syncDot').className = 'sync-dot busy';
+      $('syncStatusText').textContent = 'Consultando Moodle UTA...';
       try {
-        const resp = await authFetch('/sync/moodle', { method: 'POST' });
-        if (resp.ok) {
-          const resultado = await resp.json();
-          mostrarToast(
-            'Sincronización Exitosa con Moodle LMS (HU-02)',
-            `${resultado.mensaje} ${resultado.registros_extraidos} registros extraídos en ${resultado.duracion_ms} ms. Modo: ${resultado.detalles?.modo || 'Conectado'}.`
-          );
-          // Refrescar datos del panel
-          await cargarDatosCursoActual();
-          dot.className = 'sync-dot live';
-          statusText.textContent = `Actualizado (${resultado.duracion_ms} ms)`;
-        } else {
-          mostrarToast('Aviso de Sincronización', 'El servidor respondió con código ' + resp.status + '. Revise logs del middleware.');
-        }
+        const r = await api('/api/sincronizacion', { method: 'POST' });
+        await aplicarSincronizacion(r);
+        mostrarToast('Sincronización completada',
+          `${r.total_cursos} cursos y ${r.total_estudiantes} estudiantes importados desde ${r.moodle?.sitio || 'Moodle'} en ${r.duracion_ms} ms.`);
       } catch (err) {
-        console.warn('Fallo al sincronizar con Moodle:', err);
-        mostrarToast('Sincronización Local Simulada', 'Se completó la verificación interna de calificaciones con Moodle LMS.');
-        dot.className = 'sync-dot live';
-        statusText.textContent = 'Moodle 4.3.2 Activo';
+        $('syncDot').className = 'sync-dot error';
+        $('syncStatusText').textContent = 'Error de sincronización';
+        mostrarToast('No se pudo sincronizar con Moodle', err.message, true);
       } finally {
         btn.disabled = false;
-        icon.classList.remove('spin');
-        text.textContent = 'Sincronizar Moodle';
+        $('btnSyncIcon').classList.remove('spin');
+        $('btnSyncText').textContent = 'Sincronizar';
       }
     }
 
-    function mostrarToast(titulo, mensaje) {
-      const toast = document.getElementById('moodleSyncToast');
-      document.getElementById('toastTitle').textContent = titulo;
-      document.getElementById('toastMessage').textContent = mensaje;
-      toast.classList.remove('hidden');
-      setTimeout(() => { toast.classList.add('hidden'); }, 6000);
-    }
+    async function aplicarSincronizacion(r) {
+      cursos = r.cursos;
+      const hora = r.ultima_sincronizacion ? new Date(r.ultima_sincronizacion).toLocaleTimeString('es-EC') : '';
+      $('syncDot').className = 'sync-dot live';
+      $('syncStatusText').textContent = `${r.moodle?.sitio || 'Moodle'} ${r.moodle?.version || ''} • ${hora}`;
 
-    function cerrarToast() {
-      document.getElementById('moodleSyncToast').classList.add('hidden');
-    }
+      $('emptyState').hidden = cursos.length > 0;
+      $('panelDatos').hidden = cursos.length === 0;
+      $('lblTituloCurso').textContent = 'Panel del Docente';
+      $('lblSubtitulo').textContent = `${r.total_cursos} cursos • ${r.total_estudiantes} estudiantes sincronizados desde Moodle UTA`;
+      $('lblCursosResumen').textContent = `Cursos sincronizados (${r.total_cursos})`;
 
-    // ------------------------------------------------------------------------
-    // 6. CONTROL DE NAVEGACIÓN Y ACCIONES DEL DOCENTE
-    // ------------------------------------------------------------------------
-    function actualizarInterfazUsuario() {
-      if (!usuarioSesion) return;
+      const combo = $('comboCurso');
+      combo.innerHTML = cursos.map(c => `<option value="${c.id}">${esc(c.fullname)}</option>`).join('');
+      combo.disabled = cursos.length === 0;
 
-      document.getElementById('lblUsuario').textContent = usuarioSesion.nombres || usuarioSesion.email;
-      document.getElementById('lblRol').textContent = usuarioSesion.rol;
-
-      if (usuarioSesion.rol === 'DOCENTE') {
-        document.getElementById('navDocente').style.display = 'inline-flex';
-        document.getElementById('navEstudiante').style.display = 'none';
-        irAPantalla('s1');
-      } else {
-        document.getElementById('navDocente').style.display = 'none';
-        document.getElementById('navEstudiante').style.display = 'inline-flex';
-        document.getElementById('estNombreBanner').textContent = usuarioSesion.nombres || "Estudiante";
-        irAPantalla('s-estudiante');
+      renderCursos();
+      if (cursos.length) {
+        const sigue = cursos.some(c => c.id === cursoActualId) ? cursoActualId : cursos[0].id;
+        await seleccionarCurso(sigue);
       }
     }
 
-    function irAPantalla(idPantalla) {
-      const pantallas = document.querySelectorAll('.screen');
-      const pestanas = document.querySelectorAll('.segmented-control button');
-
-      pantallas.forEach(p => p.classList.toggle('on', p.id === idPantalla));
-      pestanas.forEach(b => b.setAttribute('aria-selected', String(b.dataset.go === idPantalla)));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    function renderCursos() {
+      $('gridCursos').innerHTML = cursos.map(c => `
+        <button class="card course-card ${c.id === cursoActualId ? 'active' : ''}" data-curso="${c.id}">
+          <div class="course-code">${esc(c.shortname)}</div>
+          <div class="course-name">${esc(c.fullname)}</div>
+          <div class="course-meta">
+            <span><b>${c.total_estudiantes}</b> estudiantes</span>
+            <span>Prom. <b>${c.promedio.toFixed(2)}</b></span>
+            <span style="color:var(--red)"><b style="color:inherit">${c.criticos}</b> críticos</span>
+          </div>
+        </button>`).join('');
+      $('gridCursos').querySelectorAll('[data-curso]').forEach(b =>
+        b.addEventListener('click', () => seleccionarCurso(Number(b.dataset.curso))));
     }
 
-    let alertaActivaId = 1;
-    let refuerzoActivoId = 1;
-
-    async function prepararRefuerzo(nombreEstudiante, alertaId = 1) {
-      alertaActivaId = alertaId;
-      refuerzoActivoId = alertaId;
-      document.getElementById('dest').value = `${nombreEstudiante} (${nombreEstudiante.toLowerCase().replace(/ /g, '')}@uta.edu.ec)`;
-
+    // GET /api/cursos/{id}/estudiantes (403 si el curso no es del docente)
+    async function seleccionarCurso(id) {
+      cursoActualId = id;
+      $('comboCurso').value = String(id);
+      renderCursos();
       try {
-        const resp = await authFetch(`/alertas/${alertaId}/atender`, { method: 'POST' });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.refuerzo) {
-            document.getElementById('tit').value = data.refuerzo.titulo || document.getElementById('tit').value;
-            document.getElementById('ins').value = data.refuerzo.descripcion || data.refuerzo.instrucciones || document.getElementById('ins').value;
-          }
-        }
+        const data = await api(`/api/cursos/${id}/estudiantes`);
+        estudiantesCurso = data.estudiantes;
+        $('lblCursoActual').textContent = data.fullname;
+        $('bcCurso').textContent = `${data.shortname} • EduMonitor AI`;
+        $('kpiPromedio').textContent = data.promedio.toFixed(2);
+        $('kpiCriticos').textContent = data.criticos;
+        $('kpiRiesgo').textContent = data.en_riesgo;
+        $('kpiAceptables').textContent = data.aceptables;
+        renderTabla();
+        renderAlertas();
       } catch (err) {
-        console.warn('Aviso: modo demostración local para atención de alerta:', err);
+        mostrarToast('No se pudo cargar el curso', err.message, true);
       }
+    }
 
+    function riesgoBadge(nivel) {
+      const cls = nivel.toLowerCase().replace('_', '-');
+      const dot = cls === 'aceptable' ? 'green' : (cls === 'en-riesgo' ? 'orange' : 'red');
+      return `<span class="badge-risk ${cls}"><span class="dot ${dot}"></span>${nivel.replace('_', ' ')}</span>`;
+    }
+
+    function celdaNota(est, comp) {
+      const v = est[comp.key];
+      if (v === null || v === undefined) {
+        return `—<span class="tag-state">${esc((est.estados || {})[comp.estado] || 'SIN NOTA').replace('_', ' ')}</span>`;
+      }
+      return v.toFixed(2);
+    }
+
+    function renderTabla() {
+      const tbody = $('cuerpoTabla');
+      if (!estudiantesCurso.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Este curso no tiene estudiantes matriculados.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = estudiantesCurso.map(e => `
+        <tr class="clickable" tabindex="0" data-est="${esc(e.id_number)}">
+          <td class="name">${esc(e.nombres)}<div class="sub">${esc(e.id_number)}</div></td>
+          ${COMPONENTES.map(c => `<td class="num">${celdaNota(e, c)}</td>`).join('')}
+          <td class="num final">${e.nota_final.toFixed(2)} / 10</td>
+          <td>${riesgoBadge(e.nivel_riesgo)}</td>
+        </tr>`).join('');
+      tbody.querySelectorAll('tr[data-est]').forEach(tr => {
+        const abrir = () => mostrarFicha(tr.dataset.est);
+        tr.addEventListener('click', abrir);
+        tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') abrir(); });
+      });
+    }
+
+    // ------------------------------------------------------------------------
+    // FICHA DEL ESTUDIANTE
+    // ------------------------------------------------------------------------
+    function mostrarFicha(idNumber) {
+      const e = estudiantesCurso.find(x => x.id_number === idNumber);
+      if (!e) return;
+      $('fichaVacia').hidden = true;
+      $('fichaDatos').hidden = false;
+      $('detNombre').textContent = e.nombres;
+      $('detId').textContent = e.id_number;
+      $('detEmail').textContent = e.email || '';
+      $('detNota').textContent = e.nota_final.toFixed(2);
+      $('detStatus').innerHTML = riesgoBadge(e.nivel_riesgo);
+
+      $('detComponentes').innerHTML = COMPONENTES.map(c => {
+        const v = e[c.key];
+        const estado = (e.estados || {})[c.estado];
+        const valor = (v === null || v === undefined) ? (estado || 'SIN NOTA').replace('_', ' ') : `${v.toFixed(2)} / 10`;
+        const pct = (v === null || v === undefined) ? 0 : Math.min(100, v * 10);
+        const bad = v === null || v === undefined || v < 5;
+        return `<div class="unit ${bad ? 'bad' : ''}">
+          <div class="unit-head"><span>${c.label}</span><b>${esc(valor)}</b></div>
+          <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('');
+
+      const curso = cursos.find(c => c.id === cursoActualId);
+      const n = e.nota_final.toFixed(2);
+      const pendientes = Object.entries(e.estados || {}).filter(([, s]) => s !== 'CALIFICADO').map(([k, s]) => `${k} (${s.replace('_', ' ')})`);
+      let diag = e.nivel_riesgo === 'CRITICO'
+        ? `Atención prioritaria: nota ponderada ${n}/10 en ${curso?.shortname || 'el curso'}. Se recomienda una actividad de refuerzo en Moodle.`
+        : e.nivel_riesgo === 'EN_RIESGO'
+          ? `Seguimiento sugerido: nota ponderada ${n}/10. Conviene una tutoría de nivelación.`
+          : `Rendimiento satisfactorio: nota ponderada ${n}/10.`;
+      if (pendientes.length) diag += ` Componentes sin calificar: ${pendientes.join(', ')}.`;
+      $('detDiagnostico').textContent = diag;
+      $('btnIrRefuerzo').onclick = () => prepararRefuerzo(e.id_number);
+      irAPantalla('s2');
+    }
+
+    // ------------------------------------------------------------------------
+    // CENTRO DE ALERTAS (derivado de los datos sincronizados)
+    // ------------------------------------------------------------------------
+    function renderAlertas() {
+      const enAlerta = estudiantesCurso
+        .filter(e => e.nivel_riesgo !== 'ACEPTABLE')
+        .sort((a, b) => a.nota_final - b.nota_final);
+      $('listaAlertas').innerHTML = enAlerta.length ? enAlerta.map(e => `
+        <div class="card alert-item">
+          <div>
+            <div class="alert-title"><span class="dot ${e.nivel_riesgo === 'CRITICO' ? 'red' : 'orange'}"></span>${esc(e.nombres)} — ${e.nota_final.toFixed(2)}</div>
+            <div class="alert-sub">${e.nivel_riesgo === 'CRITICO' ? 'Nota ponderada menor a 5.00' : 'Nota ponderada entre 5.00 y 6.99'}</div>
+          </div>
+          <button class="btn-outline" data-refuerzo="${esc(e.id_number)}">Atender</button>
+        </div>`).join('')
+        : '<div class="card empty-state">No hay estudiantes en riesgo en este curso.</div>';
+      $('listaAlertas').querySelectorAll('[data-refuerzo]').forEach(b =>
+        b.addEventListener('click', () => prepararRefuerzo(b.dataset.refuerzo)));
+    }
+
+    function prepararRefuerzo(idNumber) {
+      const e = estudiantesCurso.find(x => x.id_number === idNumber);
+      if (!e) return;
+      const curso = cursos.find(c => c.id === cursoActualId);
+      const debil = COMPONENTES.reduce((min, c) => ((e[c.key] ?? 0) < (e[min.key] ?? 0) ? c : min), COMPONENTES[0]);
+      $('dest').value = `${e.nombres} (${e.email || e.id_number})`;
+      $('tit').value = `Refuerzo: ${debil.label.replace(/ \(\d+%\)/, '')} — ${curso?.shortname || ''}`;
+      $('ins').value = `Actividad de recuperación para fortalecer el componente "${debil.label}". Entregar en Moodle UTA dentro de los próximos 7 días.`;
+      $('btnAbrirCurso').href = `http://localhost:8080/course/view.php?id=${cursoActualId}`;
       irAPantalla('s3');
     }
 
-    async function aprobarYPublicar() {
-      const btn = document.getElementById('btnPublish');
-      const tit = document.getElementById('tit').value;
-      const ins = document.getElementById('ins').value;
-
-      btn.disabled = true;
-      btn.textContent = 'Publicando en Moodle LMS...';
-
-      try {
-        const resp = await authFetch(`/refuerzos/${refuerzoActivoId}/publicar`, {
-          method: 'POST',
-          body: JSON.stringify({ confirmado: true, titulo: tit, instrucciones: ins })
-        });
-
-        if (resp.ok) {
-          const res = await resp.json();
-          btn.textContent = `✓ Publicado en Moodle (cmid: ${res.cmid})`;
-          btn.classList.add('done');
-          mostrarToast('Refuerzo Publicado en Moodle LMS', `La tarea "${tit}" ha sido creada en el aula virtual con cmid: ${res.cmid}.`);
-        } else {
-          btn.textContent = '✓ Publicado en Moodle LMS';
-          btn.classList.add('done');
-        }
-      } catch (err) {
-        btn.textContent = '✓ Publicado en Moodle LMS (Modo Local)';
-        btn.classList.add('done');
-      } finally {
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.textContent = 'Aprobar y Publicar en Moodle';
-          btn.classList.remove('done');
-        }, 3500);
-      }
+    // ------------------------------------------------------------------------
+    // UTILIDADES DE INTERFAZ
+    // ------------------------------------------------------------------------
+    function irAPantalla(id) {
+      document.querySelectorAll('.screen').forEach(p => p.classList.toggle('on', p.id === id));
+      document.querySelectorAll('.segmented button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.go === id)));
     }
 
-    async function cambiarMateria(codigo) {
-      cursoActual = codigo;
-      await cargarResumenCurso(codigo);
+    let toastTimer = null;
+    function mostrarToast(titulo, mensaje, error = false) {
+      $('toastTitle').textContent = titulo;
+      $('toastMessage').textContent = mensaje;
+      $('toast').classList.toggle('error', error);
+      $('toast').hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { $('toast').hidden = true; }, error ? 10000 : 6000);
     }
-
-    document.addEventListener('click', (e) => {
-      const btnGo = e.target.closest('[data-go]');
-      if (btnGo) {
-        irAPantalla(btnGo.dataset.go);
-      }
-    });
   </script>
 </body>
 </html>

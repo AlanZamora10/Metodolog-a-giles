@@ -38,7 +38,7 @@ def test_login_invalid_password():
         "password": "WrongPassword!"
     })
     assert res.status_code == 401
-    assert "Credenciales incorrectas" in res.json()["detail"]
+    assert "Credenciales inválidas" in res.json()["detail"]
 
 
 def test_register_new_docente():

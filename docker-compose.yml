@@ -51,9 +51,14 @@ services:
       - MOODLE_SITE_NAME=Moodle UTA
       - MOODLE_LANG=es
       - MOODLE_ENABLE_ENROL_WEBSERVICE=yes
+      # Token que seed.php registra para el servicio EduMonitor_WS (debe coincidir con el middleware)
+      - MOODLE_TOKEN=${MOODLE_TOKEN:-edumonitorutadevtoken2026fisei01}
+    # Siembra automática: envuelve el entrypoint de Bitnami y ejecuta seed.php al quedar listo
+    entrypoint: ["/bin/bash", "/opt/edumonitor_seed/entrypoint-seed.sh"]
+    command: []
     volumes:
       - moodle_data:/bitnami/moodle
-      - ./docker/moodle:/opt/bitnami/moodle/custom_seed:ro
+      - ./docker/moodle:/opt/edumonitor_seed:ro
     depends_on:
       - moodle-db
     networks:
@@ -111,8 +116,8 @@ services:
       - DATABASE_URL=postgresql://analytics_user:analytics_password_secret123@analytics-db:5432/moodle_analytics
       - MOODLE_URL=${MOODLE_URL:-http://moodle:8080}
       - MOODLE_HOST_HEADER=${MOODLE_HOST_HEADER:-localhost}
-      - MOODLE_TOKEN=${MOODLE_TOKEN:-ws_mock_token_uta_fisei_sprint1}
-      - MOODLE_WS_TOKEN=${MOODLE_TOKEN:-ws_mock_token_uta_fisei_sprint1}
+      - MOODLE_TOKEN=${MOODLE_TOKEN:-edumonitorutadevtoken2026fisei01}
+      - MOODLE_WS_TOKEN=${MOODLE_TOKEN:-edumonitorutadevtoken2026fisei01}
       - AGENT_URL=${AGENT_URL:-http://agent:8001}
       - AGENT_SERVICE_TOKEN=${AGENT_SERVICE_TOKEN:-agent_secret_token_uta_2026}
       - OLLAMA_HOST=http://ollama:11434

@@ -1,5 +1,15 @@
+"""
+Cliente HTTP para los Web Services REST de Moodle UTA.
+
+Usa las variables de entorno:
+  - MOODLE_URL          URL interna del contenedor (p. ej. http://moodle:8080)
+  - MOODLE_HOST_HEADER  Host público con el que Moodle construye su wwwroot (p. ej. localhost)
+  - MOODLE_TOKEN        Token del servicio externo EduMonitor_WS
+"""
+
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 from app.config import settings
@@ -7,77 +17,80 @@ from app.config import settings
 logger = logging.getLogger("moodle_client")
 
 
-class MoodleClient:
-    """
-    Cliente HTTP para Web Services REST de Moodle.
-    Permite interactuar con core_course_get_courses, core_grades_get_grades, etc.
-    Incluye modo simulación transparente para pruebas locales y desarrollo desacoplado.
-    """
+class MoodleError(Exception):
+    """Error al comunicarse con Moodle o excepción devuelta por el Web Service."""
 
-    def __init__(self, base_url: Optional[str] = None, token: Optional[str] = None):
+
+class MoodleClient:
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        token: Optional[str] = None,
+        host_header: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ):
         self.base_url = (base_url or settings.MOODLE_URL).rstrip("/")
-        self.token = token or settings.MOODLE_WS_TOKEN
+        self.token = token if token is not None else settings.MOODLE_TOKEN
+        self.host_header = host_header if host_header is not None else settings.MOODLE_HOST_HEADER
+        self.timeout = timeout or settings.MOODLE_TIMEOUT_SECONDS
         self.endpoint = f"{self.base_url}{settings.MOODLE_ENDPOINT}"
 
-    async def test_connection(self) -> Dict[str, Any]:
-        """
-        Prueba la conectividad con la API de Moodle usando el token.
-        """
-        if not self.token or self.token == "ws_mock_token_uta_fisei_sprint1":
-            return {
-                "conectado": True,
-                "modo": "simulado_sprint1",
-                "mensaje": "Conexión simulada con Moodle LMS activa (Token de desarrollo)",
-                "moodle_url": self.base_url
-            }
+    def _headers(self) -> Dict[str, str]:
+        return {"Host": self.host_header} if self.host_header else {}
 
+    async def call(self, wsfunction: str, **params: Any) -> Any:
+        """Invoca una función del Web Service REST y devuelve el JSON decodificado."""
+        if not self.token:
+            raise MoodleError("MOODLE_TOKEN no está configurado.")
+
+        query = {
+            "wstoken": self.token,
+            "wsfunction": wsfunction,
+            "moodlewsrestformat": "json",
+            **params,
+        }
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                params = {
-                    "wstoken": self.token,
-                    "wsfunction": "core_webservice_get_site_info",
-                    "moodlewsrestformat": "json"
-                }
-                response = await client.get(self.endpoint, params=params)
-                if response.status_code == 200:
-                    data = response.json()
-                    if "exception" in data:
-                        return {
-                            "conectado": False,
-                            "modo": "error_token",
-                            "mensaje": data.get("message", "Excepción de Web Service en Moodle")
-                        }
-                    return {
-                        "conectado": True,
-                        "modo": "produccion",
-                        "sitio": data.get("sitename"),
-                        "version": data.get("release")
-                    }
-                return {
-                    "conectado": False,
-                    "modo": "error_http",
-                    "status_code": response.status_code
-                }
-        except Exception as ex:
-            logger.warning(f"No se pudo contactar al servicio de Moodle ({ex}). Activando modo local simulado.")
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(self.endpoint, data=query, headers=self._headers())
+        except httpx.HTTPError as ex:
+            raise MoodleError(f"No se pudo contactar a Moodle en {self.base_url}: {ex}") from ex
+
+        if response.status_code != 200:
+            raise MoodleError(
+                f"Moodle respondió HTTP {response.status_code} en {wsfunction} "
+                "(¿Web Services/REST habilitados y siembra ejecutada?)."
+            )
+        try:
+            data = response.json()
+        except ValueError as ex:
+            raise MoodleError(f"Respuesta no JSON de Moodle en {wsfunction}.") from ex
+
+        if isinstance(data, dict) and "exception" in data:
+            raise MoodleError(f"{wsfunction}: {data.get('message', data.get('errorcode'))}")
+        return data
+
+    async def test_connection(self) -> Dict[str, Any]:
+        try:
+            info = await self.call("core_webservice_get_site_info")
             return {
                 "conectado": True,
-                "modo": "simulado_fallback",
-                "mensaje": f"Moodle no accesible directamente ({str(ex)}). Modo local activo.",
-                "moodle_url": self.base_url
+                "modo": "produccion",
+                "sitio": info.get("sitename"),
+                "version": info.get("release"),
+                "moodle_url": self.base_url,
             }
+        except MoodleError as ex:
+            return {"conectado": False, "modo": "error", "mensaje": str(ex), "moodle_url": self.base_url}
 
-    async def get_course_grades(self, course_id: int) -> List[Dict[str, Any]]:
-        """
-        Extrae calificaciones del libro de calificaciones de Moodle para un curso.
-        """
-        # Si estamos en modo de desarrollo simulado, retornamos los datos estándar de HU-01
-        return [
-            {"student_id": "U-03", "name": "Estudiante A", "course_id": course_id, "final_grade": 8.00},
-            {"student_id": "U-04", "name": "Estudiante B", "course_id": course_id, "final_grade": 8.50},
-            {"student_id": "U-05", "name": "Estudiante C", "course_id": course_id, "final_grade": 3.50},
-            {"student_id": "U-06", "name": "Estudiante D", "course_id": course_id, "final_grade": 4.50},
-            {"student_id": "U-07", "name": "Estudiante E", "course_id": course_id, "final_grade": 7.60},
-            {"student_id": "U-08", "name": "Estudiante F", "course_id": course_id, "final_grade": 6.20},
-            {"student_id": "U-09", "name": "Estudiante G", "course_id": course_id, "final_grade": 8.41},
-        ]
+    async def get_courses(self) -> List[Dict[str, Any]]:
+        """Cursos de Moodle (excluye la portada del sitio, id=1)."""
+        courses = await self.call("core_course_get_courses")
+        return [c for c in courses if c.get("id") != 1]
+
+    async def get_enrolled_users(self, course_id: int) -> List[Dict[str, Any]]:
+        return await self.call("core_enrol_get_enrolled_users", courseid=course_id)
+
+    async def get_grade_items(self, course_id: int) -> List[Dict[str, Any]]:
+        """Libro de calificaciones (usergrades) de todos los usuarios del curso."""
+        data = await self.call("gradereport_user_get_grade_items", courseid=course_id)
+        return data.get("usergrades", [])

@@ -26,10 +26,10 @@ Este módulo inicializa el entorno de **Moodle UTA** con la jerarquía instituci
 6. **Web Services REST:**
    - Servicio externo: `EduMonitor_WS`
    - Protocolo: REST activo
-   - Token configurado en `.env`: `MOODLE_TOKEN` (`ws_mock_token_uta_fisei_sprint1`)
+   - Token configurado en `.env`: `MOODLE_TOKEN` (`edumonitorutadevtoken2026fisei01`)
 
 ## Ejecución Manual
 Para ejecutar o re-ejecutar la siembra en cualquier momento dentro del contenedor Moodle:
 ```bash
-docker exec moodle_lms php /opt/bitnami/moodle/custom_seed/seed.php
+docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --seed-only
 ```
