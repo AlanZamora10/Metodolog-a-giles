@@ -6,19 +6,40 @@ _middleware_dir = str(Path(__file__).resolve().parent.parent)
 if _middleware_dir not in sys.path:
     sys.path.insert(0, _middleware_dir)
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import database
 from app.config import settings
 from app.routers import health, students, courses, sync, logs, auth, alerts, sincronizacion
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+# Fallar al arrancar si falta el secreto JWT (no existe valor por defecto en el código)
+if not settings.JWT_SECRET:
+    raise RuntimeError("JWT_SECRET no está configurado. Defínalo en el entorno (.env / docker-compose).")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Conecta a PostgreSQL, aplica la migración idempotente, crea cuentas semilla y restaura la última
+    # sincronización antes de atender peticiones (en pruebas sin lifespan, esto ocurre en el primer uso).
+    await run_in_threadpool(database.get_engine)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.PROJECT_NAME,
     description=(
         "Middleware de Sincronización con Moodle y Capa Analítica de IA "
         "(FISEI - Universidad Técnica de Ambato)."
     ),
-    version="1.0.0-sprint1",
+    version="1.2.0-sprint3",
     docs_url="/docs",
     redoc_url="/redoc"
 )

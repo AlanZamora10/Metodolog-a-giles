@@ -252,6 +252,14 @@
     .alert-item.en-riesgo { border-left: 4px solid var(--orange); }
     .alert-title { font-weight: 600; font-size: 14px; color: var(--uta-blue); }
     .alert-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .alert-item.selected { border-color: var(--uta-blue); box-shadow: 0 0 0 1px var(--uta-blue); }
+    .alert-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .rule-tag { font-size: 11px; font-weight: 600; border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
+    .rule-tag.r1 { color: var(--red); background: var(--red-bg); }
+    .rule-tag.r2 { color: var(--orange); background: var(--orange-bg); }
+    .estado-chip { font-size: 11px; font-weight: 600; color: var(--ink-light); background: #EEF0F2; border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+    .btn-text { color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 4px; }
+    .btn-text:hover { color: var(--red); text-decoration: underline; }
     .form-card { padding: 18px; }
     .form-card h3 { font-size: 16px; color: var(--uta-blue); margin-bottom: 14px; }
     .btn-block { display: block; text-align: center; text-decoration: none; }
@@ -452,11 +460,15 @@
       <section class="screen" id="s3">
         <div class="grid2">
           <div class="card section-card" style="margin-bottom:0">
-            <h2>Estudiantes que requieren atención</h2>
-            <div class="section-body"><div class="alerts-list" id="listaAlertas"></div></div>
+            <h2 id="lblAlertas">Alertas activas</h2>
+            <div class="section-body">
+              <p class="sub" style="margin-bottom:12px;">R1: nota ponderada &lt; 5.00 · R2: descenso entre unidades (pendiente &lt; −0.25) con nota &lt; 7.00. Se generan al sincronizar.</p>
+              <div class="alerts-list" id="listaAlertas"></div>
+            </div>
           </div>
           <div class="card form-card">
             <h3>Tarea de refuerzo pedagógico</h3>
+            <p class="sub" id="refOrigen" style="margin-bottom:14px;">Pulse «Atender» en una alerta para generar el borrador con el Agente IA.</p>
             <div class="form-group">
               <label for="dest">Destinatario</label>
               <input id="dest" class="form-control" readonly placeholder="Seleccione un estudiante de la lista">
@@ -685,7 +697,7 @@
         $('fichaVacia').hidden = false;
         $('fichaDatos').hidden = true;
         renderTabla();
-        renderAlertas();
+        await cargarAlertas();
       } catch (err) {
         mostrarToast('No se pudo cargar el curso', err.message, true);
       }
@@ -773,29 +785,95 @@
       if (ceros.length) diag += ` Actividades con nota 0: ${ceros.join(', ')}.`;
       if (incidencias.length) diag += ` Incidencias: ${incidencias.join(', ')}.`;
       $('detDiagnostico').textContent = diag;
-      $('btnIrRefuerzo').onclick = () => prepararRefuerzo(e.id_number);
+      $('btnIrRefuerzo').onclick = () => refuerzoDesdeFicha(e.id_number);
       irAPantalla('s2');
     }
 
     // ------------------------------------------------------------------------
-    // CENTRO DE ALERTAS (derivado de los datos sincronizados)
+    // CENTRO DE ALERTAS — GET /api/v1/alertas (alertas R1/R2 persistidas al sincronizar)
     // ------------------------------------------------------------------------
+    const ETIQUETA_REGLA = { R1_NOTA_CRITICA: ['R1', 'r1'], R2_DESCENSO: ['R2', 'r2'] };
+    const ESTADOS_VISIBLES = ['ABIERTA', 'ATENDIDA', 'PUBLICADO'];
+    let alertasCurso = [];
+    let alertaSeleccionada = null;
+
+    async function cargarAlertas() {
+      try {
+        const todas = await api(`/api/v1/alertas?course_id=${cursoActualId}`);
+        alertasCurso = todas.filter(a => ESTADOS_VISIBLES.includes(a.estado));
+      } catch (err) {
+        alertasCurso = [];
+        mostrarToast('No se pudieron cargar las alertas', err.message, true);
+      }
+      renderAlertas();
+    }
+
     function renderAlertas() {
-      const enAlerta = estudiantesCurso
-        .filter(e => e.nivel_riesgo !== 'ACEPTABLE')
-        .sort((a, b) => a.nota_final - b.nota_final);
-      $('listaAlertas').innerHTML = enAlerta.length ? enAlerta.map(e => {
-        const cls = e.nivel_riesgo === 'CRITICO' ? 'critico' : 'en-riesgo';
-        return `<div class="card alert-item ${cls}">
+      $('lblAlertas').textContent = `Alertas activas (${alertasCurso.length})`;
+      $('listaAlertas').innerHTML = alertasCurso.length ? alertasCurso.map(a => {
+        const [regla, clsRegla] = ETIQUETA_REGLA[a.regla] || [a.regla, 'r1'];
+        const cls = a.nivel === 'CRITICO' ? 'critico' : 'en-riesgo';
+        const motivo = a.regla === 'R2_DESCENSO'
+          ? `Descenso entre unidades (pendiente ${Number(a.pendiente).toFixed(2)})`
+          : 'Nota ponderada menor a 5.00';
+        const puedeAtender = a.estado === 'ABIERTA' || a.estado === 'ATENDIDA';
+        return `<div class="card alert-item ${cls} ${a.id === alertaSeleccionada ? 'selected' : ''}">
           <div>
-            <div class="alert-title">${esc(e.nombres)} — ${e.nota_final.toFixed(2)}</div>
-            <div class="alert-sub">${e.nivel_riesgo === 'CRITICO' ? 'Nota ponderada menor a 5.00' : 'Nota ponderada entre 5.00 y 6.99'} • ${esc(e.id_number)}</div>
+            <div class="alert-title">${esc(a.nombres)} — ${Number(a.nota_promedio).toFixed(2)}<span class="estado-chip">${esc(a.estado)}</span></div>
+            <div class="alert-sub"><span class="rule-tag ${clsRegla}">${regla}</span>${motivo} • ${esc(a.id_number)}</div>
           </div>
-          <button class="btn-outline" data-refuerzo="${esc(e.id_number)}">Atender</button>
+          <div class="alert-actions">
+            ${puedeAtender ? `<button class="btn-outline" data-atender="${a.id}">${a.estado === 'ATENDIDA' ? 'Regenerar' : 'Atender'}</button>` : ''}
+            ${a.estado !== 'CERRADA' ? `<button class="btn-text" data-cerrar="${a.id}">Cerrar</button>` : ''}
+          </div>
         </div>`;
-      }).join('') : '<div class="empty-state">No hay estudiantes en riesgo en este curso.</div>';
-      $('listaAlertas').querySelectorAll('[data-refuerzo]').forEach(b =>
-        b.addEventListener('click', () => prepararRefuerzo(b.dataset.refuerzo)));
+      }).join('') : '<div class="empty-state">No hay alertas activas en este curso.</div>';
+      $('listaAlertas').querySelectorAll('[data-atender]').forEach(b =>
+        b.addEventListener('click', () => atenderAlerta(Number(b.dataset.atender))));
+      $('listaAlertas').querySelectorAll('[data-cerrar]').forEach(b =>
+        b.addEventListener('click', () => cerrarAlerta(Number(b.dataset.cerrar))));
+    }
+
+    // POST /api/v1/alertas/{id}/atender — el Agente IA (o su respaldo) redacta el borrador
+    async function atenderAlerta(alertaId) {
+      const alerta = alertasCurso.find(a => a.id === alertaId);
+      alertaSeleccionada = alertaId;
+      irAPantalla('s3');
+      renderAlertas();
+      $('refOrigen').textContent = 'Generando borrador con el Agente IA...';
+      try {
+        const r = await api(`/api/v1/alertas/${alertaId}/atender`, { method: 'POST' });
+        const ref = r.refuerzo;
+        $('dest').value = `${r.alerta.nombres} (${r.alerta.email || r.alerta.id_number})`;
+        $('tit').value = ref.titulo;
+        $('ins').value = ref.instrucciones || ref.descripcion || '';
+        $('btnAbrirCurso').href = `${MOODLE}/course/view.php?id=${cursoActualId}`;
+        const fuente = ref.origen === 'OLLAMA_SLM' ? 'Agente IA (Ollama llama3.2:1b)' : 'motor heurístico de respaldo (HU-11B)';
+        $('refOrigen').textContent = `Borrador generado por ${fuente}. Revíselo antes de usarlo.`;
+        await cargarAlertas();
+      } catch (err) {
+        $('refOrigen').textContent = 'No se pudo generar el borrador.';
+        mostrarToast('No se pudo atender la alerta', err.message, true);
+        if (alerta) prepararRefuerzo(alerta.id_number);
+      }
+    }
+
+    // PATCH /api/v1/alertas/{id}/cerrar — estado terminal
+    async function cerrarAlerta(alertaId) {
+      try {
+        await api(`/api/v1/alertas/${alertaId}/cerrar`, { method: 'PATCH' });
+        if (alertaSeleccionada === alertaId) alertaSeleccionada = null;
+        await cargarAlertas();
+      } catch (err) {
+        mostrarToast('No se pudo cerrar la alerta', err.message, true);
+      }
+    }
+
+    // Desde la ficha: si el estudiante tiene alerta, se atiende; si no, borrador local
+    function refuerzoDesdeFicha(idNumber) {
+      const alerta = alertasCurso.find(a => a.id_number === idNumber && (a.estado === 'ABIERTA' || a.estado === 'ATENDIDA'));
+      if (alerta) atenderAlerta(alerta.id);
+      else prepararRefuerzo(idNumber);
     }
 
     function prepararRefuerzo(idNumber) {

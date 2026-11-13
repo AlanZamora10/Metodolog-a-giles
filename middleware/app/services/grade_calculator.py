@@ -86,6 +86,26 @@ class GradeCalculator:
         # Caso 4: 7.0 o más es aprobado/aceptable
         return "ACEPTABLE"
 
+    # Reglas de alerta temprana (RN-12 / RN-13)
+    REGLA_R1 = "R1_NOTA_CRITICA"
+    REGLA_R2 = "R2_DESCENSO"
+    UMBRAL_PENDIENTE_R2 = -0.25
+
+    @classmethod
+    def evaluate_alert_rule(cls, final_grade: float, slope: Optional[float]) -> Optional[str]:
+        """
+        Regla de alerta que dispara el estudiante (R1 tiene prioridad sobre R2):
+          - R1: nota ponderada < 5.00.
+          - R2: pendiente de rendimiento entre unidades < -0.25 y nota ponderada < 7.00.
+        No modifica el nivel de riesgo: R2 genera la alerta y la tendencia BAJA, pero el
+        semáforo sigue dependiendo sólo de la nota (classify_risk sin pendiente).
+        """
+        if final_grade < cls.UMBRAL_CRITICO:
+            return cls.REGLA_R1
+        if slope is not None and slope < cls.UMBRAL_PENDIENTE_R2 and final_grade < cls.UMBRAL_ACEPTABLE:
+            return cls.REGLA_R2
+        return None
+
     @classmethod
     def calculate_trend(cls, grades_sequence: List[float]) -> Dict[str, Any]:
         """

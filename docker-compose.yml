@@ -30,7 +30,9 @@ services:
       - MARIADB_CHARACTER_SET=utf8mb4
       - MARIADB_COLLATE=utf8mb4_unicode_ci
     volumes:
-      - moodle_db_data:/bitnami/mariadb
+      # La imagen oficial mariadb guarda los datos en /var/lib/mysql (antes se montaba /bitnami/mariadb y
+      # los datos quedaban en volúmenes anónimos que se perdían al recrear el contenedor)
+      - moodle_db_data:/var/lib/mysql
     networks:
       - moodle-net
   moodle:
@@ -75,10 +77,15 @@ services:
     environment:
       - POSTGRES_DB=${DB_NAME:-moodle_analytics}
       - POSTGRES_USER=${DB_USER:-analytics_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-analytics_password_secret123}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?Defina DB_PASSWORD en .env}
     volumes:
       - analytics_pgdata:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - moodle-net
 
@@ -113,7 +120,14 @@ services:
     environment:
       - ENVIRONMENT=development
       - DEBUG=True
-      - DATABASE_URL=postgresql://analytics_user:analytics_password_secret123@analytics-db:5432/moodle_analytics
+      # Credenciales sólo desde .env (Sprint 3): sin valores por defecto para secretos
+      - DATABASE_URL=postgresql://${DB_USER:-analytics_user}:${DB_PASSWORD:?Defina DB_PASSWORD en .env}@analytics-db:5432/${DB_NAME:-moodle_analytics}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      - SEED_DOCENTE_PASSWORD=${SEED_DOCENTE_PASSWORD:?Defina SEED_DOCENTE_PASSWORD en .env}
+      - SEED_ESTUDIANTE_PASSWORD=${SEED_ESTUDIANTE_PASSWORD:-}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-}
       - MOODLE_URL=${MOODLE_URL:-http://moodle:8080}
       - MOODLE_HOST_HEADER=${MOODLE_HOST_HEADER:-localhost}
       - MOODLE_TOKEN=${MOODLE_TOKEN:-edumonitorutadevtoken2026fisei01}
@@ -125,11 +139,14 @@ services:
       - MSSQL_PORT=1433
       - MSSQL_DB=MoodleUTADB
       - MSSQL_USER=sa
-      - MSSQL_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PASSWORD=${MSSQL_PASSWORD:-}
     depends_on:
-      - analytics-db
-      - moodle
-      - agent
+      analytics-db:
+        condition: service_healthy
+      moodle:
+        condition: service_started
+      agent:
+        condition: service_started
     networks:
       - moodle-net
   # ----------------------------------------------------------------------------

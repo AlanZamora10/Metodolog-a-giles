@@ -21,6 +21,8 @@ class WeightedGradeResponse(BaseModel):
     pendiente: float
     probabilidad_aprobacion: int
     notas_actividades: Dict[str, float] = {}
+    curso: Optional[str] = None            # Shortname del curso de Moodle (datos sincronizados)
+    regla_alerta: Optional[str] = None     # R1_NOTA_CRITICA | R2_DESCENSO | None
 
 
 class CourseSummary(BaseModel):

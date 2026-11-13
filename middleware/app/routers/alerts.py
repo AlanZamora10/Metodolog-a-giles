@@ -1,172 +1,64 @@
 """
 ==============================================================================
-ROUTER: CENTRO DE ALERTAS TEMPRANAS Y REFUERZOS DIDÁCTICOS (HU-05 / SPRINT 2-3)
+ROUTER: CENTRO DE ALERTAS TEMPRANAS Y REFUERZOS DIDÁCTICOS (HU-05 / SPRINT 3)
 FISEI - Universidad Técnica de Ambato
 ==============================================================================
 Cumple con las reglas de negocio:
   - RN-12: Regla R1 (Nota Crítica < 5.0)
-  - RN-13: Regla R2 (Descenso de notas entre unidades y promedio < 7.0)
-  - RN-14: Ciclo de vida ABIERTA -> ATENDIDA -> PUBLICADO / EXPORTADO o CERRADA
+  - RN-13: Regla R2 (Descenso de notas entre unidades -pendiente < -0.25- y promedio < 7.0)
+  - RN-14: Ciclo de vida ABIERTA -> ATENDIDA -> PUBLICADO o CERRADA (RESUELTA si deja de cumplir la regla)
   - RN-15: Desacoplamiento determinista: el cálculo se hace en código/SQL, IA redacta
-  - RN-16: Timeout de 10s para Ollama con fallback automático a plantilla
+  - RN-16: Timeout de 10s para el agente con fallback automático a plantilla
   - RN-17: Confirmación explícita obligatoria antes de publicar en Moodle
-  - RN-18: Trazabilidad en Auditoría
+  - RN-18: Trazabilidad en Auditoría (logs_sistema)
+
+Sprint 3: las alertas se generan al sincronizar (sync_service) y viven en `alertas_tempranas`;
+los borradores de refuerzo, en la tabla `refuerzos`. Todas las rutas exigen JWT de DOCENTE y sólo
+exponen alertas de cursos donde el docente es profesor en Moodle (403 en otro caso).
 ==============================================================================
 """
 
-import time
 import os
-import httpx
+import re
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, status
+from typing import Any, Dict, List, Optional
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from app.routers.auth import get_current_user
+from app import repositories
+from app.routers.auth import get_current_docente
 from app.routers.logs import append_log
-from app.routers.students import STUDENTS_STORE
 
 router = APIRouter(tags=["Centro de Alertas y Refuerzos"])
 
-AGENT_HOST = os.getenv("AGENT_HOST", "http://agent:8001")
+AGENT_HOST = os.getenv("AGENT_HOST") or os.getenv("AGENT_URL", "http://agent:8001")
 AGENT_TIMEOUT_SECONDS = float(os.getenv("AGENT_INFERENCE_TIMEOUT_SECONDS", "10.0"))
-
-# Almacén en memoria de alertas con ciclo de vida formal (5 estados)
-# Estados permitidos: ABIERTA, ATENDIDA, PUBLICADO, EXPORTADO, CERRADA
-ALERTAS_STORE: List[Dict[str, Any]] = [
-    {
-        "id": 1,
-        "curso_codigo": "MAT1",
-        "curso_nombre": "Metodologías Ágiles",
-        "id_number": "U-05",
-        "nombres": "Estudiante C",
-        "email": "estudiante.c@uta.edu.ec",
-        "regla": "R1_NOTA_CRITICA",
-        "nota_promedio": 3.5,
-        "evidencia": "Nota ponderada 3.50/10 (< 5.0). Unidad 2 crítica con promedio 2.0.",
-        "estado": "ABIERTA",
-        "fecha_creacion": "2026-11-10T14:30:00Z",
-        "fecha_actualizacion": "2026-11-10T14:30:00Z",
-        "refuerzo_id": 1
-    },
-    {
-        "id": 2,
-        "curso_codigo": "MAT1",
-        "curso_nombre": "Metodologías Ágiles",
-        "id_number": "U-06",
-        "nombres": "Estudiante D",
-        "email": "estudiante.d@uta.edu.ec",
-        "regla": "R1_NOTA_CRITICA",
-        "nota_promedio": 4.5,
-        "evidencia": "Nota ponderada 4.50/10 (< 5.0). Unidad 1 con promedio 3.5.",
-        "estado": "ABIERTA",
-        "fecha_creacion": "2026-11-10T14:35:00Z",
-        "fecha_actualizacion": "2026-11-10T14:35:00Z",
-        "refuerzo_id": 2
-    },
-    {
-        "id": 3,
-        "curso_codigo": "MAT1",
-        "curso_nombre": "Metodologías Ágiles",
-        "id_number": "U-08",
-        "nombres": "Estudiante F",
-        "email": "estudiante.f@uta.edu.ec",
-        "regla": "R2_DESCENSO",
-        "nota_promedio": 6.2,
-        "evidencia": "Descenso de rendimiento de U1 (7.0) a U2 (6.0), promedio general 6.20 (< 7.0).",
-        "estado": "ABIERTA",
-        "fecha_creacion": "2026-11-10T14:40:00Z",
-        "fecha_actualizacion": "2026-11-10T14:40:00Z",
-        "refuerzo_id": 3
-    }
-]
-
-REFUERZOS_STORE: List[Dict[str, Any]] = [
-    {
-        "id": 1,
-        "alerta_id": 1,
-        "estudiante_id": "U-05",
-        "estudiante_nombre": "Estudiante C",
-        "titulo": "Refuerzo Práctico: Guiado de Diagramación (Unidad 2)",
-        "descripcion": "Resolver 3 ejercicios de diagramación y lógica algorítmica para recuperar nota en trabajo autónomo.",
-        "instrucciones": "Descargar la guía adjunta, resolver los ejercicios de diagramación y subir el PDF al buzón de entrega de Moodle.",
-        "actividades": [
-            "Revisión conceptual de estructuras algorítmicas",
-            "Resolución de ejercicios prácticos guiados",
-            "Entrega de informe en formato PDF"
-        ],
-        "origen": "PLANTILLA",
-        "estado": "BORRADOR",
-        "cmid": None,
-        "fecha_publicacion": None
-    },
-    {
-        "id": 2,
-        "alerta_id": 2,
-        "estudiante_id": "U-06",
-        "estudiante_nombre": "Estudiante D",
-        "titulo": "Refuerzo Teórico-Práctico: Fundamentos Ágiles (Unidad 1)",
-        "descripcion": "Nivelación en conceptos base de Scrum y estimación de puntos de historia.",
-        "instrucciones": "Completar el cuestionario formativo en Moodle y subir el análisis de caso.",
-        "actividades": [
-            "Lectura del marco de trabajo Scrum",
-            "Cuestionario de autoevaluación",
-            "Estudio de caso aplicativo"
-        ],
-        "origen": "PLANTILLA",
-        "estado": "BORRADOR",
-        "cmid": None,
-        "fecha_publicacion": None
-    },
-    {
-        "id": 3,
-        "alerta_id": 3,
-        "estudiante_id": "U-08",
-        "estudiante_nombre": "Estudiante F",
-        "titulo": "Tutoría de Refuerzo: Modelado Ágil y Requisitos",
-        "descripcion": "Actividad de consolidación para evitar descenso en el Parcial 1.",
-        "instrucciones": "Elaborar un diagrama de flujo y especificación de historias de usuario.",
-        "actividades": [
-            "Revisión de criterios de aceptación",
-            "Modelado de historias de usuario"
-        ],
-        "origen": "PLANTILLA",
-        "estado": "BORRADOR",
-        "cmid": None,
-        "fecha_publicacion": None
-    }
-]
+_PATRON_UNIDAD = re.compile(r"^U(\d+)-", re.IGNORECASE)
 
 
 class AlertaOut(BaseModel):
     id: int
+    curso_id: Optional[int] = None
     curso_codigo: str
     curso_nombre: str
     id_number: str
     nombres: str
     email: str
     regla: str
+    nivel: str
     nota_promedio: float
+    pendiente: Optional[float] = None
     evidencia: str
+    unidad_critica: Optional[str] = None
+    tema_critico: Optional[str] = None
     estado: str
-    fecha_creacion: str
-    fecha_actualizacion: str
+    diagnostico_ia: Optional[str] = None
+    tipo_accion_sugerida: Optional[str] = None
+    fecha_creacion: Optional[str] = None
+    fecha_actualizacion: Optional[str] = None
     refuerzo_id: Optional[int] = None
-
-
-class RefuerzoOut(BaseModel):
-    id: int
-    alerta_id: int
-    estudiante_id: str
-    estudiante_nombre: str
-    titulo: str
-    descripcion: str
-    instrucciones: str
-    actividades: List[str]
-    origen: str
-    estado: str
-    cmid: Optional[int] = None
-    fecha_publicacion: Optional[str] = None
 
 
 class PublicarRefuerzoReq(BaseModel):
@@ -175,151 +67,160 @@ class PublicarRefuerzoReq(BaseModel):
     instrucciones: Optional[str] = None
 
 
+def _alerta_out(a: Dict[str, Any]) -> Dict[str, Any]:
+    return AlertaOut(
+        id=a["id"], curso_id=a.get("curso_id"), curso_codigo=a["curso_codigo"], curso_nombre=a["curso_nombre"],
+        id_number=a["id_number"], nombres=a["nombres"], email=a["email"], regla=a["regla"] or "",
+        nivel=a["nivel"], nota_promedio=a.get("nota_final") or 0.0, pendiente=a.get("pendiente"),
+        evidencia=a["motivo"], unidad_critica=a.get("unidad_critica"), tema_critico=a.get("tema_critico"),
+        estado=a.get("estado") or "ABIERTA", diagnostico_ia=a.get("diagnostico_ia"),
+        tipo_accion_sugerida=a.get("tipo_accion_sugerida"), fecha_creacion=a.get("fecha_alerta"),
+        fecha_actualizacion=a.get("fecha_actualizacion"), refuerzo_id=a.get("refuerzo_id"),
+    ).model_dump()
+
+
+def _es_docente_del_curso(alerta: Dict[str, Any], docente: dict) -> bool:
+    return docente["email"].strip().lower() in (alerta.get("curso_docentes") or [])
+
+
+def _alerta_autorizada(alerta_id: int, docente: dict) -> Dict[str, Any]:
+    alerta = repositories.get_alerta(alerta_id)
+    if not alerta or not alerta.get("regla"):
+        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+    if not _es_docente_del_curso(alerta, docente):
+        raise HTTPException(status_code=403, detail="No tiene permisos sobre el curso de esta alerta.")
+    return alerta
+
+
 @router.get("/alertas", response_model=List[AlertaOut])
-async def list_alertas():
+async def list_alertas(
+    course_id: Optional[int] = Query(None, description="ID del curso en Moodle"),
+    estado: Optional[str] = Query(None, description="ABIERTA, ATENDIDA, PUBLICADO, CERRADA o RESUELTA"),
+    docente: dict = Depends(get_current_docente),
+):
     """
-    Lista las alertas académicas activas del curso (R1 y R2).
+    Lista las alertas R1/R2 generadas al sincronizar, sólo de los cursos del docente.
     """
-    return ALERTAS_STORE
+    return [
+        _alerta_out(a) for a in repositories.list_alertas(course_id=course_id, estado=estado)
+        if _es_docente_del_curso(a, docente)
+    ]
 
 
 @router.get("/alertas/{alerta_id}", response_model=AlertaOut)
-async def get_alerta(alerta_id: int):
+async def get_alerta(alerta_id: int, docente: dict = Depends(get_current_docente)):
     """
     Obtiene el detalle de una alerta académica por su identificador.
     """
-    for a in ALERTAS_STORE:
-        if a["id"] == alerta_id:
-            return a
-    raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+    return _alerta_out(_alerta_autorizada(alerta_id, docente))
+
+
+def _notas_para_agente(alerta: Dict[str, Any]) -> Dict[str, float]:
+    """Notas en el formato [CURSO]-[PARCIAL]-[UNIDAD]-[ACTIVIDAD] que espera el motor heurístico."""
+    prefijo = f"{alerta['curso_codigo']}-"
+    notas: Dict[str, float] = {}
+    for id_normalizado, nota in repositories.notas_actividades(alerta["estudiante_id"], alerta["materia_id"]):
+        actividad = id_normalizado[len(prefijo):] if id_normalizado.startswith(prefijo) else id_normalizado
+        match = _PATRON_UNIDAD.match(actividad)
+        parcial = 1 if not match or int(match.group(1)) <= 2 else 2
+        notas[f"C{alerta['materia_id']}-P{parcial}-{actividad}"] = nota
+    return notas
 
 
 @router.post("/alertas/{alerta_id}/atender", response_model=Dict[str, Any])
-async def atender_alerta(alerta_id: int):
+async def atender_alerta(alerta_id: int, docente: dict = Depends(get_current_docente)):
     """
-    Atiende una alerta académica abierta:
-      1. Valida estado ABIERTA -> cambia a ATENDIDA (RN-14).
+    Atiende una alerta académica:
+      1. Valida el estado (ABIERTA o ATENDIDA) -> ATENDIDA (RN-14).
       2. Invoca al agente de IA (Ollama / fallback heurístico) para redactar el refuerzo.
-      3. Registra el evento en auditoría.
+      3. Guarda el borrador en `refuerzos` y registra el evento en auditoría.
     """
-    alerta = None
-    for a in ALERTAS_STORE:
-        if a["id"] == alerta_id:
-            alerta = a
-            break
+    alerta = _alerta_autorizada(alerta_id, docente)
+    if alerta["estado"] not in ("ABIERTA", "ATENDIDA"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"La alerta se encuentra {alerta['estado']} y no puede atenderse.",
+        )
 
-    if not alerta:
-        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
-
-    if alerta["estado"] == "CERRADA":
-        raise HTTPException(status_code=409, detail="La alerta se encuentra CERRADA y no puede modificarse.")
-
-    # Buscar estudiante en el store para obtener sus notas de actividades
-    estudiante = None
-    for st in STUDENTS_STORE:
-        if st["id_number"] == alerta["id_number"]:
-            estudiante = st
-            break
-
-    notas_act = estudiante.get("notas_actividades", {}) if estudiante else {}
-    nota_prom = alerta["nota_promedio"]
-
-    # Invocación al microservicio de Agente IA con timeout de 10s (RN-16)
     agente_data = await consultar_agente_ia(
         id_number=alerta["id_number"],
         nombres=alerta["nombres"],
-        nota_final=nota_prom,
-        notas_actividades=notas_act
+        nota_final=alerta.get("nota_final") or 0.0,
+        notas_actividades=_notas_para_agente(alerta),
+        unidad_sugerida=alerta.get("unidad_critica"),
     )
+    origen = str(agente_data.get("fuente", "motor_heuristico_hu11b"))
+    diagnostico = agente_data.get("diagnostico", "")
+    accion = agente_data.get("tipo_accion_sugerida") or "Tarea de refuerzo pedagógico"
+    unidad = agente_data.get("unidad_critica") or alerta.get("unidad_critica") or "la unidad crítica"
 
-    # Actualizar estado de la alerta
-    alerta["estado"] = "ATENDIDA"
-    alerta["fecha_actualizacion"] = datetime.now(timezone.utc).isoformat()
+    refuerzo = repositories.upsert_refuerzo(alerta_id, {
+        "titulo": f"Refuerzo: {accion} — {alerta['curso_codigo']}"[:200],
+        "descripcion": diagnostico,
+        "instrucciones": (f"{diagnostico} Revise el material de {unidad}, resuelva la guía de ejercicios y "
+                          f"entregue su desarrollo en Moodle UTA dentro de los próximos 7 días."),
+        "actividades": [f"Revisión del material de {unidad}", "Resolución de ejercicios guiados",
+                        "Entrega del desarrollo en Moodle UTA"],
+        "origen": origen.upper(),
+        "estado": "BORRADOR",
+    })
+    repositories.update_alerta(alerta_id, {
+        "estado": "ATENDIDA", "diagnostico_ia": diagnostico, "tipo_accion_sugerida": accion[:100],
+    })
 
-    # Actualizar o crear refuerzo didáctico
-    refuerzo = None
-    for r in REFUERZOS_STORE:
-        if r["alerta_id"] == alerta_id:
-            refuerzo = r
-            break
-
-    if refuerzo:
-        refuerzo["titulo"] = agente_data.get("tipo_accion_sugerida", refuerzo["titulo"])
-        refuerzo["descripcion"] = agente_data.get("diagnostico", refuerzo["descripcion"])
-        refuerzo["origen"] = agente_data.get("fuente", "motor_heuristico_hu11b").upper()
-    else:
-        refuerzo = {
-            "id": len(REFUERZOS_STORE) + 1,
-            "alerta_id": alerta_id,
-            "estudiante_id": alerta["id_number"],
-            "estudiante_nombre": alerta["nombres"],
-            "titulo": agente_data.get("tipo_accion_sugerida", "Tarea de Refuerzo"),
-            "descripcion": agente_data.get("diagnostico", "Refuerzo generado"),
-            "instrucciones": "Resolver los ejercicios prácticos solicitados.",
-            "actividades": ["Revisión conceptual", "Ejercicios guiados"],
-            "origen": agente_data.get("fuente", "motor_heuristico_hu11b").upper(),
-            "estado": "BORRADOR",
-            "cmid": None,
-            "fecha_publicacion": None
-        }
-        REFUERZOS_STORE.append(refuerzo)
-        alerta["refuerzo_id"] = refuerzo["id"]
-
-    # Registrar en auditoría
     append_log(
         tipo_proceso="ATENCION_ALERTA",
         estado="EXITO",
-        mensaje=f"Alerta #{alerta_id} atendida para {alerta['nombres']}. Origen: {refuerzo['origen']}.",
-        detalle={"alerta_id": alerta_id, "refuerzo_id": refuerzo["id"], "origen": refuerzo["origen"]}
+        mensaje=f"Alerta #{alerta_id} ({alerta['regla']}) atendida para {alerta['nombres']}. Origen: {origen}.",
+        detalle={"alerta_id": alerta_id, "refuerzo_id": refuerzo["id"], "origen": origen,
+                 "curso": alerta["curso_codigo"], "regla": alerta["regla"]},
     )
 
     return {
         "status": "success",
         "mensaje": "Alerta atendida con éxito y borrador de refuerzo generado.",
-        "alerta": alerta,
-        "refuerzo": refuerzo
+        "alerta": _alerta_out(repositories.get_alerta(alerta_id)),
+        "refuerzo": refuerzo,
+        "diagnostico": agente_data,
     }
 
 
 @router.patch("/alertas/{alerta_id}/cerrar", response_model=Dict[str, Any])
-async def cerrar_alerta(alerta_id: int):
+async def cerrar_alerta(alerta_id: int, docente: dict = Depends(get_current_docente)):
     """
     Cierra una alerta que ya no es relevante (RN-14):
       - Pasa a estado terminal CERRADA (no se reabre).
       - Retorna 409 si ya estaba CERRADA.
       - Registra la acción CERRAR_ALERTA en auditoría.
     """
-    for a in ALERTAS_STORE:
-        if a["id"] == alerta_id:
-            if a["estado"] == "CERRADA":
-                raise HTTPException(status_code=409, detail="La alerta ya se encuentra en estado CERRADA.")
-            a["estado"] = "CERRADA"
-            a["fecha_actualizacion"] = datetime.now(timezone.utc).isoformat()
+    alerta = _alerta_autorizada(alerta_id, docente)
+    if alerta["estado"] == "CERRADA":
+        raise HTTPException(status_code=409, detail="La alerta ya se encuentra en estado CERRADA.")
 
-            append_log(
-                tipo_proceso="CERRAR_ALERTA",
-                estado="EXITO",
-                mensaje=f"Alerta #{alerta_id} cerrada por el docente (estado terminal CERRADA).",
-                detalle={"alerta_id": alerta_id, "estudiante": a["nombres"]}
-            )
-
-            return {
-                "status": "success",
-                "mensaje": f"Alerta #{alerta_id} cerrada exitosamente. Estado terminal: CERRADA.",
-                "alerta": a
-            }
-
-    raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+    repositories.update_alerta(alerta_id, {
+        "estado": "CERRADA", "resuelto": True, "fecha_resolucion": datetime.now(timezone.utc),
+    })
+    append_log(
+        tipo_proceso="CERRAR_ALERTA",
+        estado="EXITO",
+        mensaje=f"Alerta #{alerta_id} cerrada por el docente (estado terminal CERRADA).",
+        detalle={"alerta_id": alerta_id, "estudiante": alerta["nombres"], "curso": alerta["curso_codigo"]},
+    )
+    return {
+        "status": "success",
+        "mensaje": f"Alerta #{alerta_id} cerrada exitosamente. Estado terminal: CERRADA.",
+        "alerta": _alerta_out(repositories.get_alerta(alerta_id)),
+    }
 
 
 @router.post("/refuerzos/{refuerzo_id}/publicar", response_model=Dict[str, Any])
-async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq):
+async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente: dict = Depends(get_current_docente)):
     """
-    Publica una tarea de refuerzo aprobada en Moodle LMS (RN-17 / HU-05):
+    Registra la aprobación y publicación de un refuerzo (RN-17 / HU-05):
       - Exige req.confirmado == True (400 si es False).
-      - Invoca Web Services de Moodle para crear la actividad.
-      - Asigna cmid devuelto por Moodle y actualiza estados a PUBLICADO.
-      - Registra PUBLICAR_PUBLICADO en auditoría.
+      - Marca el refuerzo y la alerta como PUBLICADO y lo registra en auditoría.
+    Nota: la creación automática de la actividad vía Web Services de Moodle aún no está implementada;
+    el cmid devuelto es un identificador simulado y el docente crea la tarea desde el curso en Moodle.
     """
     if not req.confirmado:
         raise HTTPException(
@@ -327,54 +228,36 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq):
             detail="Se requiere confirmación explícita del docente antes de publicar en Moodle LMS (RN-17)."
         )
 
-    refuerzo = None
-    for r in REFUERZOS_STORE:
-        if r["id"] == refuerzo_id:
-            refuerzo = r
-            break
-
+    refuerzo = repositories.get_refuerzo(refuerzo_id=refuerzo_id)
     if not refuerzo:
         raise HTTPException(status_code=404, detail="Refuerzo didáctico no encontrado.")
+    alerta = _alerta_autorizada(refuerzo["alerta_id"], docente)
 
-    if req.titulo:
-        refuerzo["titulo"] = req.titulo
-    if req.instrucciones:
-        refuerzo["instrucciones"] = req.instrucciones
-
-    # Simulación o invocación de creación de actividad en Moodle LMS (moodle:8080)
-    # Genera el cmid institucional de Moodle
     simulated_cmid = 1000 + refuerzo_id
-    ahora_iso = datetime.now(timezone.utc).isoformat()
-
-    refuerzo["estado"] = "PUBLICADO"
-    refuerzo["cmid"] = simulated_cmid
-    refuerzo["fecha_publicacion"] = ahora_iso
-
-    # Actualizar la alerta vinculada a PUBLICADO
-    for a in ALERTAS_STORE:
-        if a["id"] == refuerzo["alerta_id"]:
-            a["estado"] = "PUBLICADO"
-            a["fecha_actualizacion"] = ahora_iso
-            break
+    cambios: Dict[str, Any] = {
+        "estado": "PUBLICADO", "cmid": simulated_cmid, "fecha_publicacion": datetime.now(timezone.utc),
+    }
+    if req.titulo:
+        cambios["titulo"] = req.titulo[:200]
+    if req.instrucciones:
+        cambios["instrucciones"] = req.instrucciones
+    refuerzo = repositories.update_refuerzo(refuerzo_id, cambios)
+    repositories.update_alerta(alerta["id"], {"estado": "PUBLICADO"})
 
     append_log(
         tipo_proceso="PUBLICAR_PUBLICADO",
         estado="EXITO",
-        mensaje=f"Refuerzo #{refuerzo_id} publicado en Moodle LMS. Módulo cmid: {simulated_cmid}.",
-        detalle={
-            "refuerzo_id": refuerzo_id,
-            "cmid": simulated_cmid,
-            "estudiante": refuerzo["estudiante_nombre"],
-            "moodle_url": "http://localhost:8080"
-        }
+        mensaje=f"Refuerzo #{refuerzo_id} aprobado y marcado como publicado (cmid simulado {simulated_cmid}).",
+        detalle={"refuerzo_id": refuerzo_id, "cmid": simulated_cmid, "simulado": True,
+                 "estudiante": alerta["nombres"], "curso": alerta["curso_codigo"]},
     )
 
     return {
         "status": "success",
-        "mensaje": "Tarea de refuerzo pedagógico publicada exitosamente en Moodle LMS.",
+        "mensaje": "Refuerzo aprobado. La creación automática en Moodle aún no está implementada (cmid simulado).",
         "cmid": simulated_cmid,
-        "moodle_link": f"http://localhost:8080/mod/assign/view.php?id={simulated_cmid}",
-        "refuerzo": refuerzo
+        "moodle_link": f"http://localhost:8080/course/view.php?id={alerta.get('curso_id') or ''}",
+        "refuerzo": refuerzo,
     }
 
 
@@ -382,10 +265,11 @@ async def consultar_agente_ia(
     id_number: str,
     nombres: str,
     nota_final: float,
-    notas_actividades: Dict[str, float]
+    notas_actividades: Dict[str, float],
+    unidad_sugerida: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Conecta con el microservicio del agente IA (Ollama llama3.2 / LangGraph).
+    Conecta con el microservicio del agente IA (Ollama llama3.2:1b con respaldo heurístico).
     Aplica degradación controlada a plantilla si excede el límite de tiempo de 10s (RN-16).
     """
     payload = {
@@ -402,16 +286,17 @@ async def consultar_agente_ia(
                 data = resp.json()
                 if "unidad_critica" in data and "diagnostico" in data:
                     return data
-    except Exception as ex:
+    except Exception:
         pass
 
-    # Fallback determinista inmediato (RN-16 / HU-11B)
+    # Fallback determinista inmediato (RN-16 / HU-11B): el agente no respondió a tiempo
+    unidad = unidad_sugerida or "la unidad con menor rendimiento"
     return {
-        "unidad_critica": "Unidad 2: Lógica y Modelado",
+        "unidad_critica": unidad,
         "diagnostico": (
-            f"El estudiante {nombres} presenta dificultades severas en la Unidad 2. "
-            f"Se recomienda asignar una guía didáctica de diagramación y recuperación."
+            f"El estudiante {nombres} presenta dificultades en {unidad} (nota ponderada {nota_final:.2f}/10). "
+            f"Se recomienda una guía didáctica práctica de recuperación."
         )[:250],
-        "tipo_accion_sugerida": "Refuerzo Didáctico Guiado (Unidad 2)",
+        "tipo_accion_sugerida": f"Refuerzo Didáctico Guiado ({unidad})",
         "fuente": "motor_heuristico_hu11b"
     }

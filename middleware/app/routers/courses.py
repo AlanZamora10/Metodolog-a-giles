@@ -1,66 +1,94 @@
-from fastapi import APIRouter
+"""
+Cursos del docente y resumen de métricas (HU-03). Exclusivo del rol DOCENTE (Sprint 3).
+
+Los cursos sincronizados desde Moodle (persistidos en PostgreSQL) tienen prioridad; el dataset
+heredado del Sprint 1 (MAT1 / MAT2) sólo se usa si el docente aún no tiene cursos sincronizados.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.routers.auth import get_current_docente
+from app.routers.students import STUDENTS_STORE, _build_student_response, respuesta_sincronizada
 from app.schemas.academic import CourseSummary
-from app.routers.students import STUDENTS_STORE, _build_student_response
+from app.services import sync_service
 
 router = APIRouter(prefix="/courses", tags=["Cursos"])
 
-
-@router.get("/MAT1/summary", response_model=CourseSummary)
-async def get_mat1_summary():
-    """
-    Resumen general de métricas del curso MAT1 (Panel Mockup 1).
-    """
-    return await get_course_summary("MAT1")
+_CURSOS_HEREDADOS = {"MAT1": "Metodologías Ágiles", "MAT2": "Ingeniería de Software"}
 
 
-@router.get("/{course_code}/summary", response_model=CourseSummary)
-async def get_course_summary(course_code: str):
-    """
-    Resumen general dinámico de métricas por código de curso (Panel Mockup 1).
-    """
-    students_resp = [_build_student_response(st) for st in STUDENTS_STORE]
-
-    total = len(students_resp)
-    criticos = sum(1 for s in students_resp if s.nivel_riesgo == "CRITICO")
-    en_riesgo = sum(1 for s in students_resp if s.nivel_riesgo == "EN_RIESGO")
-    aceptables = sum(1 for s in students_resp if s.nivel_riesgo == "ACEPTABLE")
-    promedio = round(sum(s.nota_final for s in students_resp) / total, 2) if total else 0.0
-
-    nombre_materia = "Metodologías Ágiles" if course_code.upper() == "MAT1" else "Ingeniería de Software"
-
+def _resumen(codigo: str, nombre: str, estudiantes) -> CourseSummary:
+    total = len(estudiantes)
+    criticos = sum(1 for s in estudiantes if s.nivel_riesgo == "CRITICO")
     return CourseSummary(
-        materia_codigo=course_code.upper(),
-        materia_nombre=nombre_materia,
-        promedio_general=promedio,
+        materia_codigo=codigo,
+        materia_nombre=nombre,
+        promedio_general=round(sum(s.nota_final for s in estudiantes) / total, 2) if total else 0.0,
         total_estudiantes=total,
         estudiantes_criticos=criticos,
-        estudiantes_en_riesgo=en_riesgo,
-        estudiantes_aceptables=aceptables,
-        alertas_detectadas=criticos,
-        estudiantes=students_resp
+        estudiantes_en_riesgo=sum(1 for s in estudiantes if s.nivel_riesgo == "EN_RIESGO"),
+        estudiantes_aceptables=sum(1 for s in estudiantes if s.nivel_riesgo == "ACEPTABLE"),
+        alertas_detectadas=sum(1 for s in estudiantes if s.regla_alerta) if any(s.curso for s in estudiantes)
+        else criticos,
+        estudiantes=estudiantes,
     )
 
 
+@router.get("/MAT1/summary", response_model=CourseSummary)
+async def get_mat1_summary(docente: dict = Depends(get_current_docente)):
+    """
+    Resumen general de métricas del curso MAT1 (Panel Mockup 1).
+    """
+    return await get_course_summary("MAT1", docente)
+
+
+@router.get("/{course_code}/summary", response_model=CourseSummary)
+async def get_course_summary(course_code: str, docente: dict = Depends(get_current_docente)):
+    """
+    Resumen de métricas por código de curso: shortname de Moodle (p. ej. SOF-POO-A) o MAT1/MAT2 heredados.
+    403 si el curso existe pero el docente no es profesor del curso en Moodle.
+    """
+    codigo = course_code.upper()
+    curso = next((c for c in sync_service.SYNC_STATE["cursos"] if c["shortname"].upper() == codigo), None)
+    if curso is not None:
+        if docente["email"].strip().lower() not in curso["docentes"]:
+            raise HTTPException(status_code=403, detail="No tiene permisos sobre este curso.")
+        return _resumen(curso["shortname"], curso["fullname"],
+                        [respuesta_sincronizada(e, curso) for e in curso["estudiantes"]])
+
+    if codigo in _CURSOS_HEREDADOS:
+        return _resumen(codigo, _CURSOS_HEREDADOS[codigo], [_build_student_response(st) for st in STUDENTS_STORE])
+
+    raise HTTPException(status_code=404, detail=f"Curso '{course_code}' no encontrado. Sincronice con Moodle.")
+
+
 @router.get("")
-async def list_courses():
+async def list_courses(docente: dict = Depends(get_current_docente)):
     """
-    Lista las 2 materias del curso simulado de prueba (HU-01).
+    Cursos del docente sincronizados desde Moodle; si aún no hay sincronización, las 2 materias de HU-01.
     """
+    sincronizados = sync_service.cursos_del_docente(docente["email"])
+    if sincronizados:
+        return [
+            {
+                **sync_service.resumen_curso(c),
+                "codigo": c["shortname"],
+                "nombre": c["fullname"],
+                "carrera": "Ingeniería de Software - FISEI",
+                "docente": docente.get("nombres"),
+                "parciales": [1, 2],
+                "unidades": ["Unidad 1", "Unidad 2", "Unidad 3", "Unidad 4"],
+            }
+            for c in sincronizados
+        ]
     return [
         {
-            "codigo": "MAT1",
-            "nombre": "Metodologías Ágiles",
+            "codigo": codigo,
+            "nombre": nombre,
             "carrera": "Ingeniería de Software - FISEI",
-            "docente": "Ing. Roberto Gómez",
+            "docente": docente.get("nombres"),
             "parciales": [1, 2],
-            "unidades": ["Unidad 1", "Unidad 2", "Unidad 3", "Unidad 4"]
-        },
-        {
-            "codigo": "MAT2",
-            "nombre": "Ingeniería de Software",
-            "carrera": "Ingeniería de Software - FISEI",
-            "docente": "Ing. Roberto Gómez",
-            "parciales": [1, 2],
-            "unidades": ["Unidad 1", "Unidad 2", "Unidad 3", "Unidad 4"]
+            "unidades": ["Unidad 1", "Unidad 2", "Unidad 3", "Unidad 4"],
         }
+        for codigo, nombre in _CURSOS_HEREDADOS.items()
     ]

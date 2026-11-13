@@ -7,6 +7,9 @@
 -- ==============================================================================
 
 -- Limpieza preventiva en caso de regeneración de esquema
+-- Sprint 3: en volúmenes existentes el middleware aplica una migración idempotente equivalente
+-- (middleware/app/database.py -> init_schema), por lo que no es necesario borrar el volumen.
+DROP TABLE IF EXISTS refuerzos CASCADE;
 DROP TABLE IF EXISTS usuarios CASCADE;
 DROP TABLE IF EXISTS alertas_tempranas CASCADE;
 DROP TABLE IF EXISTS calificaciones_ponderadas CASCADE;
@@ -44,7 +47,9 @@ CREATE TABLE materias (
     docente_titular VARCHAR(150) DEFAULT 'Ing. Roberto Gómez',
     creditos INT DEFAULT 3,
     activo BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    moodle_course_id INT,                      -- Sprint 3: ID del curso en Moodle (NULL en materias heredadas)
+    docentes JSONB                             -- Sprint 3: correos de los docentes del curso en Moodle
 );
 
 -- ------------------------------------------------------------------------------
@@ -126,9 +131,10 @@ CREATE TABLE calificaciones (
     id SERIAL PRIMARY KEY,
     estudiante_id INT NOT NULL REFERENCES estudiantes(id) ON DELETE CASCADE,
     actividad_id INT NOT NULL REFERENCES actividades(id) ON DELETE CASCADE,
-    nota NUMERIC(4, 2) NOT NULL CHECK (nota >= 0.00 AND nota <= 10.00),
+    nota NUMERIC(4, 2) CHECK (nota >= 0.00 AND nota <= 10.00), -- NULL si está PENDIENTE de revisión
     entregado BOOLEAN DEFAULT TRUE,
     fecha_calificacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    estado VARCHAR(20) DEFAULT 'CALIFICADO',   -- Sprint 3: CALIFICADO | SIN_ENTREGA | PENDIENTE
     UNIQUE (estudiante_id, actividad_id)
 );
 
@@ -187,7 +193,31 @@ CREATE TABLE alertas_tempranas (
     tipo_accion_sugerida VARCHAR(100),         -- ej: Tarea de refuerzo práctico guiado
     resuelto BOOLEAN DEFAULT FALSE,
     fecha_alerta TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    fecha_resolucion TIMESTAMP WITH TIME ZONE
+    fecha_resolucion TIMESTAMP WITH TIME ZONE,
+    -- Sprint 3: alertas dinámicas generadas al sincronizar (R1 / R2) y su ciclo de vida
+    regla VARCHAR(30),                        -- R1_NOTA_CRITICA | R2_DESCENSO
+    estado VARCHAR(20) DEFAULT 'ABIERTA',     -- ABIERTA | ATENDIDA | PUBLICADO | CERRADA | RESUELTA
+    nota_final NUMERIC(4, 2),
+    pendiente NUMERIC(6, 3),
+    fecha_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ux_alertas_estudiante_regla UNIQUE (estudiante_id, materia_id, parcial_id, regla)
+);
+
+-- ------------------------------------------------------------------------------
+-- 11. TABLA: REFUERZOS (Sprint 3 - borradores de refuerzo pedagógico por alerta, HU-05)
+-- ------------------------------------------------------------------------------
+CREATE TABLE refuerzos (
+    id SERIAL PRIMARY KEY,
+    alerta_id INT UNIQUE NOT NULL REFERENCES alertas_tempranas(id) ON DELETE CASCADE,
+    titulo VARCHAR(200) NOT NULL,
+    descripcion TEXT,
+    instrucciones TEXT,
+    actividades JSONB,
+    origen VARCHAR(40) NOT NULL,              -- OLLAMA_SLM | MOTOR_HEURISTICO_HU11B
+    estado VARCHAR(20) DEFAULT 'BORRADOR',    -- BORRADOR | PUBLICADO
+    cmid INT,                                 -- ID del módulo en Moodle (simulado hasta implementar la publicación)
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    fecha_publicacion TIMESTAMP WITH TIME ZONE
 );
 
 -- ==============================================================================
@@ -228,6 +258,8 @@ JOIN parciales p ON cp.parcial_id = p.id;
 -- ==============================================================================
 
 -- 0. Insertar Usuarios Base (HU-14: Docente, Estudiante, Administrador)
+-- Los password_hash son marcadores: al arrancar, el middleware los reemplaza por hashes PBKDF2 reales
+-- calculados con SEED_DOCENTE_PASSWORD / SEED_ESTUDIANTE_PASSWORD / SEED_ADMIN_PASSWORD del entorno.
 INSERT INTO usuarios (nombres, email, password_hash, rol, id_number) VALUES
 ('Ing. Roberto Gómez', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
 ('Diego Curillo', 'dcurillo@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),

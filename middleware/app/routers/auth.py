@@ -36,9 +36,23 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
         )
 
     user = AuthService.get_user_by_email(payload.get("sub"))
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+    if not user or user.get("activo") is False:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario no encontrado o inactivo.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
+    return user
+
+
+def get_current_docente(user: dict = Depends(get_current_user)) -> dict:
+    """Dependencia para endpoints exclusivos del rol DOCENTE (403 para otros roles)."""
+    if user.get("rol") != "DOCENTE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso exclusivo para el rol DOCENTE.",
+        )
     return user
 
 

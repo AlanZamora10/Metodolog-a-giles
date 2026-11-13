@@ -1,11 +1,23 @@
-from fastapi import APIRouter, HTTPException
-from typing import List
+"""
+Estudiantes con nota ponderada (HU-03 / HU-04). Exclusivo del rol DOCENTE (Sprint 3).
+
+Fuente de datos:
+  1. Sincronización real con Moodle persistida en PostgreSQL (cursos donde el docente es profesor).
+  2. Si el docente aún no tiene cursos sincronizados: dataset heredado del Sprint 1 (HU-01, MAT1).
+"""
+
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.routers.auth import get_current_docente
 from app.schemas.academic import WeightedGradeResponse
+from app.services import sync_service
 from app.services.grade_calculator import GradeCalculator
 
 router = APIRouter(prefix="/students", tags=["Estudiantes"])
 
-# Dataset en memoria alimentado desde la base o simulación HU-01
+# Dataset heredado del Sprint 1 (HU-01), usado sólo como respaldo sin sincronización
 STUDENTS_STORE = [
     {
         "id_number": "U-03",
@@ -162,20 +174,57 @@ def _build_student_response(item: dict) -> WeightedGradeResponse:
     )
 
 
+def respuesta_sincronizada(est: Dict[str, Any], curso: Dict[str, Any]) -> WeightedGradeResponse:
+    """Estudiante de un curso sincronizado desde Moodle -> WeightedGradeResponse."""
+    return WeightedGradeResponse(
+        id_number=est["id_number"],
+        nombres=est["nombres"] or est["id_number"],
+        email=est.get("email") or "",
+        autonomo=est["acd"] or 0.0,
+        tareas=est["tareas"] or 0.0,
+        pae=est["pae"] or 0.0,
+        nota_final=est["nota_final"],
+        nivel_riesgo=est["nivel_riesgo"],
+        tendencia=est.get("tendencia", "ESTABLE"),
+        pendiente=est.get("pendiente", 0.0),
+        probabilidad_aprobacion=est.get("probabilidad_aprobacion", 50),
+        notas_actividades={a["id_number"]: a["nota"] for a in est.get("actividades", []) if a["nota"] is not None},
+        curso=curso["shortname"],
+        regla_alerta=est.get("regla_alerta"),
+    )
+
+
+def _cursos_filtrados(docente: dict, curso: Optional[str]) -> List[Dict[str, Any]]:
+    cursos = sync_service.cursos_del_docente(docente["email"])
+    if curso:
+        cursos = [c for c in cursos if c["shortname"].upper() == curso.upper()]
+    return cursos
+
+
 @router.get("", response_model=List[WeightedGradeResponse])
-async def list_students():
+async def list_students(curso: Optional[str] = Query(None, description="Shortname del curso, p. ej. SOF-POO-A"),
+                        docente: dict = Depends(get_current_docente)):
     """
-    Lista todos los estudiantes con su nota ponderada y nivel de riesgo.
+    Lista los estudiantes (uno por curso) con su nota ponderada, nivel de riesgo y tendencia.
     """
+    if sync_service.cursos_del_docente(docente["email"]):
+        return [respuesta_sincronizada(e, c) for c in _cursos_filtrados(docente, curso) for e in c["estudiantes"]]
     return [_build_student_response(st) for st in STUDENTS_STORE]
 
 
 @router.get("/{id_number}", response_model=WeightedGradeResponse)
-async def get_student_detail(id_number: str):
+async def get_student_detail(id_number: str, curso: Optional[str] = Query(None),
+                             docente: dict = Depends(get_current_docente)):
     """
     Obtiene el detalle individual de un estudiante con desglose de actividades.
     """
-    for st in STUDENTS_STORE:
-        if st["id_number"].upper() == id_number.upper():
-            return _build_student_response(st)
+    if sync_service.cursos_del_docente(docente["email"]):
+        for c in _cursos_filtrados(docente, curso):
+            for e in c["estudiantes"]:
+                if e["id_number"].upper() == id_number.upper():
+                    return respuesta_sincronizada(e, c)
+    else:
+        for st in STUDENTS_STORE:
+            if st["id_number"].upper() == id_number.upper():
+                return _build_student_response(st)
     raise HTTPException(status_code=404, detail=f"Estudiante con ID '{id_number}' no encontrado.")

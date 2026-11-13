@@ -82,36 +82,49 @@ def main():
     else:
         print_step("Paso 2: Métricas del Curso MAT1", "FAIL", str(course_data))
 
+    # 2b. Sincronización con Moodle: persiste notas y genera las alertas R1/R2 (Sprint 3)
+    status_code, sync_data = make_request("/sincronizacion", method="POST", token=jwt_token)
+    if status_code == 200:
+        print_step("Paso 2b: Sincronización Moodle (POST /sincronizacion)", "OK",
+                   f"{sync_data.get('total_cursos')} cursos | persistencia: {sync_data.get('persistencia')}")
+    else:
+        print_step("Paso 2b: Sincronización Moodle", "FAIL", str(sync_data))
+
     # 3. Consulta de Alertas Académicas (HU-05)
-    status_code, alertas_data = make_request("/alertas", token=jwt_token)
+    status_code, alertas_data = make_request("/alertas?estado=ABIERTA", token=jwt_token)
     if status_code == 200 and len(alertas_data) > 0:
         print_step("Paso 3: Listado de Alertas Activas (GET /alertas)", "OK", 
                    f"{len(alertas_data)} alertas detectadas ({alertas_data[0]['regla']} para {alertas_data[0]['nombres']})")
     else:
         print_step("Paso 3: Listado de Alertas Activas", "FAIL", str(alertas_data))
+        sys.exit(1)
+    alerta_atender = alertas_data[0]["id"]
+    alerta_cerrar = alertas_data[1]["id"] if len(alertas_data) > 1 else None
 
-    # 4. Invocación al Agente de IA para Atención de Alerta #1 (Ollama / Fallback)
+    # 4. Invocación al Agente de IA para Atención de la primera alerta (Ollama / Fallback)
     start_t = time.time()
-    status_code, atender_data = make_request("/alertas/1/atender", method="POST", token=jwt_token)
+    status_code, atender_data = make_request(f"/alertas/{alerta_atender}/atender", method="POST", token=jwt_token)
     duration_ms = int((time.time() - start_t) * 1000)
     
     if status_code == 200 and "refuerzo" in atender_data:
         ref = atender_data["refuerzo"]
-        print_step("Paso 4: Invocación Agente IA (POST /alertas/1/atender)", "OK", 
+        print_step(f"Paso 4: Invocación Agente IA (POST /alertas/{alerta_atender}/atender)", "OK", 
                    f"Origen: {ref.get('origen')} ({duration_ms} ms) | Tarea: \"{ref.get('titulo')}\"")
     else:
         print_step("Paso 4: Invocación Agente IA", "FAIL", str(atender_data))
 
-    # 5. Cierre Terminal de Alerta #2 mediante PATCH (RN-14)
-    status_code, cerrar_data = make_request("/alertas/2/cerrar", method="PATCH", token=jwt_token)
-    if status_code == 200 and cerrar_data.get("alerta", {}).get("estado") == "CERRADA":
-        print_step("Paso 5: Cierre Terminal de Alerta (PATCH /alertas/2/cerrar)", "OK", 
-                   "Alerta #2 transicionó al estado terminal CERRADA exitosamente")
-    else:
-        print_step("Paso 5: Cierre de Alerta", "FAIL", str(cerrar_data))
+    # 5. Cierre Terminal de la segunda alerta mediante PATCH (RN-14)
+    if alerta_cerrar is not None:
+        status_code, cerrar_data = make_request(f"/alertas/{alerta_cerrar}/cerrar", method="PATCH", token=jwt_token)
+        if status_code == 200 and cerrar_data.get("alerta", {}).get("estado") == "CERRADA":
+            print_step(f"Paso 5: Cierre Terminal de Alerta (PATCH /alertas/{alerta_cerrar}/cerrar)", "OK",
+                       f"Alerta #{alerta_cerrar} transicionó al estado terminal CERRADA exitosamente")
+        else:
+            print_step("Paso 5: Cierre de Alerta", "FAIL", str(cerrar_data))
 
-    # 6. Publicación del Refuerzo #1 en Moodle LMS con Confirmación Explícita (RN-17)
-    status_code, pub_data = make_request("/refuerzos/1/publicar", method="POST", payload={
+    # 6. Aprobación del refuerzo generado con Confirmación Explícita (RN-17)
+    refuerzo_id = atender_data.get("refuerzo", {}).get("id", 1)
+    status_code, pub_data = make_request(f"/refuerzos/{refuerzo_id}/publicar", method="POST", payload={
         "confirmado": True,
         "titulo": "Refuerzo Didáctico: Lógica y Diagramación (Recuperación Parcial 1)",
         "instrucciones": "Resolver los ejercicios prácticos y cargar entrega en Moodle."
@@ -119,8 +132,8 @@ def main():
 
     if status_code == 200 and pub_data.get("cmid"):
         cmid = pub_data.get("cmid")
-        print_step("Paso 6: Publicación en Moodle LMS (POST /refuerzos/1/publicar)", "OK", 
-                   f"Módulo Moodle creado con cmid: {cmid} | Estado: PUBLICADO")
+        print_step(f"Paso 6: Aprobación del refuerzo (POST /refuerzos/{refuerzo_id}/publicar)", "OK",
+                   f"Estado: PUBLICADO | cmid simulado: {cmid} (creación automática en Moodle pendiente)")
     else:
         print_step("Paso 6: Publicación en Moodle LMS", "FAIL", str(pub_data))
 
@@ -134,7 +147,7 @@ def main():
         print_step("Paso 7: Auditoría y Trazabilidad", "FAIL", str(logs_data))
 
     print("=" * 78)
-    print("  RESULTADO: 7/7 PRUEBAS DE INTEGRACIÓN SUPERADAS CON ÉXITO (100% PASSED)")
+    print("  FIN DE LA VALIDACIÓN END-TO-END (revise los pasos marcados como FAILED)")
     print("=" * 78)
 
 if __name__ == "__main__":

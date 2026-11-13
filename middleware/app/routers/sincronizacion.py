@@ -8,21 +8,12 @@ Endpoints de sincronización real con Moodle UTA (exclusivos del rol DOCENTE).
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_docente  # noqa: F401 (re-exportado para sync.py)
 from app.routers.logs import append_log
 from app.services import sync_service
 from app.services.moodle_client import MoodleError
 
 router = APIRouter(tags=["Sincronización Moodle"])
-
-
-def get_current_docente(user: dict = Depends(get_current_user)) -> dict:
-    if user.get("rol") != "DOCENTE":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso exclusivo para el rol DOCENTE.",
-        )
-    return user
 
 
 @router.post("/sincronizacion")
@@ -39,14 +30,23 @@ async def sincronizar_moodle(docente: dict = Depends(get_current_docente)):
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(ex))
 
     respuesta = sync_service.respuesta_para_docente(docente["email"])
+    persistencia = estado.get("persistencia") or {}
     log = append_log(
         tipo_proceso="SINCRONIZACION",
-        estado="EXITO",
+        estado="ADVERTENCIA" if "error" in persistencia else "EXITO",
         mensaje=(
             f"Sincronización Moodle completada en {estado['duracion_ms']} ms: "
-            f"{respuesta['total_cursos']} cursos, {respuesta['total_estudiantes']} estudiantes."
+            f"{respuesta['total_cursos']} cursos, {respuesta['total_estudiantes']} estudiantes. "
+            + (f"Persistencia fallida: {persistencia['error']}" if "error" in persistencia
+               else f"Persistido en {persistencia.get('motor')}; alertas {persistencia.get('alertas')}.")
         ),
-        detalle={"cursos": respuesta["total_cursos"], "estudiantes": respuesta["total_estudiantes"]},
+        detalle={
+            "cursos": respuesta["total_cursos"],
+            "estudiantes": respuesta["total_estudiantes"],
+            "moodle": estado.get("moodle"),
+            "persistencia": persistencia,
+        },
+        tiempo_ejecucion_ms=estado["duracion_ms"],
     )
     return {"status": "success", "duracion_ms": estado["duracion_ms"], "log_id": log["id"], **respuesta}
 
