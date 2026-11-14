@@ -105,10 +105,14 @@ Proyecto Agente IA/
 │   └── moodle/               # seed.php, entrypoint-seed.sh y README.md
 ├── docs/                     # Diagramas UML, guiones y documentación
 │   └── GUION_DEFENSA_SPRINT1.md
-├── frontend/                 # Interfaz Web SPA (HTML5/CSS3/JS + Nginx)
-│   ├── index.html            # Aplicación web de página única
-│   ├── nginx.conf            # Configuración de servidor y proxy reverso /api/
-│   └── Dockerfile            # Imagen base del Frontend
+├── frontend/                 # SPA React 18 + Vite + TypeScript (Fase B), servida por Nginx
+│   ├── src/api/              # Cliente HTTP (JWT en sessionStorage), tipos y endpoints del middleware
+│   ├── src/context/          # Sesión, curso/período/corte seleccionados e historial del chat
+│   ├── src/pages/            # Login, Dashboard, Estudiantes, Ficha, Alertas, Agente IA, Informe
+│   ├── src/components/       # Layout, componentes de interfaz y gráficos (Recharts)
+│   ├── src/test/             # Pruebas de interfaz (Vitest + Testing Library): npm test
+│   ├── nginx.conf            # Servidor de la SPA y proxy reverso /api/ → middleware
+│   └── Dockerfile            # Multi-etapa: node:22 (npm run build) → nginx
 ├── middleware/               # Backend principal FastAPI (Python 3.11)
 │   ├── app/                  # config.py, main.py, routers/, schemas/, services/
 │   ├── tests/                # Pruebas unitarias e integradas con Pytest
