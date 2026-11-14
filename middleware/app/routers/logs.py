@@ -28,7 +28,7 @@ def append_log(tipo_proceso: str, estado: str, mensaje: str, detalle: Optional[D
 @database.on_ready
 def registrar_inicio(engine) -> None:
     repositories.insert_log(
-        "INICIO_SERVICIO", "INFO" if database.backend_name() == "postgresql" else "ADVERTENCIA",
+        "INICIO_SERVICIO", "ADVERTENCIA" if database.backend_name().startswith("sqlite") else "INFO",
         f"Middleware iniciado. Persistencia: {database.backend_name()}.",
         {"motor": database.backend_name()}, engine=engine,
     )

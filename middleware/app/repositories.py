@@ -24,12 +24,22 @@ PONDERACION = {"ACD": 0.40, "TAREAS": 0.30, "PAE": 0.30}
 ESTADOS_ALERTA_EDITABLES = {"ABIERTA", "RESUELTA"}
 
 
-def _ahora() -> datetime:
-    return datetime.now(timezone.utc)
+def ahora() -> datetime:
+    """Instante actual en UTC sin zona (DATETIME2 en SQL Server)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+_ahora = ahora
 
 
 def _iso(valor: Any) -> Optional[str]:
-    return valor.isoformat() if isinstance(valor, (datetime, date)) else valor
+    if isinstance(valor, datetime):
+        if valor.tzinfo is None:
+            valor = valor.replace(tzinfo=timezone.utc)  # las fechas se guardan en UTC
+        return valor.isoformat()
+    if isinstance(valor, date):
+        return valor.isoformat()
+    return valor
 
 
 def _dict(row) -> Dict[str, Any]:
@@ -56,6 +66,20 @@ def insert_user(datos: Dict[str, Any], engine: Optional[Engine] = None) -> Dict[
 def update_user(user_id: int, datos: Dict[str, Any], engine: Optional[Engine] = None) -> None:
     with _engine(engine).begin() as conn:
         conn.execute(update(usuarios).where(usuarios.c.id == user_id).values(**datos))
+
+
+def upsert_usuario_moodle(perfil: Dict[str, Any], engine: Optional[Engine] = None) -> Dict[str, Any]:
+    """Crea o actualiza el perfil local de un docente autenticado contra Moodle (sin contraseña local)."""
+    email = perfil["email"].strip().lower()
+    datos = {
+        "nombres": perfil["nombres"][:120], "rol": perfil["rol"], "id_number": perfil.get("id_number"),
+        "activo": True, "moodle_user_id": perfil.get("moodle_user_id"),
+        "moodle_username": perfil.get("moodle_username"), "ultimo_acceso": ahora(),
+        "password_hash": "MOODLE",
+    }
+    with _engine(engine).begin() as conn:
+        _upsert(conn, usuarios, {"email": email}, datos)
+        return _dict(conn.execute(select(usuarios).where(usuarios.c.email == email)).one())
 
 
 # =============================================================================== Auditoría (HU-16 / RN-18)

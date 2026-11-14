@@ -1,7 +1,7 @@
 """
 Moodle simulado y utilidades compartidas por las pruebas del Sprint 3.
 
-Curso 2 (SOF-POO-A) lo dicta docente@uta.edu.ec; curso 3 (SOF-ED-B) lo dicta otro docente.
+Curso 2 (SOF-POO-A) lo dicta rgomez@uta.edu.ec; curso 3 (SOF-ED-B) lo dicta otro docente.
 Estudiantes del curso 2:
   U-03 Camila Andrade   -> aceptable, sin alerta
   U-04 Diego Curillo    -> R1 (nota < 5) con nota 0 y SIN ENTREGA
@@ -9,9 +9,11 @@ Estudiantes del curso 2:
   U-09 Andrés Salazar   -> aceptable, con U2-P3 PENDIENTE
 """
 
-from app.services.moodle_client import MoodleError
+from app import repositories
+from app.services.auth_service import create_access_token
+from app.services.moodle_client import CredencialesMoodleInvalidas, MoodleError
 
-DOCENTE = {"email": "docente@uta.edu.ec", "password": "Docente2026!"}
+DOCENTE = {"email": "rgomez@uta.edu.ec", "password": "Docente2026!"}
 ESTUDIANTE = {"email": "dcurillo@uta.edu.ec", "password": "Estudiante2026!"}
 OTRO_DOCENTE = {"email": "otro.docente@uta.edu.ec", "password": "OtroDocente2026!"}
 
@@ -64,3 +66,53 @@ class FakeMoodleSprint3:
             {"userid": 14, "gradeitems": [gi("U1-A1", 7.5), gi("U1-T1", 8.0), gi("U1-P1", 7.5),
                                           gi("U2-P3", None, "PENDIENTE DE REVISIÓN")]},
         ]
+
+
+# ------------------------------------------------------------------ Login unificado (Fase A)
+USUARIOS_MOODLE = {
+    "rgomez": {"id": 10, "username": "rgomez", "email": "rgomez@uta.edu.ec", "fullname": "Ing. Roberto Gómez",
+               "idnumber": "U-01", "password": "Docente2026!", "cursos": {2: "editingteacher", 4: "editingteacher"}},
+    "otrodocente": {"id": 20, "username": "otrodocente", "email": "otro.docente@uta.edu.ec",
+                    "fullname": "Ing. Otro Docente", "idnumber": "U-90", "password": "OtroDocente2026!",
+                    "cursos": {3: "editingteacher"}},
+    "dcurillo": {"id": 12, "username": "dcurillo", "email": "dcurillo@uta.edu.ec", "fullname": "Diego Curillo",
+                 "idnumber": "U-04", "password": "Estudiante2026!", "cursos": {2: "student", 3: "student"}},
+}
+CURSOS_MOODLE = {2: "SOF-POO-A", 3: "SOF-ED-B", 4: "SOF-MA-B", 9: "OTRO-CURSO"}
+
+
+class FakeMoodleAuth:
+    """Moodle simulado para login/token.php, core_user_get_users_by_field y matrícula con roles."""
+
+    caido = False
+
+    async def obtener_token_usuario(self, username, password):
+        if FakeMoodleAuth.caido:
+            raise MoodleError("No se pudo contactar a Moodle en http://moodle:8080")
+        u = USUARIOS_MOODLE.get(username)
+        if not u or u["password"] != password:
+            raise CredencialesMoodleInvalidas("Invalid login, please try again")
+        return f"token-{username}"
+
+    async def buscar_usuario(self, campo, valor):
+        if FakeMoodleAuth.caido:
+            raise MoodleError("No se pudo contactar a Moodle en http://moodle:8080")
+        for u in USUARIOS_MOODLE.values():
+            if str(u.get(campo)).lower() == str(valor).lower():
+                return {k: v for k, v in u.items() if k not in ("password", "cursos")}
+        return None
+
+    async def get_users_courses(self, user_id):
+        u = next(u for u in USUARIOS_MOODLE.values() if u["id"] == user_id)
+        return [{"id": cid, "shortname": CURSOS_MOODLE[cid], "idnumber": CURSOS_MOODLE[cid]} for cid in u["cursos"]]
+
+    async def get_enrolled_users(self, course_id):
+        return [{"id": u["id"], "email": u["email"], "roles": [{"shortname": u["cursos"][course_id]}]}
+                for u in USUARIOS_MOODLE.values() if course_id in u["cursos"]]
+
+
+def token_con_rol(rol, email="usuario.prueba@uta.edu.ec"):
+    """Perfil local con un rol distinto de DOCENTE (no obtenible por login) y su JWT, para probar 403."""
+    usuario = repositories.upsert_usuario_moodle({"email": email, "nombres": f"Usuario {rol}", "rol": rol})
+    token = create_access_token({"sub": usuario["email"], "rol": rol, "id": usuario["id"]})
+    return {"Authorization": f"Bearer {token}"}

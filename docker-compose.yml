@@ -66,7 +66,8 @@ services:
     networks:
       - moodle-net
   # ----------------------------------------------------------------------------
-  # 2. BASE DE DATOS ANALÍTICA (PostgreSQL - Principal para Analítica y HU-01)
+  # 2. POSTGRESQL (Sprint 3) - SIN USO desde la Fase A: se conserva como vuelta atrás
+  #    temporal. El middleware ya no depende de este servicio (usa SQL Server).
   # ----------------------------------------------------------------------------
   analytics-db:
     image: postgres:15-alpine
@@ -90,7 +91,8 @@ services:
       - moodle-net
 
   # ----------------------------------------------------------------------------
-  # 2.B CONTENEDOR SQL SERVER (Opcional / Integración Corporativa)
+  # 2.B SQL SERVER 2022 (MoodleUTADB) - BASE DE DATOS ACTIVA DEL SISTEMA (Fase A)
+  # El middleware crea la base MoodleUTADB y su esquema al arrancar (idempotente).
   # ----------------------------------------------------------------------------
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -100,10 +102,17 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_SA_PASSWORD=${MSSQL_PASSWORD:?Defina MSSQL_PASSWORD en .env}
       - MSSQL_PID=Developer
+      - MSSQL_MEMORY_LIMIT_MB=2048
     volumes:
       - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q \"SELECT 1\" -o /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
     networks:
       - moodle-net
   # ----------------------------------------------------------------------------
@@ -120,28 +129,25 @@ services:
     environment:
       - ENVIRONMENT=development
       - DEBUG=True
-      # Credenciales sólo desde .env (Sprint 3): sin valores por defecto para secretos
-      - DATABASE_URL=postgresql://${DB_USER:-analytics_user}:${DB_PASSWORD:?Defina DB_PASSWORD en .env}@analytics-db:5432/${DB_NAME:-moodle_analytics}
+      # Fase A: base de datos activa = SQL Server (MoodleUTADB). Credenciales sólo desde .env.
+      - MSSQL_HOST=${MSSQL_HOST:-sqlserver}
+      - MSSQL_PORT=${MSSQL_PORT:-1433}
+      - MSSQL_USER=${MSSQL_USER:?Defina MSSQL_USER en .env}
+      - MSSQL_PASSWORD=${MSSQL_PASSWORD:?Defina MSSQL_PASSWORD en .env}
+      - MSSQL_DB=${MSSQL_DB:-MoodleUTADB}
       - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      - SEED_DOCENTE_PASSWORD=${SEED_DOCENTE_PASSWORD:?Defina SEED_DOCENTE_PASSWORD en .env}
-      - SEED_ESTUDIANTE_PASSWORD=${SEED_ESTUDIANTE_PASSWORD:-}
-      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-}
       - MOODLE_URL=${MOODLE_URL:-http://moodle:8080}
       - MOODLE_HOST_HEADER=${MOODLE_HOST_HEADER:-localhost}
+      - MOODLE_EXTERNAL_URL=${MOODLE_EXTERNAL_URL:-http://localhost:8080}
       - MOODLE_TOKEN=${MOODLE_TOKEN:-edumonitorutadevtoken2026fisei01}
       - MOODLE_WS_TOKEN=${MOODLE_TOKEN:-edumonitorutadevtoken2026fisei01}
       - AGENT_URL=${AGENT_URL:-http://agent:8001}
       - AGENT_SERVICE_TOKEN=${AGENT_SERVICE_TOKEN:-agent_secret_token_uta_2026}
       - OLLAMA_HOST=http://ollama:11434
-      - MSSQL_HOST=sqlserver
-      - MSSQL_PORT=1433
-      - MSSQL_DB=MoodleUTADB
-      - MSSQL_USER=sa
-      - MSSQL_PASSWORD=${MSSQL_PASSWORD:-}
     depends_on:
-      analytics-db:
+      sqlserver:
         condition: service_healthy
       moodle:
         condition: service_started

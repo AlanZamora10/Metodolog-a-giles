@@ -66,6 +66,11 @@ set_config('defaulthomepage', defined('HOMEPAGE_MYCOURSES') ? HOMEPAGE_MYCOURSES
 // Hora de Ecuador para todos: los vencimientos se muestran a las 23:59 locales
 set_config('timezone', 'America/Guayaquil');
 set_config('forcetimezone', 'America/Guayaquil');
+// Restricciones de acceso (las tareas de refuerzo son visibles sólo para su estudiante)
+set_config('enableavailability', 1);
+// Login unificado de EduMonitor AI: valida las credenciales del docente con login/token.php
+set_config('enablemobilewebservice', 1);
+$DB->set_field('external_services', 'enabled', 1, ['shortname' => 'moodle_mobile_app']);
 
 $site = get_site();
 $site->fullname = 'Moodle UTA';
@@ -172,7 +177,7 @@ function upsert_user($username, $firstname, $lastname, $email, $idnumber, $passw
 }
 
 const DOCENTE_NOMBRE = 'Ing. Roberto Gómez';
-$docente = upsert_user('rgomez', 'Ing. Roberto', 'Gómez', 'docente@uta.edu.ec', 'U-01', 'Docente2026!');
+$docente = upsert_user('rgomez', 'Ing. Roberto', 'Gómez', 'rgomez@uta.edu.ec', 'U-01', 'Docente2026!');
 out("  = Docente titular: rgomez (" . DOCENTE_NOMBRE . ")");
 
 // idnumber => [username, nombres, apellidos]
@@ -408,11 +413,15 @@ $parciales = [
 $section_names = [0 => 'Informativo', 1 => 'Primer Parcial', 2 => 'Segundo Parcial', 3 => 'Supletorio'];
 
 foreach ($courses as $short => $course) {
-    // Exactamente 4 secciones: 0..3
+    // 4 secciones académicas (0..3). Se eliminan las sobrantes, salvo «Refuerzos», donde EduMonitor AI
+    // publica las tareas personalizadas (plugin local_edumonitor): ésas nunca se borran.
     course_create_sections_if_missing($course, array_keys($section_names));
     $maxsection = (int)$DB->get_field_sql('SELECT MAX(section) FROM {course_sections} WHERE course = ?', [$course->id]);
     for ($s = $maxsection; $s > 3; $s--) {
-        course_delete_section($course, $s, true);
+        $nombre_seccion = $DB->get_field('course_sections', 'name', ['course' => $course->id, 'section' => $s]);
+        if ($nombre_seccion !== 'Refuerzos') {
+            course_delete_section($course, $s, true);
+        }
     }
     foreach ($section_names as $num => $name) {
         $section = $DB->get_record('course_sections', ['course' => $course->id, 'section' => $num]);
@@ -620,6 +629,13 @@ foreach ($courses as $short => $course) {
                 'assignfeedbackcomments_editor' => ['text' => $feedback ?? '', 'format' => FORMAT_PLAIN],
             ]);
             $assign->update_grade($grade);
+            // El comentario debe quedar también en el libro de calificaciones (grade_grades.feedback): es lo que
+            // lee EduMonitor vía gradereport_user_get_grade_items para distinguir SIN ENTREGA / PENDIENTE.
+            // Se envía como fuente mod/assign (igual que la propia tarea), sin bloquear la nota como sobrescrita.
+            grade_update('mod/assign', $course->id, 'mod', 'assign', $cm->instance, 0, [
+                'userid' => $user->id, 'rawgrade' => $value, 'usermodified' => $docente->id,
+                'feedback' => $feedback, 'feedbackformat' => FORMAT_PLAIN,
+            ]);
             $graded++;
         }
     }
@@ -643,7 +659,9 @@ if (!$service) {
     $DB->set_field('external_services', 'enabled', 1, ['id' => $service->id]);
 }
 foreach (['core_webservice_get_site_info', 'core_course_get_courses', 'core_course_get_courses_by_field',
-          'core_enrol_get_enrolled_users', 'gradereport_user_get_grade_items', 'core_grades_get_grades'] as $fn) {
+          'core_enrol_get_enrolled_users', 'gradereport_user_get_grade_items', 'core_grades_get_grades',
+          // Fase A: login unificado y publicación real de refuerzos (plugin local_edumonitor)
+          'core_user_get_users_by_field', 'core_enrol_get_users_courses', 'local_edumonitor_crear_tarea'] as $fn) {
     if ($DB->record_exists('external_functions', ['name' => $fn]) &&
         !$DB->record_exists('external_services_functions', ['externalserviceid' => $service->id, 'functionname' => $fn])) {
         $DB->insert_record('external_services_functions', (object)['externalserviceid' => $service->id, 'functionname' => $fn]);
@@ -671,6 +689,6 @@ foreach ($courses_def as $short => $def) {
     printf("  %-10s %2d estudiantes\n", $short, count($def['roster']));
 }
 echo "  Admin: admin / MoodleAdmin2026!\n";
-echo "  Docente: rgomez (docente@uta.edu.ec) / Docente2026!\n";
+echo "  Docente: rgomez (rgomez@uta.edu.ec) / Docente2026!  <- también es el login de EduMonitor AI\n";
 echo "  Estudiante (caso crítico): dcurillo / Estudiante2026!\n";
 echo "====================================================================\n";

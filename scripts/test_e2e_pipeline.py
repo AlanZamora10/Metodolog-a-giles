@@ -61,7 +61,7 @@ def main():
 
     # 1. Autenticación Docente (HU-01)
     status_code, auth_data = make_request("/auth/login", method="POST", payload={
-        "email": "docente@uta.edu.ec",
+        "email": "rgomez@uta.edu.ec",
         "password": "Docente2026!"
     })
     if status_code != 200 or "access_token" not in auth_data:
@@ -133,7 +133,7 @@ def main():
     if status_code == 200 and pub_data.get("cmid"):
         cmid = pub_data.get("cmid")
         print_step(f"Paso 6: Aprobación del refuerzo (POST /refuerzos/{refuerzo_id}/publicar)", "OK",
-                   f"Estado: PUBLICADO | cmid simulado: {cmid} (creación automática en Moodle pendiente)")
+                   f"Tarea creada en Moodle con cmid {cmid} | {pub_data.get('moodle_link')}")
     else:
         print_step("Paso 6: Publicación en Moodle LMS", "FAIL", str(pub_data))
 

@@ -5,12 +5,14 @@ Los cursos sincronizados desde Moodle (persistidos en PostgreSQL) tienen priorid
 heredado del Sprint 1 (MAT1 / MAT2) sólo se usa si el docente aún no tiene cursos sincronizados.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 
+from app import repositories
 from app.routers.auth import get_current_docente
 from app.routers.students import STUDENTS_STORE, _build_student_response, respuesta_sincronizada
 from app.schemas.academic import CourseSummary
-from app.services import sync_service
+from app.services import reporte_service, sync_service
 
 router = APIRouter(prefix="/courses", tags=["Cursos"])
 
@@ -60,6 +62,37 @@ async def get_course_summary(course_code: str, docente: dict = Depends(get_curre
         return _resumen(codigo, _CURSOS_HEREDADOS[codigo], [_build_student_response(st) for st in STUDENTS_STORE])
 
     raise HTTPException(status_code=404, detail=f"Curso '{course_code}' no encontrado. Sincronice con Moodle.")
+
+
+def curso_autorizado(course_id: int, docente: dict) -> dict:
+    """Curso sincronizado (por ID de Moodle) del que el docente es profesor; 404 / 403 en otro caso."""
+    curso = next((c for c in sync_service.SYNC_STATE["cursos"] if c["id"] == course_id), None)
+    if curso is None:
+        raise HTTPException(status_code=404, detail=f"Curso {course_id} no sincronizado. Sincronice con Moodle.")
+    if docente["email"].strip().lower() not in curso["docentes"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos sobre este curso.")
+    return curso
+
+
+@router.get("/{course_id}/reporte")
+async def reporte_curso(
+    course_id: int,
+    formato: str = Query("json", pattern="^(json|md)$", description="json (React) o md (descarga Markdown)"),
+    docente: dict = Depends(get_current_docente),
+):
+    """
+    Informe del curso: período, métricas, distribución de estados (cero, sin entrega, pendiente),
+    alertas, hallazgos, recomendaciones y fecha de la última sincronización con Moodle.
+    """
+    curso = curso_autorizado(course_id, docente)
+    reporte = reporte_service.construir_reporte(
+        curso, repositories.list_alertas(course_id=course_id), sync_service.SYNC_STATE.get("ultima_sincronizacion"))
+    if formato == "md":
+        return PlainTextResponse(
+            reporte_service.reporte_markdown(reporte), media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="informe_{curso["shortname"]}.md"'},
+        )
+    return reporte
 
 
 @router.get("")

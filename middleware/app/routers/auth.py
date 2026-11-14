@@ -2,14 +2,16 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 
+from app import repositories
 from app.schemas.auth import (
-    UserRegisterRequest,
     UserLoginRequest,
     UserResponse,
     TokenResponse
 )
 from app.services.auth_service import (
     AuthService,
+    LoginRechazado,
+    MoodleError,
     create_access_token,
     decode_access_token
 )
@@ -56,35 +58,23 @@ def get_current_docente(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(req: UserRegisterRequest):
-    """
-    Registro de nuevo usuario con selección de rol (DOCENTE o ESTUDIANTE).
-    """
-    try:
-        user = AuthService.register_user(
-            nombres=req.nombres,
-            email=req.email,
-            password=req.password,
-            rol=req.rol,
-            id_number=req.id_number
-        )
-        token = create_access_token(data={"sub": user["email"], "rol": user["rol"], "id": user["id"]})
-        return TokenResponse(
-            access_token=token,
-            token_type="bearer",
-            user=UserResponse(**user)
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
 @router.post("/login", response_model=TokenResponse)
 async def login(req: UserLoginRequest):
     """
-    Inicio de sesión para Docentes y Estudiantes. Retorna token JWT y rol.
+    Login unificado con Moodle UTA (Fase A): correo o usuario de Moodle + contraseña de Moodle.
+      - 401 si Moodle rechaza las credenciales.
+      - 403 si el usuario no es docente de ningún curso del portafolio.
+      - 503 si Moodle no está disponible para validar.
     """
-    user = AuthService.authenticate_user(email=req.email, password=req.password)
+    try:
+        user = await AuthService.autenticar_docente(req.email, req.password)
+    except LoginRechazado as ex:
+        repositories.insert_log("LOGIN", "ADVERTENCIA", f"Acceso rechazado (no docente): {req.email.strip().lower()}",
+                                {"usuario": req.email.strip().lower()})
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(ex))
+    except MoodleError as ex:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail=f"No se pudo validar con Moodle UTA: {ex}")
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,6 +82,8 @@ async def login(req: UserLoginRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    repositories.insert_log("LOGIN", "EXITO", f"Inicio de sesión del docente {user['email']} (validado en Moodle).",
+                            {"usuario": user["email"], "cursos": [c["shortname"] for c in user["cursos_docente"]]})
     token = create_access_token(data={"sub": user["email"], "rol": user["rol"], "id": user["id"]})
     return TokenResponse(
         access_token=token,

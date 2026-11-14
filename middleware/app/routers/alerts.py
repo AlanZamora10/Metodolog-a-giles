@@ -20,7 +20,7 @@ exponen alertas de cursos donde el docente es profesor en Moodle (403 en otro ca
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -28,8 +28,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app import repositories
+from app.config import settings
 from app.routers.auth import get_current_docente
 from app.routers.logs import append_log
+from app.services.moodle_client import MoodleClient, MoodleError
 
 router = APIRouter(tags=["Centro de Alertas y Refuerzos"])
 
@@ -65,6 +67,17 @@ class PublicarRefuerzoReq(BaseModel):
     confirmado: bool = Field(..., description="Confirmación explícita del docente (RN-17)")
     titulo: Optional[str] = None
     instrucciones: Optional[str] = None
+    fecha_entrega: Optional[date] = Field(None, description="Fecha límite (AAAA-MM-DD); por defecto hoy + REFUERZO_DIAS_PLAZO")
+
+
+# Ecuador continental: UTC-5 sin horario de verano
+_ZONA_ECUADOR = timezone(timedelta(hours=-5))
+
+
+def _vencimiento(fecha: Optional[date]) -> datetime:
+    """Fecha límite a las 23:59 (hora de Ecuador) del día indicado o de hoy + plazo por defecto."""
+    dia = fecha or (datetime.now(_ZONA_ECUADOR).date() + timedelta(days=settings.REFUERZO_DIAS_PLAZO))
+    return datetime(dia.year, dia.month, dia.day, 23, 59, tzinfo=_ZONA_ECUADOR)
 
 
 def _alerta_out(a: Dict[str, Any]) -> Dict[str, Any]:
@@ -198,7 +211,7 @@ async def cerrar_alerta(alerta_id: int, docente: dict = Depends(get_current_doce
         raise HTTPException(status_code=409, detail="La alerta ya se encuentra en estado CERRADA.")
 
     repositories.update_alerta(alerta_id, {
-        "estado": "CERRADA", "resuelto": True, "fecha_resolucion": datetime.now(timezone.utc),
+        "estado": "CERRADA", "resuelto": True, "fecha_resolucion": repositories.ahora(),
     })
     append_log(
         tipo_proceso="CERRAR_ALERTA",
@@ -216,11 +229,12 @@ async def cerrar_alerta(alerta_id: int, docente: dict = Depends(get_current_doce
 @router.post("/refuerzos/{refuerzo_id}/publicar", response_model=Dict[str, Any])
 async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente: dict = Depends(get_current_docente)):
     """
-    Registra la aprobación y publicación de un refuerzo (RN-17 / HU-05):
+    Publica el refuerzo aprobado como tarea REAL en Moodle (RN-17 / HU-05), vía el plugin local_edumonitor:
       - Exige req.confirmado == True (400 si es False).
-      - Marca el refuerzo y la alerta como PUBLICADO y lo registra en auditoría.
-    Nota: la creación automática de la actividad vía Web Services de Moodle aún no está implementada;
-    el cmid devuelto es un identificador simulado y el docente crea la tarea desde el curso en Moodle.
+      - Crea la tarea en la sección «Refuerzos» del curso, visible sólo para el estudiante de la alerta.
+      - Guarda el cmid real devuelto por Moodle; refuerzo y alerta pasan a PUBLICADO.
+      - Si Moodle falla: 502, sin cambios de estado, y queda registrado en auditoría.
+      - Idempotente: volver a publicar el mismo refuerzo devuelve la tarea ya creada.
     """
     if not req.confirmado:
         raise HTTPException(
@@ -232,31 +246,52 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     if not refuerzo:
         raise HTTPException(status_code=404, detail="Refuerzo didáctico no encontrado.")
     alerta = _alerta_autorizada(refuerzo["alerta_id"], docente)
+    if alerta["estado"] == "CERRADA":
+        raise HTTPException(status_code=409, detail="La alerta está CERRADA; no se puede publicar su refuerzo.")
+    if not alerta.get("curso_id"):
+        raise HTTPException(status_code=409, detail="La alerta no está asociada a un curso de Moodle.")
 
-    simulated_cmid = 1000 + refuerzo_id
-    cambios: Dict[str, Any] = {
-        "estado": "PUBLICADO", "cmid": simulated_cmid, "fecha_publicacion": datetime.now(timezone.utc),
-    }
-    if req.titulo:
-        cambios["titulo"] = req.titulo[:200]
-    if req.instrucciones:
-        cambios["instrucciones"] = req.instrucciones
-    refuerzo = repositories.update_refuerzo(refuerzo_id, cambios)
+    titulo = (req.titulo or refuerzo["titulo"])[:200]
+    instrucciones = req.instrucciones or refuerzo.get("instrucciones") or refuerzo.get("descripcion") or ""
+    vence = _vencimiento(req.fecha_entrega)
+    try:
+        tarea = await MoodleClient().crear_tarea_refuerzo(
+            course_id=alerta["curso_id"], nombre=titulo, instrucciones=instrucciones,
+            email_estudiante=alerta["email"], fecha_entrega=int(vence.timestamp()), codigo=f"REF-{refuerzo_id}",
+        )
+    except MoodleError as ex:
+        append_log(
+            tipo_proceso="PUBLICAR_REFUERZO", estado="ERROR",
+            mensaje=f"No se pudo publicar el refuerzo #{refuerzo_id} en Moodle: {ex}",
+            detalle={"refuerzo_id": refuerzo_id, "curso": alerta["curso_codigo"], "estudiante": alerta["nombres"]},
+        )
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Moodle no creó la tarea: {ex}")
+
+    enlace = f"{settings.MOODLE_EXTERNAL_URL}/mod/assign/view.php?id={int(tarea['cmid'])}"
+    refuerzo = repositories.update_refuerzo(refuerzo_id, {
+        "estado": "PUBLICADO", "cmid": int(tarea["cmid"]), "moodle_url": enlace,
+        "titulo": titulo, "instrucciones": instrucciones,
+        "fecha_publicacion": repositories.ahora(),
+        "fecha_entrega": vence.astimezone(timezone.utc).replace(tzinfo=None),
+    })
     repositories.update_alerta(alerta["id"], {"estado": "PUBLICADO"})
 
     append_log(
-        tipo_proceso="PUBLICAR_PUBLICADO",
+        tipo_proceso="PUBLICAR_REFUERZO",
         estado="EXITO",
-        mensaje=f"Refuerzo #{refuerzo_id} aprobado y marcado como publicado (cmid simulado {simulated_cmid}).",
-        detalle={"refuerzo_id": refuerzo_id, "cmid": simulated_cmid, "simulado": True,
-                 "estudiante": alerta["nombres"], "curso": alerta["curso_codigo"]},
+        mensaje=(f"Refuerzo #{refuerzo_id} publicado en Moodle (cmid {tarea['cmid']}) para {alerta['nombres']} "
+                 f"en {alerta['curso_codigo']}."),
+        detalle={"refuerzo_id": refuerzo_id, "cmid": int(tarea["cmid"]), "curso": alerta["curso_codigo"],
+                 "estudiante": alerta["nombres"], "ya_existia": bool(tarea.get("existente")),
+                 "fecha_entrega": vence.isoformat()},
     )
 
     return {
         "status": "success",
-        "mensaje": "Refuerzo aprobado. La creación automática en Moodle aún no está implementada (cmid simulado).",
-        "cmid": simulated_cmid,
-        "moodle_link": f"http://localhost:8080/course/view.php?id={alerta.get('curso_id') or ''}",
+        "mensaje": "Tarea de refuerzo publicada en Moodle, visible sólo para el estudiante.",
+        "cmid": int(tarea["cmid"]),
+        "moodle_link": enlace,
+        "fecha_entrega": vence.isoformat(),
         "refuerzo": refuerzo,
     }
 

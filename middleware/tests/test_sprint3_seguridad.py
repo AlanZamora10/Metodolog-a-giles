@@ -15,7 +15,7 @@ from app import database
 from app.main import app
 from app.services import sync_service
 from app.services.auth_service import create_access_token
-from moodle_fake import DOCENTE, ESTUDIANTE, OTRO_DOCENTE, FakeMoodleSprint3
+from moodle_fake import DOCENTE, OTRO_DOCENTE, FakeMoodleSprint3, token_con_rol
 
 client = TestClient(app)
 
@@ -33,6 +33,9 @@ PROTEGIDOS = [
     ("get", "/api/v1/alerts"),
     ("post", "/api/v1/sincronizacion"),
     ("get", "/api/cursos/2/estudiantes"),
+    ("get", "/api/v1/courses/2/reporte"),
+    ("post", "/api/v1/agent/chat"),
+    ("get", "/api/v1/agent/herramientas"),
 ]
 
 
@@ -48,6 +51,8 @@ def _llamar(metodo, ruta, headers=None):
     kwargs = {"headers": headers or {}}
     if ruta.endswith("/publicar"):
         kwargs["json"] = {"confirmado": True}
+    if ruta.endswith("/chat"):
+        kwargs["json"] = {"mensaje": "resumen"}
     return getattr(client, metodo)(ruta, **kwargs)
 
 
@@ -76,7 +81,7 @@ def test_token_expirado_401():
 
 @pytest.mark.parametrize("metodo,ruta", PROTEGIDOS)
 def test_rol_estudiante_403(metodo, ruta):
-    assert _llamar(metodo, ruta, _auth(ESTUDIANTE)).status_code == 403
+    assert _llamar(metodo, ruta, token_con_rol("ESTUDIANTE")).status_code == 403
 
 
 def test_endpoints_publicos_siguen_abiertos():
@@ -85,7 +90,6 @@ def test_endpoints_publicos_siguen_abiertos():
 
 
 def test_docente_no_opera_alertas_de_curso_ajeno():
-    client.post("/api/v1/auth/register", json={**OTRO_DOCENTE, "nombres": "Ing. Otro Docente", "rol": "DOCENTE"})
     docente = _auth(DOCENTE)
     otro = _auth(OTRO_DOCENTE)
     client.post("/api/sincronizacion", headers=docente)

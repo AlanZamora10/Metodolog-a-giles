@@ -301,8 +301,8 @@
           <div id="loginError" class="alert-error" role="alert" hidden></div>
           <form id="formAuth">
             <div class="form-group">
-              <label for="inputEmail">Correo institucional</label>
-              <input type="email" id="inputEmail" class="form-control" required placeholder="docente@uta.edu.ec" autocomplete="username">
+              <label for="inputEmail">Correo o usuario de Moodle UTA</label>
+              <input type="text" id="inputEmail" class="form-control" required placeholder="rgomez@uta.edu.ec" autocomplete="username">
             </div>
             <div class="form-group">
               <label for="inputPassword">Contraseña</label>
@@ -481,10 +481,9 @@
               <label for="ins">Instrucciones</label>
               <textarea id="ins" class="form-control" rows="5"></textarea>
             </div>
-            <a class="btn-primary btn-block" id="btnAbrirCurso" href="http://localhost:8080" target="_blank" rel="noopener noreferrer">
-              Abrir el curso en Moodle para crear la tarea ↗
-            </a>
-            <p class="sub" style="margin-top:8px;">La publicación automática en Moodle aún no está implementada; el borrador se prepara aquí y se registra en el aula virtual.</p>
+            <button type="button" class="btn-primary" id="btnPublicar" disabled>Aprobar y publicar en Moodle</button>
+            <p class="sub" id="pubEstado" style="margin-top:8px;">La tarea se crea en la sección «Refuerzos» del curso y sólo la ve el estudiante destinatario.</p>
+            <a class="btn-link" id="btnAbrirCurso" href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Abrir el curso en Moodle ↗</a>
           </div>
         </div>
       </section>
@@ -545,6 +544,7 @@
       $('formAuth').addEventListener('submit', ejecutarLogin);
       $('btnLogout').addEventListener('click', cerrarSesion);
       $('btnSync').addEventListener('click', sincronizar);
+      $('btnPublicar').addEventListener('click', publicarRefuerzo);
       $('btnToastClose').addEventListener('click', () => { $('toast').hidden = true; });
       $('comboCurso').addEventListener('change', (e) => seleccionarCurso(Number(e.target.value)));
       document.addEventListener('click', (e) => {
@@ -574,7 +574,13 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: $('inputEmail').value.trim(), password: $('inputPassword').value })
         });
-        if (!resp.ok) throw new Error('Credenciales inválidas. Verifique su correo institucional y contraseña.');
+        if (!resp.ok) {
+          let detalle = '';
+          try { detalle = (await resp.json()).detail || ''; } catch (e) { /* sin cuerpo */ }
+          throw new Error(resp.status === 401
+            ? 'Credenciales inválidas. Use su correo (o usuario) y contraseña de Moodle UTA.'
+            : (detalle || `Error HTTP ${resp.status}`));
+        }
         const data = await resp.json();
         if (data.user.rol !== 'DOCENTE') throw new Error('EduMonitor AI es de uso exclusivo para docentes.');
         storage('set', 'access_token', data.access_token);
@@ -834,27 +840,74 @@
         b.addEventListener('click', () => cerrarAlerta(Number(b.dataset.cerrar))));
     }
 
-    // POST /api/v1/alertas/{id}/atender — el Agente IA (o su respaldo) redacta el borrador
+    // POST /api/v1/alertas/{id}/atender — el Agente IA (o su respaldo) redacta el borrador.
+    // El formulario se asocia AL INSTANTE al estudiante pulsado; si mientras tanto se pulsa otra alerta,
+    // la respuesta tardía de la anterior se descarta (no mezcla destinatario y borrador).
+    let refuerzoActual = null;
+    let peticionAtender = 0;
+
+    function prepararFormulario(alerta, mensaje) {
+      refuerzoActual = null;
+      $('dest').value = `${alerta.nombres} (${alerta.email || alerta.id_number})`;
+      $('tit').value = '';
+      $('ins').value = '';
+      $('tit').placeholder = mensaje;
+      $('ins').placeholder = mensaje;
+      $('btnPublicar').disabled = true;
+      $('pubEstado').textContent = 'La tarea se crea en la sección «Refuerzos» del curso y sólo la ve el estudiante destinatario.';
+      $('btnAbrirCurso').href = `${MOODLE}/course/view.php?id=${cursoActualId}`;
+    }
+
     async function atenderAlerta(alertaId) {
       const alerta = alertasCurso.find(a => a.id === alertaId);
+      if (!alerta) return;
+      const miPeticion = ++peticionAtender;
       alertaSeleccionada = alertaId;
       irAPantalla('s3');
       renderAlertas();
-      $('refOrigen').textContent = 'Generando borrador con el Agente IA...';
+      prepararFormulario(alerta, 'Generando borrador con el Agente IA...');
+      $('refOrigen').textContent = `Generando borrador para ${alerta.nombres}...`;
       try {
         const r = await api(`/api/v1/alertas/${alertaId}/atender`, { method: 'POST' });
+        if (miPeticion !== peticionAtender) return;  // el docente ya eligió otra alerta
         const ref = r.refuerzo;
+        refuerzoActual = ref;
         $('dest').value = `${r.alerta.nombres} (${r.alerta.email || r.alerta.id_number})`;
         $('tit').value = ref.titulo;
         $('ins').value = ref.instrucciones || ref.descripcion || '';
-        $('btnAbrirCurso').href = `${MOODLE}/course/view.php?id=${cursoActualId}`;
+        $('btnPublicar').disabled = false;
         const fuente = ref.origen === 'OLLAMA_SLM' ? 'Agente IA (Ollama llama3.2:1b)' : 'motor heurístico de respaldo (HU-11B)';
-        $('refOrigen').textContent = `Borrador generado por ${fuente}. Revíselo antes de usarlo.`;
+        $('refOrigen').textContent = `Borrador para ${r.alerta.nombres} generado por ${fuente}. Revíselo antes de publicar.`;
         await cargarAlertas();
       } catch (err) {
+        if (miPeticion !== peticionAtender) return;
         $('refOrigen').textContent = 'No se pudo generar el borrador.';
         mostrarToast('No se pudo atender la alerta', err.message, true);
-        if (alerta) prepararRefuerzo(alerta.id_number);
+      }
+    }
+
+    // POST /api/v1/refuerzos/{id}/publicar — crea la tarea REAL en Moodle (visible sólo para el estudiante)
+    async function publicarRefuerzo() {
+      if (!refuerzoActual) return;
+      const btn = $('btnPublicar');
+      btn.disabled = true;
+      btn.textContent = 'Publicando en Moodle...';
+      try {
+        const r = await api(`/api/v1/refuerzos/${refuerzoActual.id}/publicar`, {
+          method: 'POST',
+          body: JSON.stringify({ confirmado: true, titulo: $('tit').value.trim(), instrucciones: $('ins').value.trim() }),
+        });
+        const vence = new Date(r.fecha_entrega).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+        $('pubEstado').innerHTML = `Publicada en Moodle (cmid ${r.cmid}), entrega hasta ${esc(vence)}. ` +
+          `<a href="${esc(r.moodle_link)}" target="_blank" rel="noopener noreferrer">Ver la tarea ↗</a>`;
+        mostrarToast('Refuerzo publicado', `La tarea quedó en la sección «Refuerzos» del curso.`);
+        refuerzoActual = null;
+        await cargarAlertas();
+      } catch (err) {
+        btn.disabled = false;
+        mostrarToast('No se pudo publicar en Moodle', err.message, true);
+      } finally {
+        btn.textContent = 'Aprobar y publicar en Moodle';
       }
     }
 
@@ -885,6 +938,10 @@
       $('tit').value = `Refuerzo: ${debil.label.replace(/ \(\d+%\)/, '')} — ${curso?.shortname || ''}`;
       $('ins').value = `Actividad de recuperación para fortalecer el componente "${debil.label}". Entregar en Moodle UTA dentro de los próximos 7 días.`;
       $('btnAbrirCurso').href = `${MOODLE}/course/view.php?id=${cursoActualId}`;
+      // Sin alerta asociada no hay refuerzo en el sistema: sólo borrador local (no se publica automáticamente)
+      refuerzoActual = null;
+      $('btnPublicar').disabled = true;
+      $('refOrigen').textContent = `${e.nombres} no tiene una alerta activa: borrador local, no se publica automáticamente.`;
       irAPantalla('s3');
     }
 

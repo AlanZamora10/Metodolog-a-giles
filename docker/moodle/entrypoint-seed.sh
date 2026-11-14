@@ -17,11 +17,30 @@ PHP_BIN="$(command -v php || echo /opt/bitnami/php/bin/php)"
 MOODLE_DIR="/opt/bitnami/moodle"
 MOODLEDATA_DIR="/bitnami/moodledata"
 
+# Instala/actualiza el plugin local_edumonitor (Web Service local_edumonitor_crear_tarea).
+# El código de Moodle vive en el volumen persistente, así que la copia sobrevive a reinicios.
+install_plugin() {
+    local origen="$SEED_DIR/local_edumonitor" destino="$MOODLE_DIR/local/edumonitor"
+    [[ -d "$origen" ]] || return 0
+    echo "[EduMonitor AI] Instalando plugin local_edumonitor..."
+    rm -rf "$destino"
+    cp -r "$origen" "$destino"
+    chown -R daemon:root "$destino" 2>/dev/null || true
+    if "$PHP_BIN" "$MOODLE_DIR/admin/cli/upgrade.php" --non-interactive >/tmp/edumonitor_upgrade.log 2>&1; then
+        echo "[EduMonitor AI] Plugin local_edumonitor instalado/actualizado."
+    else
+        echo "[EduMonitor AI] ERROR al instalar local_edumonitor:"; tail -20 /tmp/edumonitor_upgrade.log
+    fi
+    chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
+}
+
 run_seed() {
     echo "[EduMonitor AI] Esperando a que Moodle LMS responda en el puerto 8080..."
     until "$PHP_BIN" -r 'exit(@file_get_contents("http://127.0.0.1:8080/login/index.php") === false ? 1 : 0);' 2>/dev/null; do
         sleep 5
     done
+
+    install_plugin
 
     echo "[EduMonitor AI] Moodle disponible. Ejecutando siembra idempotente..."
     if "$PHP_BIN" "$SEED_DIR/seed.php"; then

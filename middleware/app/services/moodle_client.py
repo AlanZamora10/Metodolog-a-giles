@@ -94,3 +94,56 @@ class MoodleClient:
         """Libro de calificaciones (usergrades) de todos los usuarios del curso."""
         data = await self.call("gradereport_user_get_grade_items", courseid=course_id)
         return data.get("usergrades", [])
+
+    # ------------------------------------------------------------------ Login unificado (Fase A)
+    async def obtener_token_usuario(self, username: str, password: str) -> str:
+        """
+        Valida usuario y contraseña de Moodle con login/token.php (servicio MOODLE_LOGIN_SERVICE).
+        Devuelve el token del usuario; lanza CredencialesMoodleInvalidas si Moodle las rechaza.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/login/token.php",
+                    data={"username": username, "password": password, "service": settings.MOODLE_LOGIN_SERVICE},
+                    headers=self._headers(),
+                )
+        except httpx.HTTPError as ex:
+            raise MoodleError(f"No se pudo contactar a Moodle en {self.base_url}: {ex}") from ex
+        if response.status_code != 200:
+            raise MoodleError(f"Moodle respondió HTTP {response.status_code} en login/token.php.")
+        try:
+            data = response.json()
+        except ValueError as ex:
+            raise MoodleError("Respuesta no JSON de Moodle en login/token.php.") from ex
+        if data.get("token"):
+            return data["token"]
+        if data.get("errorcode") in ("invalidlogin", "usernotconfirmed", "suspended", "restoredaccountresetpassword"):
+            raise CredencialesMoodleInvalidas(data.get("error") or "Credenciales inválidas.")
+        raise MoodleError(f"login/token.php: {data.get('error') or data.get('errorcode') or 'sin token'}")
+
+    async def buscar_usuario(self, campo: str, valor: str) -> Optional[Dict[str, Any]]:
+        """Usuario de Moodle por campo (email, username, id, idnumber)."""
+        usuarios = await self.call("core_user_get_users_by_field", field=campo, **{"values[0]": valor})
+        return usuarios[0] if usuarios else None
+
+    async def get_users_courses(self, user_id: int) -> List[Dict[str, Any]]:
+        """Cursos en los que está matriculado un usuario."""
+        return await self.call("core_enrol_get_users_courses", userid=user_id)
+
+    # ------------------------------------------------------------------ Publicación real (plugin local_edumonitor)
+    async def crear_tarea_refuerzo(self, course_id: int, nombre: str, instrucciones: str, email_estudiante: str,
+                                   fecha_entrega: int, codigo: str) -> Dict[str, Any]:
+        """
+        Crea (o devuelve, si ya existe con el mismo código) una tarea en la sección «Refuerzos» del curso,
+        visible sólo para el estudiante indicado. Requiere el plugin local_edumonitor en Moodle.
+        """
+        return await self.call(
+            "local_edumonitor_crear_tarea",
+            courseid=course_id, nombre=nombre, instrucciones=instrucciones,
+            emailestudiante=email_estudiante, fechaentrega=fecha_entrega, codigo=codigo,
+        )
+
+
+class CredencialesMoodleInvalidas(MoodleError):
+    """Moodle rechazó el usuario o la contraseña."""

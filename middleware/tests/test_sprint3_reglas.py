@@ -137,7 +137,17 @@ def test_resincronizar_no_duplica_y_resuelve_al_recuperarse(fake, headers):
     assert repositories.contar("alertas_tempranas") == 4
 
 
-def test_ciclo_de_vida_atender_publicar_cerrar(headers):
+class _MoodlePublica:
+    """Moodle simulado para local_edumonitor_crear_tarea (la publicación es real desde la Fase A)."""
+
+    async def crear_tarea_refuerzo(self, **kw):
+        return {"cmid": 900, "url": "http://localhost:8080/mod/assign/view.php?id=900", "seccion": 4,
+                "existente": False}
+
+
+def test_ciclo_de_vida_atender_publicar_cerrar(headers, monkeypatch):
+    from app.routers import alerts as alerts_router
+    monkeypatch.setattr(alerts_router, "MoodleClient", _MoodlePublica)
     client.post("/api/sincronizacion", headers=headers)
     alertas = _alertas(headers)
     r1, r2 = alertas["U-04"]["id"], alertas["U-11"]["id"]

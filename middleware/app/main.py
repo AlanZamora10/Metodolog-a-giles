@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import database
 from app.config import settings
-from app.routers import health, students, courses, sync, logs, auth, alerts, sincronizacion
+from app.routers import health, students, courses, sync, logs, auth, alerts, sincronizacion, agente
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -62,6 +62,7 @@ app.include_router(sync.router, prefix=api_prefix)
 app.include_router(logs.router, prefix=api_prefix)
 app.include_router(auth.router, prefix=api_prefix)
 app.include_router(alerts.router, prefix=api_prefix)
+app.include_router(agente.router, prefix=api_prefix)
 
 # Sincronización real con Moodle UTA: expuesta en /api (contrato del frontend) y /api/v1
 app.include_router(sincronizacion.router, prefix="/api")

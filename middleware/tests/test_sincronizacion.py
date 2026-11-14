@@ -17,11 +17,11 @@ from app.main import app
 from app.services import moodle_client as moodle_module
 from app.services import sync_service
 from app.services.moodle_client import MoodleClient, MoodleError
+from moodle_fake import token_con_rol
 
 client = TestClient(app)
 
-DOCENTE = {"email": "docente@uta.edu.ec", "password": "Docente2026!"}
-ESTUDIANTE = {"email": "dcurillo@uta.edu.ec", "password": "Estudiante2026!"}
+DOCENTE = {"email": "rgomez@uta.edu.ec", "password": "Docente2026!"}
 
 
 def _gi(idnumber: str, raw=None, feedback="", grademax=10):
@@ -48,7 +48,7 @@ class FakeMoodle:
         ]
 
     async def get_enrolled_users(self, course_id):
-        profesor = "docente@uta.edu.ec" if course_id == 2 else "otro.docente@uta.edu.ec"
+        profesor = "rgomez@uta.edu.ec" if course_id == 2 else "otro.docente@uta.edu.ec"
         return [
             {"id": 10, "fullname": "Profesor", "email": profesor, "roles": [{"shortname": "editingteacher"}]},
             {"id": 11, "fullname": "Estudiante A", "email": "estudiante.a@uta.edu.ec", "idnumber": "U-03",
@@ -107,7 +107,7 @@ def test_sincronizacion_sin_token_401():
 
 
 def test_sincronizacion_rol_estudiante_403():
-    assert client.post("/api/sincronizacion", headers=_auth(ESTUDIANTE)).status_code == 403
+    assert client.post("/api/sincronizacion", headers=token_con_rol("ESTUDIANTE")).status_code == 403
 
 
 # ---------------------------------------------------------------- Sincronización
@@ -194,7 +194,7 @@ def test_sincronizacion_importa_todos_los_matriculados(monkeypatch):
             return [{"id": 5, "shortname": "SOF-MCS-A", "idnumber": "SOF-MCS-A", "fullname": "(SOF) MCS - A"}]
 
         async def get_enrolled_users(self, course_id):
-            profesor = {"id": 1, "fullname": "Docente", "email": "docente@uta.edu.ec", "roles": [{"shortname": "editingteacher"}]}
+            profesor = {"id": 1, "fullname": "Docente", "email": "rgomez@uta.edu.ec", "roles": [{"shortname": "editingteacher"}]}
             return [profesor] + [
                 {"id": 100 + i, "fullname": f"Alumno {i}", "email": f"a{i}@uta.edu.ec", "idnumber": f"U-{i:02d}",
                  "roles": [{"shortname": "student"}]} for i in range(3, 18)

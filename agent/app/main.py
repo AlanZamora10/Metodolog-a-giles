@@ -8,7 +8,8 @@ if _agent_dir not in sys.path:
 
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Dict
+from typing import Any, Dict, List, Optional
+from app import chat_planner
 from app.ollama_client import OllamaAgent
 
 app = FastAPI(
@@ -43,6 +44,19 @@ async def analyze(req: AnalysisRequest):
         notas_actividades=req.notas_actividades
     )
     return result
+
+
+class PlanRequest(BaseModel):
+    mensaje: str
+    herramientas: List[Dict[str, Any]]
+    cursos: List[Dict[str, Any]] = []
+    course_id: Optional[int] = None
+
+
+@app.post("/api/v1/chat/plan")
+async def plan(req: PlanRequest):
+    """Propone qué herramientas del middleware invocar (Ollama tool calling); plan vacío si no hay LLM."""
+    return await chat_planner.planificar(req.mensaje, req.herramientas, req.cursos, req.course_id)
 
 
 if __name__ == "__main__":

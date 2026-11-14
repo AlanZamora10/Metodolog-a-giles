@@ -10,7 +10,7 @@ client = TestClient(app)
 
 
 def _auth_docente():
-    res = client.post("/api/v1/auth/login", json={"email": "docente@uta.edu.ec", "password": "Docente2026!"})
+    res = client.post("/api/v1/auth/login", json={"email": "rgomez@uta.edu.ec", "password": "Docente2026!"})
     assert res.status_code == 200, res.text
     return {"Authorization": f"Bearer {res.json()['access_token']}"}
 
@@ -36,8 +36,9 @@ def test_health_endpoint():
     data = response.json()
     assert data["status"] == "online"
     assert "moodle_status" in data
-    # SQLite en memoria en pruebas unitarias; PostgreSQL si se ejecuta con TEST_DATABASE_URL
-    esperado = "postgresql" if os.environ.get("TEST_DATABASE_URL") else "sqlite"
+    # SQLite en memoria en pruebas unitarias; el motor de TEST_DATABASE_URL (mssql / postgresql) si se define
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    esperado = "mssql" if url.startswith("mssql") else "postgresql" if url else "sqlite"
     assert data["persistencia"].startswith(esperado)
 
 
