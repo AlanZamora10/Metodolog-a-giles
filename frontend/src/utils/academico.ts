@@ -135,7 +135,7 @@ export function promedioPorActividad(estudiantes: Estudiante[], corte: Corte): {
     }));
 }
 
-/** Promedio del grupo por componente (ACD 35 %, Tareas 30 %, PAE 35 %) en el corte. */
+/** Promedio del grupo por componente (ACD 40 %, Tareas 30 %, PAE 30 %) en el corte. */
 export function promedioPorComponente(estudiantes: Estudiante[], corte: Corte) {
   const comp = { acd: [] as number[], tareas: [] as number[], pae: [] as number[] };
   for (const e of estudiantes) {
@@ -147,9 +147,9 @@ export function promedioPorComponente(estudiantes: Estudiante[], corte: Corte) {
   }
   const prom = (v: number[]) => (v.length ? redondear(v.reduce((s, n) => s + n, 0) / v.length) : 0);
   return [
-    { componente: 'ACD (35 %)', promedio: prom(comp.acd) },
+    { componente: 'ACD (40 %)', promedio: prom(comp.acd) },
     { componente: 'Tareas (30 %)', promedio: prom(comp.tareas) },
-    { componente: 'PAE (35 %)', promedio: prom(comp.pae) },
+    { componente: 'PAE (30 %)', promedio: prom(comp.pae) },
   ];
 }
 

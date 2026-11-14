@@ -225,7 +225,7 @@ def test_chat_calificaciones_de_un_estudiante_sin_inventar_datos(sincronizado):
     assert llamada["parametros"]["estudiante"] == "Diego Curillo"
     fila = llamada["resultado"]["calificaciones"][0]
     assert fila["nota_final"] == 2.65 and "U2-T4 SIN_ENTREGA" in fila["incidencias"]
-    assert "2.65/10" in data["respuesta"] and "U2-T4 SIN_ENTREGA" in data["respuesta"]
+    assert "2.65/10" in data["respuesta"] and "U2-T4 (sin entrega)" in data["respuesta"]
 
 
 def test_chat_usa_al_menos_tres_herramientas_distintas(sincronizado):

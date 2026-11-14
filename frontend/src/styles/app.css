@@ -200,17 +200,21 @@ table.tabla { width: 100%; border-collapse: collapse; }
 .leyenda-estados div { display: flex; align-items: center; gap: 8px; }
 .leyenda-estados b { margin-left: auto; font-variant-numeric: tabular-nums; }
 
-/* ---------- Login ---------- */
-.login-page { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; }
-.login-hero { background: var(--uta-blue); color: #fff; padding: 56px; display: flex; flex-direction: column; justify-content: space-between; }
-.login-hero h1 { color: #fff; font-size: 30px; margin-top: 28px; max-width: 460px; }
-.login-hero p { opacity: .82; margin-top: 12px; max-width: 460px; font-size: 15px; }
-.login-hero ul { margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; opacity: .9; }
-.login-hero li::before { content: '✓'; margin-right: 10px; font-weight: 700; }
+/* ---------- Login (minimalista) ---------- */
+.login-page { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+.login-hero {
+  background: var(--uta-blue); color: #fff; padding: 48px 56px;
+  display: grid; grid-template-rows: auto 1fr auto; align-items: center;
+}
+.login-hero h1 { color: #fff; font-size: 32px; font-weight: 650; line-height: 1.25; max-width: 440px; letter-spacing: -.01em; }
+.login-pie { font-size: 12.5px; opacity: .7; max-width: 560px; text-wrap: balance; }
 .login-form-wrap { display: grid; place-items: center; padding: 32px 20px; background: #fff; }
-.login-form { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 16px; }
-.login-form .input { width: 100%; min-height: 42px; }
+.login-form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 18px; }
+.login-form .input { width: 100%; min-height: 44px; }
 .login-form .btn { min-height: 44px; }
+.login-ayuda { display: flex; flex-direction: column; gap: 2px; align-items: center; text-align: center; }
+.login-ayuda a { font-size: 13px; font-weight: 600; text-decoration: none; }
+.login-ayuda a:hover { text-decoration: underline; }
 
 /* ---------- Ficha del estudiante ---------- */
 .perfil { display: flex; gap: 16px; align-items: center; }
@@ -260,6 +264,32 @@ table.tabla { width: 100%; border-collapse: collapse; }
 .sugerencia { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 8px 10px; cursor: pointer; font-size: 13px; }
 .sugerencia:hover:not(:disabled) { border-color: var(--uta-blue); background: var(--uta-blue-soft); }
 .tool-cat { font-size: 12.5px; display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid #eef0f2; }
+
+/* Respuestas del agente (Markdown) */
+.msg.agente { max-width: 92%; }
+.md { display: flex; flex-direction: column; gap: 8px; white-space: normal; line-height: 1.55; }
+.md p { white-space: pre-wrap; }
+.md h4 { font-size: 13.5px; color: var(--uta-blue); margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.md ul, .md ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.md ul ul { margin-top: 4px; color: var(--ink-light); }
+.md strong { font-weight: 650; }
+.accion-propuesta { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  border: 1px solid var(--uta-blue-line); background: var(--uta-blue-soft); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+.auditoria { border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 12.5px; }
+.auditoria > summary { cursor: pointer; padding: 7px 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; list-style: none; color: var(--muted); }
+.auditoria > summary::-webkit-details-marker { display: none; }
+.auditoria > summary::before { content: '▸'; color: var(--muted); }
+.auditoria[open] > summary::before { content: '▾'; }
+.auditoria-titulo { font-weight: 600; color: var(--ink-light); }
+.auditoria-resumen { color: var(--muted); }
+.auditoria-cuerpo { border-top: 1px solid #eef0f2; padding: 8px 12px 10px; display: grid; gap: 4px; }
+.auditoria .herramienta { border-top: none; padding: 6px 0; }
+.auditoria .herramienta details summary { cursor: pointer; color: var(--uta-blue); margin: 4px 0; }
+.contexto-activo dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 0 0; font-size: 13px; }
+.contexto-activo dt { color: var(--muted); }
+.contexto-activo dd { margin: 0; font-weight: 600; text-align: right; }
+.grupo-sugerencias { margin-top: 12px; display: grid; gap: 6px; }
+.grupo-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 
 /* ---------- Informe ---------- */
 .informe { padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; }

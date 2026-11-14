@@ -89,7 +89,7 @@ function Ficha() {
               <NivelBadge nivel={m.nivel_riesgo} />
             </div>
             <div>
-              <span>ACD (35 %)</span>
+              <span>ACD (40 %)</span>
               <b>{nota(m.acd)}</b>
             </div>
             <div>
@@ -97,7 +97,7 @@ function Ficha() {
               <b>{nota(m.tareas)}</b>
             </div>
             <div>
-              <span>PAE (35 %)</span>
+              <span>PAE (30 %)</span>
               <b>{nota(m.pae)}</b>
             </div>
             <div>

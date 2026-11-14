@@ -1,0 +1,144 @@
+/* =============================================================================
+   Identidad visual UTA · FISEI para Moodle Boost (EduMonitor AI)
+   Se inyecta en $CFG->additionalhtmlhead (tema_uta.php / seed.php).
+   Azul institucional: #0B2A5B (marino) / #1E3A8A (azul UTA)
+   ============================================================================= */
+:root {
+  --uta-navy: #0B2A5B;
+  --uta-blue: #1E3A8A;
+  --uta-blue-light: #3D5FB8;
+  --uta-soft: #EEF2F8;
+  --uta-line: #DEE2E6;
+}
+
+/* ---------- Barra superior interna: azul institucional ---------- */
+.navbar.fixed-top {
+  background: var(--uta-navy) !important;
+  border-top: 3px solid var(--uta-blue-light);
+  border-bottom: 0 !important;
+  box-shadow: 0 2px 8px rgba(11, 42, 91, .25) !important;
+}
+.navbar.fixed-top .navbar-brand,
+.navbar.fixed-top .navbar-brand .site-name,
+.navbar.fixed-top .primary-navigation .nav-link,
+.navbar.fixed-top .moremenu .dropdown-toggle,
+.navbar.fixed-top .nav-link,
+.navbar.fixed-top .icon,
+.navbar.fixed-top .usermenu .login,
+.navbar.fixed-top .usermenu .login a,
+.navbar.fixed-top .editmode-switch-form label,
+.navbar.fixed-top .btn-open,
+.navbar.fixed-top .langmenu .dropdown-toggle {
+  color: #FFFFFF !important;
+}
+.navbar.fixed-top .navbar-brand { font-weight: 700; letter-spacing: .02em; }
+.navbar.fixed-top .primary-navigation .nav-link { font-weight: 500; opacity: .88; border-bottom: 3px solid transparent !important; }
+.navbar.fixed-top .primary-navigation .nav-link:hover { opacity: 1; background: rgba(255, 255, 255, .08); }
+.navbar.fixed-top .primary-navigation .nav-link.active { opacity: 1; font-weight: 600; border-bottom-color: #FFFFFF !important; }
+.navbar.fixed-top .popover-region-toggle:hover,
+.navbar.fixed-top .usermenu .dropdown-toggle:hover { background: rgba(255, 255, 255, .1); }
+.navbar.fixed-top .divider { border-left-color: rgba(255, 255, 255, .25) !important; }
+/* Menús desplegables de la barra: texto oscuro sobre fondo blanco */
+.navbar.fixed-top .dropdown-menu .dropdown-item,
+.navbar.fixed-top .dropdown-menu a,
+.navbar.fixed-top .popover-region-container,
+.navbar.fixed-top .popover-region-container .icon,
+.navbar.fixed-top .popover-region-container a { color: #1D2125 !important; }
+.navbar.fixed-top .dropdown-menu .dropdown-item:hover,
+.navbar.fixed-top .dropdown-menu .dropdown-item:focus { background: var(--uta-soft); color: var(--uta-navy) !important; }
+
+body { background: #F4F6F8; }
+a { color: var(--uta-blue); }
+.btn-primary { background-color: var(--uta-blue); border-color: var(--uta-blue); }
+.btn-primary:hover, .btn-primary:focus { background-color: var(--uta-navy); border-color: var(--uta-navy); }
+.form-control:focus { border-color: var(--uta-blue); box-shadow: 0 0 0 .2rem rgba(30, 58, 138, .2); }
+
+/* ---------- Navegación secundaria y contenido del curso ---------- */
+.secondary-navigation { border-bottom: 1px solid var(--uta-line); margin-bottom: 1.25rem; }
+.secondary-navigation .nav-tabs { border-bottom: 0; }
+.secondary-navigation .nav-tabs .nav-link,
+.secondary-navigation .moremenu .dropdown-toggle { color: #495057 !important; border: 0 !important; background: transparent; }
+.secondary-navigation .nav-tabs .nav-link:hover { color: var(--uta-blue) !important; }
+.secondary-navigation .nav-tabs .nav-link.active { color: var(--uta-blue) !important; font-weight: 600; border-bottom: 2px solid var(--uta-blue) !important; background: transparent !important; }
+#page-header h1, .page-header-headings h1 { color: var(--uta-navy); }
+.course-content ul.topics > li.section, .course-content li.section.main {
+  background: #FFFFFF; border: 1px solid var(--uta-line) !important; border-radius: 8px;
+  padding: 1rem 1.25rem !important; margin-bottom: 1rem;
+}
+.course-content .sectionname, .course-content .sectionname a, .course-section-header h3 a { color: var(--uta-navy) !important; font-weight: 700; }
+.activity.label .uta-block-title { color: var(--uta-navy); border-left: 3px solid var(--uta-blue); padding: .35rem .75rem; margin: .5rem 0 0; font-size: 1.05rem; font-weight: 700; background: #F8F9FB; }
+.block .card-title, .block h5 { color: var(--uta-navy); }
+.card, .block.card { border-color: var(--uta-line); }
+
+/* ---------- Página de acceso (login) institucional ---------- */
+body#page-login-index {
+  min-height: 100vh;
+  border-top: 6px solid var(--uta-navy);
+  background-color: var(--uta-soft);
+  background-image:
+    linear-gradient(180deg, rgba(11, 42, 91, .10) 0, rgba(11, 42, 91, 0) 320px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%231E3A8A' stroke-opacity='0.07' stroke-width='1'%3E%3Cpath d='M32 4L60 32L32 60L4 32Z'/%3E%3Cpath d='M32 18L46 32L32 46L18 32Z'/%3E%3C/g%3E%3Ccircle cx='0' cy='0' r='2' fill='%230B2A5B' fill-opacity='0.08'/%3E%3Ccircle cx='64' cy='64' r='2' fill='%230B2A5B' fill-opacity='0.08'/%3E%3C/svg%3E");
+}
+#page-login-index #page-wrapper,
+#page-login-index #page,
+#page-login-index #topofscroll,
+#page-login-index .main-inner,
+#page-login-index #region-main { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+#page-login-index .login-wrapper { padding: 3.5rem 1rem 2rem; }
+#page-login-index .login-container {
+  max-width: 470px;
+  background: #FFFFFF;
+  border: 1px solid #D6DEEA;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(11, 42, 91, .16), 0 2px 6px rgba(11, 42, 91, .06);
+  padding: 0 2.25rem 1.75rem;
+  overflow: hidden;
+}
+/* Encabezado institucional de la tarjeta */
+#page-login-index .login-container::before {
+  content: "UNIVERSIDAD T\00C9 CNICA DE AMBATO \00B7  FISEI";
+  display: block;
+  margin: 0 -2.25rem 1.6rem;
+  padding: 1rem 1rem .95rem;
+  background: linear-gradient(90deg, var(--uta-navy), var(--uta-blue));
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: .14em;
+}
+#page-login-index .loginform::before {
+  content: "Plataforma Educativa Institucional";
+  display: block;
+  text-align: center;
+  color: var(--uta-navy);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: .3rem;
+}
+#page-login-index .login-heading {
+  text-align: center;
+  font-size: .95rem !important;
+  font-weight: 500;
+  color: #6A737B;
+  margin-bottom: 1.6rem !important;
+}
+#page-login-index .login-form .form-control { height: 46px; border-radius: 8px; border-color: #CED4DA; }
+#page-login-index .login-form-submit .btn,
+#page-login-index #loginbtn {
+  width: 100%;
+  height: 46px;
+  border-radius: 8px;
+  font-weight: 600;
+  background: var(--uta-blue);
+  border-color: var(--uta-blue);
+}
+#page-login-index #loginbtn:hover { background: var(--uta-navy); border-color: var(--uta-navy); }
+#page-login-index .login-form-forgotpassword { text-align: center; }
+#page-login-index .login-form-forgotpassword a { color: var(--uta-blue); font-weight: 500; }
+#page-login-index .login-divider { border-color: #E5E9F0; }
+#page-login-index .login-instructions,
+#page-login-index .login-identityproviders h2,
+#page-login-index .login-signup h2 { color: var(--uta-navy); }
+#page-login-index #page-footer { background: transparent; color: #6A737B; }

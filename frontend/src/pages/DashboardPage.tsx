@@ -134,7 +134,7 @@ function Dashboard() {
         <section className="card">
           <div className="card-head">
             <h2>Componentes</h2>
-            <p>ACD 35 % · Tareas 30 % · PAE 35 %</p>
+            <p>ACD 40 % · Tareas 30 % · PAE 30 %</p>
           </div>
           <div className="card-body">
             <BarrasPromedio datos={componentes} clave="componente" alto={220} />

@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { endpoints } from '../api/endpoints';
 import type { Alerta, PublicarResponse } from '../api/types';
@@ -48,9 +48,21 @@ interface Borrador {
   titulo: string;
   instrucciones: string;
   fechaEntrega: string;
+  /** Texto preparado por el agente IA desde el chat (proponer_refuerzo): se conserva al registrar la atención. */
+  desdeAgente?: boolean;
 }
 
-function borradorInicial(a: Alerta): Borrador {
+/** Propuesta enviada desde el chat del agente ("Aplicar en el Centro de alertas"). */
+interface PropuestaAgente {
+  alertaId: number;
+  titulo: string;
+  instrucciones: string;
+}
+
+function borradorInicial(a: Alerta, propuesta?: PropuestaAgente | null): Borrador {
+  if (propuesta && propuesta.alertaId === a.id) {
+    return { alertaId: a.id, titulo: propuesta.titulo, instrucciones: propuesta.instrucciones, fechaEntrega: fechaISOEnDias(7), desdeAgente: true };
+  }
   return {
     alertaId: a.id,
     titulo: `Refuerzo: ${a.unidad_critica ?? 'unidad crítica'} — ${a.curso_codigo}`,
@@ -60,8 +72,9 @@ function borradorInicial(a: Alerta): Borrador {
 }
 
 function CentroAlertas() {
-  const { alertas, actualizarAlerta, recargarAlertas, datos } = useCurso();
+  const { alertas, actualizarAlerta, recargarAlertas, datos, cursoId } = useCurso();
   const [params, setParams] = useSearchParams();
+  const propuesta = (useLocation().state as { propuesta?: PropuestaAgente } | null)?.propuesta ?? null;
   const [filtro, setFiltro] = useState<Filtro>('activas');
   const selId = Number(params.get('alerta')) || null;
 
@@ -89,25 +102,35 @@ function CentroAlertas() {
     (a: Alerta) => {
       peticion.current += 1; // invalida cualquier respuesta pendiente de otra alerta
       setParams({ alerta: String(a.id) }, { replace: true });
-      setBorrador(borradorInicial(a));
+      setBorrador(borradorInicial(a, propuesta));
       setRefuerzoId(a.refuerzo_id);
       setOrigen(null);
       setGenerando(false);
       setError(null);
       setConfirmar(null);
     },
-    [setParams],
+    [setParams, propuesta],
   );
 
   // Selección inicial por URL (?alerta=ID) o al cambiar de curso
   useEffect(() => {
     if (sel && borrador?.alertaId !== sel.id) preparar(sel);
-    if (selId && !sel && alertas.length) setParams({}, { replace: true });
-  }, [sel, selId, alertas.length, borrador, preparar, setParams]);
+    // Sólo se descarta la selección cuando las alertas cargadas ya son las del curso actual
+    // (al cambiar de curso desde el chat, las del curso anterior siguen en memoria un instante).
+    const alertasDelCurso = datos?.id === cursoId && alertas.every((a) => a.curso_id === cursoId);
+    if (selId && !sel && alertas.length && alertasDelCurso) setParams({}, { replace: true });
+  }, [sel, selId, alertas, borrador, preparar, setParams, datos, cursoId]);
 
   const atender = useCallback(
     async (a: Alerta) => {
-      preparar(a);
+      // Si el borrador viene del agente IA (chat), se conserva su texto: la atención sólo crea el refuerzo.
+      const conservar = borrador?.alertaId === a.id && borrador.desdeAgente;
+      if (conservar) {
+        peticion.current += 1;
+        setError(null);
+      } else {
+        preparar(a);
+      }
       const n = peticion.current;
       setGenerando(true);
       try {
@@ -116,12 +139,16 @@ function CentroAlertas() {
         actualizarAlerta(r.alerta);
         setRefuerzoId(r.refuerzo.id);
         setOrigen(r.refuerzo.origen);
-        setBorrador((b) => ({
-          alertaId: a.id,
-          titulo: r.refuerzo.titulo,
-          instrucciones: r.refuerzo.instrucciones ?? r.refuerzo.descripcion ?? '',
-          fechaEntrega: b?.fechaEntrega ?? fechaISOEnDias(7),
-        }));
+        setBorrador((b) =>
+          b?.desdeAgente && b.alertaId === a.id
+            ? b
+            : {
+                alertaId: a.id,
+                titulo: r.refuerzo.titulo,
+                instrucciones: r.refuerzo.instrucciones ?? r.refuerzo.descripcion ?? '',
+                fechaEntrega: b?.fechaEntrega ?? fechaISOEnDias(7),
+              },
+        );
       } catch (ex) {
         if (n !== peticion.current) return;
         setError(ex instanceof ApiError ? ex.detail : 'No se pudo generar el borrador.');
@@ -129,7 +156,7 @@ function CentroAlertas() {
         if (n === peticion.current) setGenerando(false);
       }
     },
-    [preparar, actualizarAlerta],
+    [preparar, actualizarAlerta, borrador],
   );
 
   async function publicar() {
@@ -321,20 +348,35 @@ function CentroAlertas() {
                   <>
                     {generando && (
                       <Aviso tipo="info">
-                        <Spinner etiqueta={`El agente está redactando el refuerzo para ${sel.nombres}…`} />
+                        <Spinner
+                          etiqueta={
+                            borrador.desdeAgente
+                              ? `Registrando la atención de ${sel.nombres}…`
+                              : `El agente está redactando el refuerzo para ${sel.nombres}…`
+                          }
+                        />
                       </Aviso>
+                    )}
+                    {borrador.desdeAgente && (
+                      <span className="badge badge-blue" data-testid="propuesta-agente">
+                        Propuesta preparada por el Agente IA desde el chat
+                      </span>
                     )}
                     {!refuerzoId && !generando && (
                       <Aviso tipo="info">
                         <div>
-                          Genere el borrador con el agente para poder publicarlo.{' '}
+                          {borrador.desdeAgente
+                            ? 'Registre la atención para habilitar la publicación (se conserva la propuesta del agente).'
+                            : 'Genere el borrador con el agente para poder publicarlo.'}{' '}
                           <button className="btn btn-sm btn-primary" onClick={() => atender(sel)} style={{ marginLeft: 6 }}>
-                            Atender
+                            {borrador.desdeAgente ? 'Registrar atención' : 'Atender'}
                           </button>
                         </div>
                       </Aviso>
                     )}
-                    {origen && <span className="badge badge-blue">Borrador generado por: {origen.toLowerCase().replace(/_/g, ' ')}</span>}
+                    {origen && !borrador.desdeAgente && (
+                      <span className="badge badge-blue">Borrador generado por: {origen.toLowerCase().replace(/_/g, ' ')}</span>
+                    )}
                     <label>
                       Destinatario
                       <input className="input" value={`${sel.nombres} <${sel.email}>`} readOnly aria-readonly />

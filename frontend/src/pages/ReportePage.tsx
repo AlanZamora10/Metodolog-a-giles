@@ -146,9 +146,9 @@ function Informe() {
             <TablaSimple
               titulo="Componente"
               filas={[
-                ['ACD (35 %)', nota(m.componentes.acd)],
+                ['ACD (40 %)', nota(m.componentes.acd)],
                 ['Tareas (30 %)', nota(m.componentes.tareas)],
-                ['PAE (35 %)', nota(m.componentes.pae)],
+                ['PAE (30 %)', nota(m.componentes.pae)],
               ]}
             />
             <TablaSimple

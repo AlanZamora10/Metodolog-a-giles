@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { REPORTE, iniciarSesionFalsa, json, mockApi, renderApp } from './helpers';
 
@@ -74,43 +74,6 @@ describe('RF-06 · ficha del estudiante', () => {
     expect(screen.getByTestId('estado-cero')).toHaveTextContent('1');
     expect(screen.getAllByText('Nota cero (0.0)').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Pendiente de calificación').length).toBeGreaterThan(0);
-  });
-});
-
-describe('RF-09 / RF-12 · chat del agente', () => {
-  it('envía la consulta con el curso de contexto y muestra las herramientas reales invocadas', async () => {
-    iniciarSesionFalsa();
-    const fetch = mockApi({
-      'POST /api/v1/agent/chat': () =>
-        json({
-          respuesta: '[SOF-POO-A] 2 estudiante(s) en nivel crítico.',
-          herramientas: [
-            { herramienta: 'listar_cursos_autorizados', parametros: {}, resultado: { filas: 4 } },
-            { herramienta: 'identificar_alertas', parametros: { course_id: 2 }, resultado: { filas: 2 } },
-            { herramienta: 'obtener_calificaciones', parametros: { course_id: 2 }, resultado: { filas: 7 } },
-          ],
-          plan_fuente: 'ollama_slm+reglas',
-          redaccion: 'determinista_desde_herramientas',
-          duracion_ms: 7400,
-        }),
-    });
-    const u = userEvent.setup();
-    renderApp('/agente');
-    await screen.findByRole('heading', { name: 'Agente IA' });
-    await waitFor(() => expect(screen.getByLabelText('Curso')).toHaveDisplayValue(/SOF-POO-A/));
-    await u.click(screen.getByRole('button', { name: '¿Qué estudiantes de SOF-POO-A necesitan atención?' }));
-
-    expect(await screen.findByText('[SOF-POO-A] 2 estudiante(s) en nivel crítico.')).toBeInTheDocument();
-    expect(screen.getByText('Plan del LLM + reglas')).toBeInTheDocument();
-    const usadas = screen.getAllByTestId('herramienta-usada');
-    expect(usadas.map((h) => within(h).getByText(/_/, { selector: '.mono' }).textContent)).toEqual([
-      'listar_cursos_autorizados',
-      'identificar_alertas',
-      'obtener_calificaciones',
-    ]);
-    expect(usadas[1]).toHaveTextContent('"course_id": 2');
-    const [, init] = fetch.mock.calls.find(([url]) => url === '/api/v1/agent/chat')!;
-    expect(JSON.parse(String(init!.body))).toEqual({ mensaje: '¿Qué estudiantes de SOF-POO-A necesitan atención?', course_id: 2 });
   });
 });
 

@@ -3,8 +3,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { mensajeErrorLogin, useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
 import { Aviso } from '../components/ui/ui';
+import { URL_RECUPERAR_CLAVE } from '../utils/config';
 
-/** RF-01: inicio de sesión con la cuenta de Moodle UTA (correo o usuario). */
+/** RF-01: inicio de sesión con la cuenta institucional de Moodle UTA (correo o usuario). */
 export function LoginPage() {
   const { usuario, iniciarSesion, aviso } = useAuth();
   const location = useLocation();
@@ -48,18 +49,8 @@ export function LoginPage() {
             <div className="brand-sub">Universidad Técnica de Ambato · FISEI</div>
           </div>
         </div>
-        <div>
-          <h1>Seguimiento académico inteligente para sus cursos de Moodle UTA</h1>
-          <p>Sincronice calificaciones, detecte estudiantes en riesgo y publique refuerzos personalizados con apoyo del agente de IA.</p>
-          <ul>
-            <li>Alertas tempranas con evidencia numérica</li>
-            <li>Refuerzos visibles sólo para el estudiante en Moodle</li>
-            <li>Informe del curso descargable</li>
-          </ul>
-        </div>
-        <p className="small" style={{ opacity: 0.6 }}>
-          Carrera de Ingeniería de Software · Período Julio–Diciembre 2026
-        </p>
+        <h1>Seguimiento académico inteligente para sus cursos de Moodle UTA</h1>
+        <p className="login-pie">Facultad de Ingeniería en Sistemas, Electrónica e Industrial · Período Julio–Diciembre 2026</p>
       </section>
 
       <section className="login-form-wrap">
@@ -67,21 +58,14 @@ export function LoginPage() {
           <div>
             <h1>Iniciar sesión</h1>
             <p className="muted" style={{ marginTop: 6 }}>
-              Use la misma cuenta con la que ingresa a Moodle UTA. Sólo docentes de los cursos de Software.
+              Ingrese con sus credenciales institucionales de Moodle UTA
             </p>
           </div>
 
           {aviso && !error && <Aviso tipo="warn">{aviso}</Aviso>}
           {error && (
             <Aviso tipo={error.estado === 503 || error.estado === 0 ? 'warn' : 'error'}>
-              <div>
-                <span data-testid="login-error">{error.texto}</span>
-                {error.estado === 503 && (
-                  <div className="small" style={{ marginTop: 4 }}>
-                    El inicio de sesión se valida directamente con Moodle; no hay credenciales locales de respaldo.
-                  </div>
-                )}
-              </div>
+              <span data-testid="login-error">{error.texto}</span>
             </Aviso>
           )}
 
@@ -90,8 +74,8 @@ export function LoginPage() {
             <input
               className="input"
               type="text"
+              name="username"
               autoComplete="username"
-              placeholder="rgomez@uta.edu.ec"
               value={identificador}
               onChange={(e) => setIdentificador(e.target.value)}
               disabled={enviando}
@@ -103,6 +87,7 @@ export function LoginPage() {
             <input
               className="input"
               type="password"
+              name="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -113,7 +98,12 @@ export function LoginPage() {
             {enviando && <span className="spinner" aria-hidden />}
             {enviando ? 'Validando con Moodle UTA…' : 'Ingresar'}
           </button>
-          <p className="small muted">La sesión se guarda sólo en esta pestaña y se cierra automáticamente al vencer.</p>
+          <div className="login-ayuda">
+            <a href={URL_RECUPERAR_CLAVE} target="_blank" rel="noreferrer">
+              ¿Olvidó su contraseña?
+            </a>
+            <span className="small muted">La contraseña se gestiona en Moodle UTA.</span>
+          </div>
         </form>
       </section>
     </div>

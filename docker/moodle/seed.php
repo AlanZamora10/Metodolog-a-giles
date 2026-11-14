@@ -86,39 +86,9 @@ if (!array_key_exists('es', get_string_manager()->get_list_of_translations(true)
     }
 }
 
-$uta_css = <<<'CSS'
-<style id="uta-theme">
-/* ---- Identidad visual UTA (sistemaseducaciononline.uta.edu.ec) ---- */
-:root { --uta-blue:#11297A; --uta-line:#DEE2E6; }
-body { background:#F4F6F8; }
-/* Barra superior blanca con filete azul institucional */
-.navbar.fixed-top { background:#FFFFFF !important; border-top:3px solid var(--uta-blue); border-bottom:1px solid var(--uta-line); box-shadow:none !important; }
-.navbar.fixed-top .navbar-brand, .navbar.fixed-top .primary-navigation .nav-link { color:var(--uta-blue) !important; font-weight:500; }
-.navbar.fixed-top .primary-navigation .nav-link.active { border-bottom-color:var(--uta-blue) !important; font-weight:600; }
-/* Navegación secundaria del curso: pestañas sobrias con subrayado azul */
-.secondary-navigation { border-bottom:1px solid var(--uta-line); margin-bottom:1.25rem; }
-.secondary-navigation .nav-tabs { border-bottom:0; }
-.secondary-navigation .nav-tabs .nav-link,
-.secondary-navigation .moremenu .dropdown-toggle { color:#495057 !important; border:0 !important; background:transparent; }
-.secondary-navigation .nav-tabs .nav-link:hover { color:var(--uta-blue) !important; }
-.secondary-navigation .nav-tabs .nav-link.active { color:var(--uta-blue) !important; font-weight:600; border-bottom:2px solid var(--uta-blue) !important; background:transparent !important; }
-/* Encabezado de página */
-#page-header h1, .page-header-headings h1 { color:var(--uta-blue); }
-/* Secciones del curso como tarjetas blancas */
-.course-content ul.topics > li.section, .course-content li.section.main {
-  background:#FFFFFF; border:1px solid var(--uta-line) !important; border-radius:8px;
-  padding:1rem 1.25rem !important; margin-bottom:1rem;
-}
-.course-content .sectionname, .course-content .sectionname a, .course-section-header h3 a { color:var(--uta-blue) !important; font-weight:700; }
-/* Encabezados de bloque (etiquetas) e iconos de actividad */
-.activity.label .uta-block-title { color:var(--uta-blue); border-left:3px solid var(--uta-blue); padding:.35rem .75rem; margin:.5rem 0 0; font-size:1.05rem; font-weight:700; background:#F8F9FB; }
-.block .card-title, .block h5 { color:var(--uta-blue); }
-.card, .block.card { border-color:var(--uta-line); }
-.btn-primary { background-color:var(--uta-blue); border-color:var(--uta-blue); }
-.btn-primary:hover { background-color:#0C1F5E; border-color:#0C1F5E; }
-a { color:var(--uta-blue); }
-</style>
-CSS;
+// Identidad visual UTA · FISEI (login institucional, barra superior azul y cursos): docker/moodle/tema_uta.css
+require_once(__DIR__ . '/tema_uta.php');
+$uta_css = edumonitor_css_tema_uta();
 set_config('additionalhtmlhead', $uta_css);
 out("  -> 'Moodle UTA', idioma 'es', inicio en Mis cursos, CSS institucional aplicado");
 

@@ -23,33 +23,35 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 # Menor que el timeout del middleware (10 s) para que el agente siempre alcance a responder (aunque sea sin plan)
 INFERENCE_TIMEOUT = float(os.getenv("AGENT_PLAN_TIMEOUT_SECONDS", "8.0"))
 
-_TIPOS = {"integer": "integer", "string": "string"}
-
-
 def _esquema_parametros(parametros: Dict[str, str]) -> Dict[str, Any]:
     props = {}
     for nombre, descripcion in parametros.items():
         tipo = "integer" if descripcion.startswith("integer") else "string"
-        props[nombre] = {"type": tipo, "description": descripcion}
+        props[nombre] = {"type": tipo}
     return {"type": "object", "properties": props, "required": []}
+
+
+def _descripcion_corta(texto: str, limite: int = 110) -> str:
+    """Primera frase de la descripción: el prompt corto mantiene la inferencia en CPU dentro del timeout."""
+    frase = (texto or "").split(". ")[0].strip()
+    return frase if len(frase) <= limite else frase[:limite].rsplit(" ", 1)[0]
 
 
 def _herramientas_ollama(herramientas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [{
         "type": "function",
-        "function": {"name": h["nombre"], "description": h.get("descripcion", ""),
+        "function": {"name": h["nombre"], "description": _descripcion_corta(h.get("descripcion", "")),
                      "parameters": _esquema_parametros(h.get("parametros") or {})},
     } for h in herramientas]
 
 
 async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: List[Dict[str, Any]],
                      course_id: Optional[int] = None) -> Dict[str, Any]:
-    contexto = "; ".join(f"id {c['id']} = {c['shortname']} ({c.get('fullname', '')})" for c in cursos)
+    contexto = ", ".join(f"{c['id']}={c['shortname']}" for c in cursos)
     sistema = (
-        "Eres el asistente académico de EduMonitor AI (FISEI - UTA). Decide qué herramientas llamar para "
-        "responder al docente. No inventes datos: sólo elige herramientas y parámetros. "
-        f"Cursos del docente: {contexto or 'ninguno'}."
-        + (f" Curso de contexto: {course_id}." if course_id else "")
+        "Asistente académico de EduMonitor AI. Elige herramientas y parámetros; no inventes datos. "
+        "Todos los cursos o totales: sin course_id. Refuerzo: proponer_refuerzo(student_query). "
+        f"Cursos: {contexto or 'ninguno'}." + (f" Curso activo: {course_id}." if course_id else "")
     )
     try:
         async with httpx.AsyncClient(timeout=INFERENCE_TIMEOUT) as client:
@@ -58,7 +60,7 @@ async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: L
                 "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": mensaje}],
                 "tools": _herramientas_ollama(herramientas),
                 # num_predict acota la generación: el modelo 1B a veces no termina al usar herramientas y
-                # bloquearía Ollama para las siguientes peticiones.
+                # bloquearía Ollama para las siguientes peticiones. num_ctx fijo evita recargar el modelo.
                 "options": {"temperature": 0, "num_predict": 96, "num_ctx": 2048},
             })
         if res.status_code == 200:

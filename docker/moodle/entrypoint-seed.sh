@@ -8,7 +8,8 @@
 #    condición que Bitnami exige para correr su instalación/actualización.
 #
 # Uso manual (contenedor ya levantado):
-#   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --seed-only
+#   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --seed-only   # siembra completa
+#   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --tema-only   # sólo identidad visual
 # ==============================================================================
 set -u
 
@@ -54,6 +55,13 @@ run_seed() {
     "$PHP_BIN" "$MOODLE_DIR/admin/cli/purge_caches.php" >/dev/null 2>&1 || true
     chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
 }
+
+if [[ "${1:-}" == "--tema-only" ]]; then
+    # Reaplica el CSS institucional sin tocar cursos, usuarios ni calificaciones.
+    "$PHP_BIN" "$SEED_DIR/tema_uta.php"
+    chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
+    exit 0
+fi
 
 if [[ "${1:-}" == "--seed-only" ]]; then
     run_seed

@@ -160,10 +160,28 @@ export interface HerramientaUsada {
   herramienta: string;
   parametros: Record<string, unknown>;
   resultado: Record<string, unknown> & { filas?: number; error?: string };
+  duracion_ms?: number;
+}
+
+/** Resultado de la herramienta proponer_refuerzo. */
+export interface PropuestaRefuerzo {
+  estudiante: { id_number: string; nombres: string; email?: string };
+  curso: string;
+  curso_id: number;
+  propuesta: {
+    titulo: string;
+    objetivo: string;
+    pasos: string[];
+    criterios: { criterio: string; peso: number }[];
+    plazo_dias: number;
+    instrucciones: string;
+  };
+  alerta: { id: number; estado: EstadoAlerta; regla: string } | null;
 }
 
 export interface ChatResponse {
   respuesta: string;
+  formato?: 'markdown' | 'texto';
   herramientas: HerramientaUsada[];
   plan_fuente: string;
   redaccion: string;

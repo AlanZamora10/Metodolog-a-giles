@@ -5,6 +5,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+# URL pública de Moodle UTA para enlaces externos (p. ej. recuperación de contraseña)
+ARG VITE_MOODLE_URL=http://localhost:8080
+ENV VITE_MOODLE_URL=$VITE_MOODLE_URL
 RUN npm run build
 
 # Etapa 2: Nginx sirve los estáticos y hace de proxy de /api hacia el middleware (sin CORS)
