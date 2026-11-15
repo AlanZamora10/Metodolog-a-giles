@@ -341,13 +341,49 @@ _PARAMETROS_VALIDOS = {
 # =============================================================================== Planificación
 _GLOBAL = re.compile(r"\b(mis (\d+|dos|tres|cuatro|cinco) (cursos|materias|asignaturas)|todas? (mis |las |los )?"
                      r"(materias|cursos|asignaturas)|mis materias|mis asignaturas|en total|en general|global|"
-                     r"todos mis|cada (curso|materia)|entre (mis )?cursos)\b")
+                     r"todos mis|cada (curso|materia)|entre (mis )?cursos|(resumen|panorama|informe|reporte) general)\b")
 _REFUERZO = re.compile(r"\b(refuerzo|reforzar|plan de mejora|recuperacion|nivelacion|actividad de apoyo|"
                        r"prepar\w* (una |un )?(actividad|tarea))\b")
 _ACTIVIDADES = re.compile(r"\b((actividad|actividades|tarea|tareas|evaluacion|evaluaciones)\b.*\b(menor|bajo|baja|"
                           r"peor|peores|dificil\w*|problema\w*|rendimiento|cuesta)|(menor|peor|bajo) rendimiento)")
 _CURSOS = re.compile(r"\b(mis cursos|que cursos|cuales cursos|cursos tengo|lista de cursos|listar cursos|"
                      r"cuantos cursos|cuantos estudiantes|cuantos alumnos|cuantas materias|materias tengo)\b")
+
+
+# Saludos y cortesías: respuesta breve sin herramientas (no se lanzan consultas ni informes).
+_VOCABULARIO_CORTESIA = {
+    "hola", "holi", "hey", "buenas", "buenos", "buen", "dia", "dias", "tardes", "noches", "saludos", "que", "tal",
+    "como", "estas", "esta", "gracias", "muchas", "mil", "muy", "amable", "ok", "okay", "oki", "vale", "listo",
+    "perfecto", "genial", "excelente", "entendido", "de", "acuerdo", "chao", "adios", "hasta", "luego", "pronto",
+    "manana", "nos", "vemos", "bien", "profe", "agente", "asistente", "edumonitor", "y", "tu", "usted",
+}
+
+
+def respuesta_cortesia(mensaje: str, docente: dict) -> Optional[str]:
+    """Respuesta corta a saludos/cortesías; None si el mensaje contiene una consulta."""
+    palabras = re.findall(r"[a-z]+", _normalizar(mensaje))
+    if not palabras or len(palabras) > 6 or any(p not in _VOCABULARIO_CORTESIA for p in palabras):
+        return None
+    nombre = (docente.get("nombres") or "").strip()
+    trato = f", {nombre}" if nombre else ""
+    if {"chao", "adios", "luego", "vemos", "pronto"} & set(palabras):
+        return f"¡Hasta pronto{trato}! Aquí estaré cuando necesite revisar sus cursos."
+    if "gracias" in palabras:
+        return "Con gusto. Si necesita algo más sobre sus cursos o estudiantes, solo pregúnteme."
+    if {"ok", "okay", "oki", "vale", "listo", "perfecto", "genial", "excelente", "entendido", "acuerdo"} & set(palabras):
+        return "Perfecto. Cuando quiera, puedo revisar alertas, las notas de un estudiante o preparar un refuerzo."
+    return (f"¡Hola{trato}! ¿En qué le ayudo hoy? Puedo revisar sus cursos, los estudiantes que necesitan "
+            "atención, las actividades con menor rendimiento o preparar un refuerzo.")
+
+
+AYUDA_SIN_INTENCION = (
+    "No estoy seguro de qué necesita. Puedo ayudarle con:\n"
+    "- **Totales:** «¿Cuántos cursos y estudiantes tengo?»\n"
+    "- **Seguimiento:** «¿Qué estudiantes de POO necesitan atención?» o «¿Cómo va Carlos Mendoza?»\n"
+    "- **Actividades:** «¿Qué actividades tienen menor rendimiento?»\n"
+    "- **Intervención:** «Prepárame un refuerzo para Carlos Mendoza»\n"
+    "- **Informe completo:** «Dame un resumen general»"
+)
 
 
 def _curso_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[int]:
@@ -420,8 +456,7 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
     resumen = r"\b(resumen|informe|reporte|panorama|estado del curso|situacion)\b"
     if re.search(resumen, texto) or (not estudiante and re.search(r"\b(como va|como esta|como van)\b", texto)):
         plan.append(("generar_resumen", base))
-    if not plan:  # sin intención clara: panorama general con datos reales
-        plan = [("listar_cursos_autorizados", {}), ("identificar_alertas", base), ("generar_resumen", base)]
+    # Sin intención clara no se lanza ningún informe: conversar() pide precisar la consulta.
     return plan[:MAX_HERRAMIENTAS_POR_MENSAJE]
 
 
@@ -494,6 +529,10 @@ async def planificar(mensaje: str, docente: dict, course_id: Optional[int]) -> T
             plan = _resolver_entidades(_validar_plan(data.get("llamadas"), docente), mensaje, docente, course_id)
             if plan:
                 reglas = planificar_por_reglas(mensaje, docente, course_id)
+                if reglas == [("listar_cursos_autorizados", {})]:
+                    # Pregunta sólo de conteos/listado: respuesta acotada, sin anexar alertas ni informes.
+                    usa_listado = any(n == "listar_cursos_autorizados" for n, _ in plan)
+                    return reglas, data.get("fuente", "ollama_slm") if usa_listado else "reglas_deterministas"
                 if any(n == "proponer_refuerzo" for n, _ in reglas):
                     # Pedido explícito de refuerzo: la propuesta es la respuesta; no se diluye con otras consultas.
                     plan = [p for p in plan if p[0] == "proponer_refuerzo"] or reglas
@@ -520,10 +559,9 @@ def _seccion_cursos(r: Dict[str, Any]) -> Seccion:
     t = r["totales"]
     clave = (f"Tiene **{t['cursos']} cursos** asignados con **{t['estudiantes_unicos']} estudiantes únicos** "
              f"({t['matriculas']} matrículas en total).")
-    lineas = [f"- **{c['shortname']}** · {_nombre_curso(c['fullname'])}: {c['total_estudiantes']} "
-              f"estudiantes, promedio **{c['promedio']:.2f}/10** ({c['criticos']} crítico(s), {c['en_riesgo']} en riesgo)"
+    # Lista compacta: sólo cifras (alertas y recomendaciones se reservan para el «resumen general»).
+    lineas = [f"- **{c['shortname']}** · {_nombre_curso(c['fullname'])}: {c['total_estudiantes']} estudiantes"
               for c in r["cursos"]]
-    lineas.append(f"\nEn conjunto hay **{t['criticos']}** matrícula(s) en nivel crítico y **{t['en_riesgo']}** en riesgo.")
     return "Cursos asignados", clave, lineas
 
 
@@ -690,9 +728,24 @@ def redactar(usadas: List[Dict[str, Any]]) -> str:
     return "\n".join(partes).strip()
 
 
+def _respuesta_sin_herramientas(texto: str, fuente: str, docente: dict, inicio: float) -> Dict[str, Any]:
+    repositories.insert_log(
+        "AGENTE_CHAT", "EXITO", f"Mensaje del docente respondido sin herramientas ({fuente}).",
+        {"docente": docente["email"], "herramientas": [], "plan": fuente},
+        int((time.time() - inicio) * 1000),
+    )
+    return {"respuesta": texto, "formato": "markdown", "herramientas": [], "plan_fuente": fuente,
+            "redaccion": "determinista_sin_herramientas", "duracion_ms": int((time.time() - inicio) * 1000)}
+
+
 async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None) -> Dict[str, Any]:
     inicio = time.time()
+    cortesia = respuesta_cortesia(mensaje, docente)
+    if cortesia:  # saludo o cortesía: sin herramientas ni LLM
+        return _respuesta_sin_herramientas(cortesia, "cortesia", docente, inicio)
     plan, fuente = await planificar(mensaje, docente, course_id)
+    if not plan:
+        return _respuesta_sin_herramientas(AYUDA_SIN_INTENCION, "aclaracion", docente, inicio)
     usadas = []
     for nombre, params in plan:
         t0 = time.time()

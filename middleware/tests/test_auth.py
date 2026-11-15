@@ -52,7 +52,7 @@ def test_cuenta_generica_ya_no_existe():
 
 
 def test_estudiante_de_moodle_no_accede_403():
-    res = _login("dcurillo@uta.edu.ec", "Estudiante2026!")
+    res = _login("cmendoza@uta.edu.ec", "Estudiante2026!")
     assert res.status_code == 403
     assert "exclusivo para docentes" in res.json()["detail"]
 

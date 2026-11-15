@@ -179,7 +179,7 @@ def test_calculo_notas_ponderadas_40_30_30():
 
 def test_calculo_nota_critica_con_cero():
     e = sync_service.construir_estudiante(
-        {"id": 1, "fullname": "Diego Curillo", "idnumber": "U-04", "roles": [{"shortname": "student"}]},
+        {"id": 1, "fullname": "Carlos Mendoza", "idnumber": "U-04", "roles": [{"shortname": "student"}]},
         [_gi("U1-A1", 3.0), _gi("U1-T1", 4.0), _gi("U1-T2", 0.0), _gi("U1-P1", 3.5)],
     )
     # 0.4*3.0 + 0.3*2.0 + 0.3*3.5 = 2.85

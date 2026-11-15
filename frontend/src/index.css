@@ -1,0 +1,49 @@
+/* =============================================================================
+   Animaciones de entrada (minimalistas): aparición suave hacia arriba, escalonada.
+   ============================================================================= */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up,
+.stagger-1,
+.stagger-2,
+.stagger-3,
+.stagger-4,
+.stagger-5 {
+  animation: fadeUp 0.4s ease-out both;
+}
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+/* Mensajes del chat: cada burbuja nueva aparece con la misma animación */
+.chat-hist .msg { animation: fadeUp 0.4s ease-out both; }
+
+/* Accesibilidad: sin movimiento para quien lo prefiera reducido */
+@media (prefers-reduced-motion: reduce) {
+  .fade-up,
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4,
+  .stagger-5,
+  .chat-hist .msg {
+    animation: none;
+  }
+}
+
+/* Impresión: sin animaciones (el informe se imprime completo y visible) */
+@media print {
+  * { animation: none !important; }
+}

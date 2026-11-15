@@ -72,19 +72,22 @@ function Dashboard() {
 
       <div className="grid grid-4">
         <KpiCard
+          className="stagger-1"
           etiqueta="Promedio general"
           valor={r.promedio === null ? '—' : r.promedio.toFixed(2)}
           unidad="/10"
           detalle={`${r.evaluados} de ${r.total} estudiantes con notas en el corte`}
         />
-        <KpiCard etiqueta="Total de estudiantes" valor={r.total} detalle={`${r.niveles.CRITICO} crítico(s) · ${r.niveles.EN_RIESGO} en riesgo`} />
+        <KpiCard className="stagger-2" etiqueta="Total de estudiantes" valor={r.total} detalle={`${r.niveles.CRITICO} crítico(s) · ${r.niveles.EN_RIESGO} en riesgo`} />
         <KpiCard
+          className="stagger-3"
           etiqueta="Tasa de aprobación"
           valor={r.tasaAprobacion === null ? '—' : r.tasaAprobacion.toFixed(1)}
           unidad="%"
           detalle={`${r.aprobados} estudiante(s) con nota ≥ 7.00`}
         />
         <KpiCard
+          className="stagger-4"
           etiqueta="Alertas activas"
           valor={activas.length}
           detalle={
@@ -95,7 +98,7 @@ function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-2">
+      <div className="grid grid-2 stagger-5">
         <section className="card">
           <div className="card-head">
             <h2>Distribución de calificaciones</h2>

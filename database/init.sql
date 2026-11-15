@@ -262,7 +262,7 @@ JOIN parciales p ON cp.parcial_id = p.id;
 -- calculados con SEED_DOCENTE_PASSWORD / SEED_ESTUDIANTE_PASSWORD / SEED_ADMIN_PASSWORD del entorno.
 INSERT INTO usuarios (nombres, email, password_hash, rol, id_number) VALUES
 ('Ing. Roberto Gómez', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
-('Diego Curillo', 'dcurillo@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
+('Carlos Mendoza', 'cmendoza@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
 ('Administrador 1', 'admin@uta.edu.ec', 'e3a1f822$7b5c11029e88', 'ADMIN', 'U-02');
 
 -- 1. Insertar Materias
@@ -282,7 +282,7 @@ INSERT INTO parciales (periodo_id, numero_parcial, nombre, fecha_inicio, fecha_f
 -- Los ids 1..7 (U-03 a U-09) conservan los datos analíticos heredados de HU-01 (MAT1).
 INSERT INTO estudiantes (id_number, nombres, email) VALUES
 ('U-03', 'Camila Andrade', 'candrade@uta.edu.ec'),
-('U-04', 'Diego Curillo', 'dcurillo@uta.edu.ec'),
+('U-04', 'Carlos Mendoza', 'cmendoza@uta.edu.ec'),
 ('U-05', 'Mateo Paredes', 'mparedes@uta.edu.ec'),
 ('U-06', 'Sofía Villacís', 'svillacis@uta.edu.ec'),
 ('U-07', 'Carlos Mena', 'cmena@uta.edu.ec'),
@@ -340,7 +340,7 @@ INSERT INTO actividades (materia_id, parcial_id, unidad_id, id_number_normalizad
 -- * Sofía Villacís: 4.50 (Crítico < 5.0) -> Autónomo: 4.5, Tareas: 4.0, PAE: 5.0 -> (4.5*0.4)+(4.0*0.3)+(5.0*0.3) = 1.8 + 1.2 + 1.5 = 4.50
 -- * Valeria Ortiz: 6.20 (En Riesgo)    -> Autónomo: 6.5, Tareas: 6.0, PAE: 6.0 -> (6.5*0.4)+(6.0*0.3)+(6.0*0.3) = 2.6 + 1.8 + 1.8 = 6.20
 -- * Camila Andrade: 8.00 (Aceptable)    -> Autónomo: 8.0, Tareas: 8.0, PAE: 8.0 -> 8.00
--- * Diego Curillo: 8.50 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.5, PAE: 8.5 -> 8.50
+-- * Carlos Mendoza: 8.50 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.5, PAE: 8.5 -> 8.50
 -- * Carlos Mena: 7.60 (Aceptable)    -> Autónomo: 8.0, Tareas: 7.0, PAE: 7.67 -> (8.0*0.4)+(7.0*0.3)+(7.67*0.3) = 3.2 + 2.1 + 2.3 = 7.60
 -- * Andrés Salazar: 8.40 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.0, PAE: 8.7 -> (8.5*0.4)+(8.0*0.3)+(8.7*0.3) = 3.4 + 2.4 + 2.61 = 8.41 -> 8.40
 
@@ -359,7 +359,7 @@ VALUES
 -- Actividades: 1 (MAT1-P1-U1-T1), 2 (MAT1-P1-U2-T2), 3 (MAT1-P1-U2-T3), 4 (MAT1-P1-U3-T4), 5 (MAT1-P1-U4-T5)
 -- Camila Andrade (1)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (1, 1, 8.0), (1, 2, 8.0), (1, 3, 8.0), (1, 4, 8.0), (1, 5, 8.0);
--- Diego Curillo (2)
+-- Carlos Mendoza (2)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (2, 1, 8.5), (2, 2, 8.5), (2, 3, 8.5), (2, 4, 8.5), (2, 5, 8.5);
 -- Mateo Paredes (3) - Caso Crítico con severa falencia en Unidad 2 (Tema 2.3 = 2.0)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (3, 1, 6.0), (3, 2, 2.0), (3, 3, 2.0), (3, 4, 4.0), (3, 5, 4.0);

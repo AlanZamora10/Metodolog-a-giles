@@ -233,7 +233,7 @@ function CentroAlertas() {
       </div>
 
       <div className="alertas-layout">
-        <section className="card" aria-label="Listado de alertas">
+        <section className="card stagger-1" aria-label="Listado de alertas">
           {lista.length === 0 && <Vacio titulo="No hay alertas en este filtro." />}
           {lista.map((a) => (
             <div
@@ -289,7 +289,7 @@ function CentroAlertas() {
           ))}
         </section>
 
-        <aside className="card panel-atencion" aria-label="Panel de atención" aria-live="polite">
+        <aside className="card panel-atencion stagger-2" aria-label="Panel de atención" aria-live="polite">
           {!sel || !borrador || borrador.alertaId !== sel.id ? (
             <Vacio titulo="Seleccione una alerta">
               <p>El panel mostrará la evidencia del estudiante y el borrador de refuerzo para revisar y publicar.</p>

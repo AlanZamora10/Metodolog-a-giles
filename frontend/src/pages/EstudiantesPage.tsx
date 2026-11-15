@@ -61,7 +61,7 @@ function Listado() {
         </div>
       </div>
 
-      <section className="card">
+      <section className="card stagger-1">
         <div className="card-body filtros" style={{ paddingTop: 16 }}>
           <label className="field">
             <span>Buscar</span>

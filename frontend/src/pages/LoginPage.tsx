@@ -4,6 +4,7 @@ import { mensajeErrorLogin, useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
 import { Aviso } from '../components/ui/ui';
 import { URL_RECUPERAR_CLAVE } from '../utils/config';
+import { Emblema } from '../components/ui/Emblema';
 
 /** RF-01: inicio de sesión con la cuenta institucional de Moodle UTA (correo o usuario). */
 export function LoginPage() {
@@ -40,23 +41,22 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <section className="login-hero">
-        <div className="brand" style={{ borderBottom: 'none', padding: 0 }}>
-          <div className="brand-logo" aria-hidden>
-            EM
-          </div>
+        <div className="brand login-brand stagger-1" style={{ borderBottom: 'none', padding: 0 }}>
+          <Emblema tamano={46} />
           <div>
             <div className="brand-name">EduMonitor AI</div>
             <div className="brand-sub">Universidad Técnica de Ambato · FISEI</div>
           </div>
         </div>
-        <h1>Seguimiento académico inteligente para sus cursos de Moodle UTA</h1>
-        <p className="login-pie">Facultad de Ingeniería en Sistemas, Electrónica e Industrial · Período Julio–Diciembre 2026</p>
+        <h1 className="stagger-2">Seguimiento académico inteligente para sus cursos de Moodle UTA</h1>
+        <p className="login-pie stagger-3">Facultad de Ingeniería en Sistemas, Electrónica e Industrial · Período Julio–Diciembre 2026</p>
       </section>
 
       <section className="login-form-wrap">
         <form className="login-form" onSubmit={enviar} noValidate>
-          <div>
-            <h1>Iniciar sesión</h1>
+          <div className="stagger-1">
+            <Emblema tamano={40} titulo="UTA · FISEI" />
+            <h1 style={{ marginTop: 10 }}>Iniciar sesión</h1>
             <p className="muted" style={{ marginTop: 6 }}>
               Ingrese con sus credenciales institucionales de Moodle UTA
             </p>
@@ -69,7 +69,7 @@ export function LoginPage() {
             </Aviso>
           )}
 
-          <label className="field">
+          <label className="field stagger-2">
             <span>Correo o usuario de Moodle UTA</span>
             <input
               className="input"
@@ -82,7 +82,7 @@ export function LoginPage() {
               autoFocus
             />
           </label>
-          <label className="field">
+          <label className="field stagger-3">
             <span>Contraseña</span>
             <input
               className="input"
@@ -94,11 +94,11 @@ export function LoginPage() {
               disabled={enviando}
             />
           </label>
-          <button className="btn btn-primary" type="submit" disabled={enviando}>
+          <button className="btn btn-primary stagger-4" type="submit" disabled={enviando}>
             {enviando && <span className="spinner" aria-hidden />}
             {enviando ? 'Validando con Moodle UTA…' : 'Ingresar'}
           </button>
-          <div className="login-ayuda">
+          <div className="login-ayuda stagger-5">
             <a href={URL_RECUPERAR_CLAVE} target="_blank" rel="noreferrer">
               ¿Olvidó su contraseña?
             </a>

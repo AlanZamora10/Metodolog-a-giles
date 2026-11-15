@@ -39,13 +39,13 @@ describe('RF-03 / RF-04 / RNF-08 · cursos, período y sincronización', () => {
     mockApi();
     const u = userEvent.setup();
     renderApp('/estudiantes');
-    await screen.findByText('Diego Curillo');
+    await screen.findByText('Carlos Mendoza');
     await u.type(screen.getByPlaceholderText(/nombre, código/i), 'valeria');
-    expect(screen.queryByText('Diego Curillo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Carlos Mendoza')).not.toBeInTheDocument();
     expect(screen.getByText('Valeria Ortiz')).toBeInTheDocument();
     await u.clear(screen.getByPlaceholderText(/nombre, código/i));
     await u.click(screen.getByLabelText(/con incidencias/i));
-    expect(screen.getByText('Diego Curillo')).toBeInTheDocument();
+    expect(screen.getByText('Carlos Mendoza')).toBeInTheDocument();
     expect(screen.queryByText('Camila Andrade')).not.toBeInTheDocument();
   });
 });
@@ -67,7 +67,7 @@ describe('RF-06 · ficha del estudiante', () => {
     iniciarSesionFalsa();
     mockApi();
     renderApp('/estudiantes/U-04');
-    expect(await screen.findByRole('heading', { name: 'Diego Curillo' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Carlos Mendoza' })).toBeInTheDocument();
     for (const estado of ['calificada', 'cero', 'sin_entrega', 'pendiente']) {
       expect(document.querySelector(`.tabla [data-estado="${estado}"]`)).not.toBeNull();
     }

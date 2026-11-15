@@ -15,7 +15,7 @@ Es idempotente: crea lo que falta, actualiza lo existente y desmatricula a quien
 |---|---|---|---|
 | Administrador | `admin` | `MoodleAdmin2026!` | Gestión del sitio |
 | Docente titular | `rgomez` (Ing. Roberto Gómez, `docente@uta.edu.ec`) | `Docente2026!` | Profesor con permiso de edición en los 4 cursos. También es el usuario de EduMonitor AI (`localhost:3000`, con el correo) |
-| Estudiante | `dcurillo` (caso crítico) | `Estudiante2026!` | Matriculado en los 4 cursos. Los 20 estudiantes comparten contraseña; usuario = inicial + apellido (`candrade`, `mparedes`, …) |
+| Estudiante | `cmendoza` (caso crítico) | `Estudiante2026!` | Matriculado en los 4 cursos. Los 20 estudiantes comparten contraseña; usuario = inicial + apellido (`candrade`, `mparedes`, …) |
 
 ## Cursos y nóminas
 | Curso | Shortname | Estudiantes |
@@ -39,7 +39,7 @@ Categorías: `FISEI` → `SOFTWARE` → `Julio a Diciembre 2026`.
 ## Libro de calificaciones
 Media ponderada **ACD 40% / Tareas 30% / PAE 30%**, total sobre 10. Sólo el Primer Parcial está calificado, con notas
 distintas en cada curso: aceptables, en riesgo y críticos. Además hay estos casos especiales:
-- `dcurillo`: `U1-T2` = 0 y `U2-T4` = 0 con comentario **SIN ENTREGA**.
+- `cmendoza`: `U1-T2` = 0 y `U2-T4` = 0 con comentario **SIN ENTREGA**.
 - El último estudiante de cada nómina tiene `U2-P3` sin nota, con comentario **PENDIENTE DE REVISIÓN**.
 
 Las tareas calificadas tienen una entrega registrada 1-3 días antes del vencimiento, salvo las de SIN ENTREGA.

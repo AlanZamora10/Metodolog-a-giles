@@ -7,7 +7,7 @@ import { Markdown } from '../components/ui/Markdown';
 const RESPUESTA_ALERTAS = {
   respuesta:
     '**Resumen ejecutivo**\n- Hay **2 alerta(s) activa(s)**; 2 siguen abiertas.\n\n### Alertas tempranas\n' +
-    '- **Diego Curillo** (SOF-POO-A) · R1 nota crítica · nota **3.04/10**\n  - Incidencias: U2-T4 (sin entrega)\n' +
+    '- **Carlos Mendoza** (SOF-POO-A) · R1 nota crítica · nota **3.04/10**\n  - Incidencias: U2-T4 (sin entrega)\n' +
     '- **Valeria Ortiz** (SOF-POO-A) · R1 nota crítica · nota **4.07/10**',
   formato: 'markdown',
   herramientas: [
@@ -20,25 +20,25 @@ const RESPUESTA_ALERTAS = {
 };
 
 const RESPUESTA_REFUERZO = {
-  respuesta: 'Preparé una propuesta de refuerzo para **Diego Curillo** en **SOF-POO-A**.\n\n**Título:** Refuerzo Unidad 2 — SOF-POO-A',
+  respuesta: 'Preparé una propuesta de refuerzo para **Carlos Mendoza** en **SOF-POO-A**.\n\n**Título:** Refuerzo Unidad 2 — SOF-POO-A',
   formato: 'markdown',
   herramientas: [
     {
       herramienta: 'proponer_refuerzo',
-      parametros: { student_query: 'Diego Curillo', course_id: 2 },
+      parametros: { student_query: 'Carlos Mendoza', course_id: 2 },
       duracion_ms: 4,
       resultado: {
         filas: 1,
-        estudiante: { id_number: 'U-04', nombres: 'Diego Curillo' },
+        estudiante: { id_number: 'U-04', nombres: 'Carlos Mendoza' },
         curso: 'SOF-POO-A',
         curso_id: 2,
         propuesta: {
           titulo: 'Refuerzo Unidad 2: Informe de laboratorio — SOF-POO-A',
-          objetivo: 'Que Diego Curillo consolide la Unidad 2',
+          objetivo: 'Que Carlos Mendoza consolide la Unidad 2',
           pasos: ['Revise U1-T2'],
           criterios: [{ criterio: 'Corrección técnica', peso: 100 }],
           plazo_dias: 7,
-          instrucciones: 'Objetivo: Que Diego Curillo consolide la Unidad 2\n\nDescripción de la tarea:\n1. Revise U1-T2',
+          instrucciones: 'Objetivo: Que Carlos Mendoza consolide la Unidad 2\n\nDescripción de la tarea:\n1. Revise U1-T2',
         },
         alerta: { id: 1, estado: 'ABIERTA', regla: 'R1_NOTA_CRITICA' },
       },
@@ -77,7 +77,7 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
 
     await u.click(screen.getByRole('button', { name: '¿Qué estudiantes de SOF-POO-A necesitan atención?' }));
     expect(await screen.findByRole('heading', { name: 'Alertas tempranas' })).toBeInTheDocument();
-    expect(screen.getByText('Diego Curillo', { selector: 'strong' })).toBeInTheDocument();
+    expect(screen.getByText('Carlos Mendoza', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByText('Incidencias: U2-T4 (sin entrega)')).toBeInTheDocument();
     const [, init] = fetch.mock.calls.find(([url]) => url === '/api/v1/agent/chat')!;
     expect(JSON.parse(String(init!.body))).toEqual({ mensaje: '¿Qué estudiantes de SOF-POO-A necesitan atención?', course_id: 2 });
@@ -123,11 +123,11 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     });
     const u = userEvent.setup();
     renderApp('/agente');
-    await u.type(await screen.findByLabelText('Mensaje para el agente'), 'Prepárame un refuerzo para Diego Curillo{enter}');
+    await u.type(await screen.findByLabelText('Mensaje para el agente'), 'Prepárame un refuerzo para Carlos Mendoza{enter}');
     await u.click(await screen.findByRole('button', { name: 'Aplicar en el Centro de alertas' }));
 
     expect(await screen.findByTestId('propuesta-agente')).toBeInTheDocument();
-    expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Diego Curillo');
+    expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Carlos Mendoza');
     expect(screen.getByDisplayValue('Refuerzo Unidad 2: Informe de laboratorio — SOF-POO-A')).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: 'Registrar atención' }));
@@ -159,5 +159,43 @@ describe('RF-01 · login minimalista', () => {
     expect(screen.queryByText(/sessionStorage|sólo en esta pestaña/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Carrera de Ingeniería de Software/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Alertas tempranas con evidencia/)).not.toBeInTheDocument();
+  });
+});
+
+describe('Agente conversacional e interfaz animada', () => {
+  it('un saludo se responde breve, sin auditoría de herramientas', async () => {
+    iniciarSesionFalsa();
+    mockApi({
+      'POST /api/v1/agent/chat': () =>
+        json({
+          respuesta: '¡Hola, Ing. Roberto Gómez! ¿En qué le ayudo hoy?',
+          formato: 'markdown',
+          herramientas: [],
+          plan_fuente: 'cortesia',
+          redaccion: 'determinista_sin_herramientas',
+          duracion_ms: 2,
+        }),
+    });
+    const u = userEvent.setup();
+    renderApp('/agente');
+    await u.type(await screen.findByLabelText('Mensaje para el agente'), 'hola{enter}');
+    expect(await screen.findByText('¡Hola, Ing. Roberto Gómez! ¿En qué le ayudo hoy?')).toBeInTheDocument();
+    expect(screen.queryByTestId('auditoria')).not.toBeInTheDocument();
+  });
+
+  it('el login muestra el emblema UTA · FISEI y entra con animación escalonada', async () => {
+    mockApi();
+    renderApp('/login');
+    expect(await screen.findByRole('img', { name: 'Emblema UTA · FISEI' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toHaveClass('stagger-4');
+  });
+
+  it('las tarjetas KPI aparecen escalonadas', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    renderApp('/dashboard');
+    const kpi = (await screen.findByText('Promedio general')).closest('.kpi');
+    expect(kpi).toHaveClass('stagger-1');
+    expect(screen.getByText('Alertas activas').closest('.kpi')).toHaveClass('stagger-4');
   });
 });

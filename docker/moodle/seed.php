@@ -153,7 +153,7 @@ out("  = Docente titular: rgomez (" . DOCENTE_NOMBRE . ")");
 // idnumber => [username, nombres, apellidos]
 $students_def = [
     'U-03' => ['candrade',    'Camila',      'Andrade'],
-    'U-04' => ['dcurillo',    'Diego',       'Curillo'],
+    'U-04' => ['cmendoza',    'Carlos',      'Mendoza'],
     'U-05' => ['mparedes',    'Mateo',       'Paredes'],
     'U-06' => ['svillacis',   'Sofía',       'Villacís'],
     'U-07' => ['cmena',       'Carlos',      'Mena'],
@@ -660,5 +660,5 @@ foreach ($courses_def as $short => $def) {
 }
 echo "  Admin: admin / MoodleAdmin2026!\n";
 echo "  Docente: rgomez (rgomez@uta.edu.ec) / Docente2026!  <- también es el login de EduMonitor AI\n";
-echo "  Estudiante (caso crítico): dcurillo / Estudiante2026!\n";
+echo "  Estudiante (caso crítico): cmendoza / Estudiante2026!\n";
 echo "====================================================================\n";

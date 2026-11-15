@@ -99,8 +99,12 @@ body#page-login-index {
   content: "UNIVERSIDAD T\00C9 CNICA DE AMBATO \00B7  FISEI";
   display: block;
   margin: 0 -2.25rem 1.6rem;
-  padding: 1rem 1rem .95rem;
-  background: linear-gradient(90deg, var(--uta-navy), var(--uta-blue));
+  padding: 4.9rem 1rem .95rem;
+  /* Emblema minimalista UTA · FISEI (#0B2A5B / #C59B27) sobre la banda institucional */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Cpath d='M32 2 L60 10 V34 C60 52 47.5 63.5 32 70 C16.5 63.5 4 52 4 34 V10 Z' fill='%230B2A5B' stroke='%23C59B27' stroke-width='3'/%3E%3Cpath d='M32 9 L53 15 V34 C53 47.5 44 56.5 32 62 C20 56.5 11 47.5 11 34 V15 Z' fill='none' stroke='%23C59B27' stroke-opacity='0.45'/%3E%3Cpath d='M20 20 L32 16 L44 20' fill='none' stroke='%23C59B27' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ctext x='32' y='38' text-anchor='middle' font-family='Georgia,serif' font-size='15' font-weight='700' fill='%23fff' letter-spacing='1'%3EUTA%3C/text%3E%3Cline x1='21' y1='43' x2='43' y2='43' stroke='%23C59B27' stroke-width='1.2'/%3E%3Ctext x='32' y='52' text-anchor='middle' font-family='Arial,sans-serif' font-size='6.5' font-weight='700' fill='%23C59B27' letter-spacing='1.2'%3EFISEI%3C/text%3E%3C/svg%3E") center 0.85rem / 50px auto no-repeat,
+    linear-gradient(90deg, var(--uta-navy), var(--uta-blue));
+  border-bottom: 3px solid #C59B27;
   color: #FFFFFF;
   text-align: center;
   font-weight: 700;

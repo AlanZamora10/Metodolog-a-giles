@@ -115,7 +115,7 @@ def test_publicar_crea_tarea_real_en_moodle(sincronizado, moodle_publicacion):
 
     llamada = moodle_publicacion.llamadas[0]
     assert llamada["course_id"] == 2
-    assert llamada["email_estudiante"] == "dcurillo@uta.edu.ec"   # visible sólo para ese estudiante
+    assert llamada["email_estudiante"] == "cmendoza@uta.edu.ec"   # visible sólo para ese estudiante
     assert llamada["nombre"] == "Refuerzo Tareas U2"
     assert llamada["codigo"] == f"REF-{refuerzo['id']}"
     assert llamada["fecha_entrega"] == int(datetime(2099, 1, 16, 4, 59, tzinfo=timezone.utc).timestamp())
@@ -178,7 +178,7 @@ def test_reporte_del_curso(sincronizado):
     }
     assert (r["alertas"]["r1_activas"], r["alertas"]["r2_activas"]) == (1, 1)
     assert [p["id_number"] for p in r["estudiantes_prioritarios"]] == ["U-04", "U-11"]
-    assert any("Diego Curillo (2.65)" in h for h in r["hallazgos"])
+    assert any("Carlos Mendoza (2.65)" in h for h in r["hallazgos"])
     assert any("R2" in h and "Sebastián Romero" in h for h in r["hallazgos"])
     assert any("pendientes" in x for x in r["recomendaciones"])
 
@@ -209,8 +209,8 @@ def test_chat_alertas_de_un_curso_con_herramienta_real(sincronizado):
     usadas = {h["herramienta"]: h for h in data["herramientas"]}
     assert usadas["identificar_alertas"]["parametros"] == {"course_id": 2}
     assert {a["nombres"] for a in usadas["identificar_alertas"]["resultado"]["alertas"]} == \
-           {"Diego Curillo", "Sebastián Romero"}
-    assert "Diego Curillo" in data["respuesta"] and "Sebastián Romero" in data["respuesta"]
+           {"Carlos Mendoza", "Sebastián Romero"}
+    assert "Carlos Mendoza" in data["respuesta"] and "Sebastián Romero" in data["respuesta"]
 
     logs = [log for log in repositories.filas("logs_sistema") if log["tipo_proceso"] == "AGENTE_HERRAMIENTA"]
     assert logs[-1]["detalle"]["herramienta"] == "identificar_alertas"
@@ -220,9 +220,9 @@ def test_chat_alertas_de_un_curso_con_herramienta_real(sincronizado):
 
 
 def test_chat_calificaciones_de_un_estudiante_sin_inventar_datos(sincronizado):
-    data = _chat(sincronizado, "Dame las notas de Diego Curillo")
+    data = _chat(sincronizado, "Dame las notas de Carlos Mendoza")
     llamada = next(h for h in data["herramientas"] if h["herramienta"] == "obtener_calificaciones")
-    assert llamada["parametros"]["estudiante"] == "Diego Curillo"
+    assert llamada["parametros"]["estudiante"] == "Carlos Mendoza"
     fila = llamada["resultado"]["calificaciones"][0]
     assert fila["nota_final"] == 2.65 and "U2-T4 SIN_ENTREGA" in fila["incidencias"]
     assert "2.65/10" in data["respuesta"] and "U2-T4 (sin entrega)" in data["respuesta"]
@@ -264,16 +264,16 @@ def test_chat_usa_el_plan_del_llm_cuando_es_valido(sincronizado, monkeypatch):
     assert data["herramientas"][0]["herramienta"] == "identificar_alertas"
     assert data["herramientas"][0]["parametros"] == {"course_id": 2, "regla": "R1"}
     alertas = data["herramientas"][0]["resultado"]["alertas"]
-    assert [a["nombres"] for a in alertas] == ["Diego Curillo"]
+    assert [a["nombres"] for a in alertas] == ["Carlos Mendoza"]
 
 
 def test_entidades_mencionadas_prevalecen_sobre_el_llm(sincronizado, monkeypatch):
     # El modelo elige bien la herramienta pero mal el estudiante: manda lo que el docente escribió
     _agente_responde(monkeypatch, {"fuente": "ollama_slm", "llamadas": [
         {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "Camila Andrade"}}]})
-    data = _chat(sincronizado, "Dame las notas de Diego Curillo en POO")
+    data = _chat(sincronizado, "Dame las notas de Carlos Mendoza en POO")
     llamada = data["herramientas"][0]
-    assert llamada["parametros"] == {"course_id": 2, "estudiante": "Diego Curillo"}
+    assert llamada["parametros"] == {"course_id": 2, "estudiante": "Carlos Mendoza"}
     assert llamada["resultado"]["calificaciones"][0]["id_number"] == "U-04"
 
 

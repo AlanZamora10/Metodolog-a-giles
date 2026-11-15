@@ -4,7 +4,7 @@ Moodle simulado y utilidades compartidas por las pruebas del Sprint 3.
 Curso 2 (SOF-POO-A) lo dicta rgomez@uta.edu.ec; curso 3 (SOF-ED-B) lo dicta otro docente.
 Estudiantes del curso 2:
   U-03 Camila Andrade   -> aceptable, sin alerta
-  U-04 Diego Curillo    -> R1 (nota < 5) con nota 0 y SIN ENTREGA
+  U-04 Carlos Mendoza    -> R1 (nota < 5) con nota 0 y SIN ENTREGA
   U-11 Sebastián Romero -> R2 (U1 8.00 -> U2 5.00, nota 6.50): sólo alerta, nivel EN_RIESGO
   U-09 Andrés Salazar   -> aceptable, con U2-P3 PENDIENTE
 """
@@ -14,7 +14,7 @@ from app.services.auth_service import create_access_token
 from app.services.moodle_client import CredencialesMoodleInvalidas, MoodleError
 
 DOCENTE = {"email": "rgomez@uta.edu.ec", "password": "Docente2026!"}
-ESTUDIANTE = {"email": "dcurillo@uta.edu.ec", "password": "Estudiante2026!"}
+ESTUDIANTE = {"email": "cmendoza@uta.edu.ec", "password": "Estudiante2026!"}
 OTRO_DOCENTE = {"email": "otro.docente@uta.edu.ec", "password": "OtroDocente2026!"}
 
 
@@ -49,7 +49,7 @@ class FakeMoodleSprint3:
         return [
             {"id": 10, "fullname": "Profesor", "email": profesor, "roles": [{"shortname": "editingteacher"}]},
             _alumno(11, "Camila Andrade", "U-03", "candrade@uta.edu.ec"),
-            _alumno(12, "Diego Curillo", "U-04", "dcurillo@uta.edu.ec"),
+            _alumno(12, "Carlos Mendoza", "U-04", "cmendoza@uta.edu.ec"),
             _alumno(13, "Sebastián Romero", "U-11", "sromero@uta.edu.ec"),
             _alumno(14, "Andrés Salazar", "U-09", "asalazar@uta.edu.ec"),
         ]
@@ -75,7 +75,7 @@ USUARIOS_MOODLE = {
     "otrodocente": {"id": 20, "username": "otrodocente", "email": "otro.docente@uta.edu.ec",
                     "fullname": "Ing. Otro Docente", "idnumber": "U-90", "password": "OtroDocente2026!",
                     "cursos": {3: "editingteacher"}},
-    "dcurillo": {"id": 12, "username": "dcurillo", "email": "dcurillo@uta.edu.ec", "fullname": "Diego Curillo",
+    "cmendoza": {"id": 12, "username": "cmendoza", "email": "cmendoza@uta.edu.ec", "fullname": "Carlos Mendoza",
                  "idnumber": "U-04", "password": "Estudiante2026!", "cursos": {2: "student", 3: "student"}},
 }
 CURSOS_MOODLE = {2: "SOF-POO-A", 3: "SOF-ED-B", 4: "SOF-MA-B", 9: "OTRO-CURSO"}

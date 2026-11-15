@@ -2,9 +2,9 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import type { Actividad, EstadoAlerta } from '../../api/types';
 import { ESTADOS_VISUALES, NIVELES, estadoVisual, type EstadoVisual } from '../../utils/academico';
 
-export function KpiCard({ etiqueta, valor, unidad, detalle }: { etiqueta: string; valor: ReactNode; unidad?: string; detalle?: ReactNode }) {
+export function KpiCard({ etiqueta, valor, unidad, detalle, className = '' }: { etiqueta: string; valor: ReactNode; unidad?: string; detalle?: ReactNode; className?: string }) {
   return (
-    <div className="card kpi">
+    <div className={`card kpi ${className}`.trim()}>
       <span className="kpi-label">{etiqueta}</span>
       <span className="kpi-value">
         {valor}

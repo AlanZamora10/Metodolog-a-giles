@@ -77,7 +77,7 @@ function Ficha() {
         </div>
       </div>
 
-      <section className="card card-pad">
+      <section className="card card-pad stagger-1">
         {m ? (
           <div className="metricas-mini">
             <div>

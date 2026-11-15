@@ -34,7 +34,7 @@ export interface GrupoSugerencias {
 
 export function sugerenciasPara(curso?: string, estudiante?: string): GrupoSugerencias[] {
   const c = curso ?? 'mi curso';
-  const e = estudiante ?? 'Diego Curillo';
+  const e = estudiante ?? 'Carlos Mendoza';
   return [
     { titulo: 'Panorama general', preguntas: ['¿Cuántos cursos y estudiantes tengo en total?', `Dame un resumen del curso ${c}`] },
     {
@@ -83,7 +83,7 @@ export function AgentePage() {
       </div>
 
       <div className="chat-layout">
-        <section className="card chat-card" aria-label="Conversación con el agente">
+        <section className="card chat-card stagger-1" aria-label="Conversación con el agente">
           <div className="chat-hist" role="log" aria-live="polite">
             {mensajes.length === 0 && (
               <div className="empty">
@@ -123,7 +123,7 @@ export function AgentePage() {
         </section>
 
         <aside className="grid" style={{ gap: 16 }}>
-          <section className="card card-pad contexto-activo" aria-label="Contexto activo">
+          <section className="card card-pad contexto-activo stagger-2" aria-label="Contexto activo">
             <h3>Contexto activo</h3>
             {curso ? (
               <dl>
@@ -145,7 +145,7 @@ export function AgentePage() {
               Las preguntas sobre «todos mis cursos» o sobre un estudiante consultan los {sync?.cursos.length ?? 0} cursos.
             </p>
           </section>
-          <section className="card card-pad" aria-label="Preguntas sugeridas">
+          <section className="card card-pad stagger-3" aria-label="Preguntas sugeridas">
             <h3 style={{ marginBottom: 6 }}>Preguntas sugeridas</h3>
             {grupos.map((g) => (
               <div key={g.titulo} className="grupo-sugerencias">

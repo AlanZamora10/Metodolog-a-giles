@@ -38,14 +38,14 @@ def test_totales_de_cursos_y_estudiantes(sincronizado):  # noqa: F811
 
 
 def test_consulta_transversal_de_un_estudiante_ignora_el_curso_activo(sincronizado):  # noqa: F811
-    data = _chat(sincronizado, "¿Cómo va Diego Curillo en mis materias?", course_id=2)
+    data = _chat(sincronizado, "¿Cómo va Carlos Mendoza en mis materias?", course_id=2)
     llamada = _herramienta(data, "obtener_calificaciones")
-    assert llamada["parametros"] == {"estudiante": "Diego Curillo"}          # sin course_id: todos sus cursos
+    assert llamada["parametros"] == {"estudiante": "Carlos Mendoza"}          # sin course_id: todos sus cursos
     cursos_reales = {c["shortname"] for c in sync_service.cursos_del_docente("rgomez@uta.edu.ec")
                      if any(e["id_number"] == "U-04" for e in c["estudiantes"])}
     assert {f["curso"] for f in llamada["resultado"]["calificaciones"]} == cursos_reales
     assert "generar_resumen" not in {h["herramienta"] for h in data["herramientas"]}
-    assert data["respuesta"].startswith("**Diego Curillo** (U-04)")
+    assert data["respuesta"].startswith("**Carlos Mendoza** (U-04)")
 
 
 def test_actividades_con_menor_rendimiento_ordenadas_y_sin_inventar(sincronizado):  # noqa: F811
@@ -63,10 +63,10 @@ def test_actividades_con_menor_rendimiento_ordenadas_y_sin_inventar(sincronizado
 
 
 def test_proponer_refuerzo_con_falencias_reales(sincronizado):  # noqa: F811
-    data = _chat(sincronizado, "Prepárame una actividad de refuerzo para Diego Curillo", course_id=2)
+    data = _chat(sincronizado, "Prepárame una actividad de refuerzo para Carlos Mendoza", course_id=2)
     assert [h["herramienta"] for h in data["herramientas"]] == ["proponer_refuerzo"]
     llamada = data["herramientas"][0]
-    assert llamada["parametros"] == {"student_query": "Diego Curillo", "course_id": 2}
+    assert llamada["parametros"] == {"student_query": "Carlos Mendoza", "course_id": 2}
     r = llamada["resultado"]
     assert r["curso_id"] == 2 and r["estudiante"]["id_number"] == "U-04"
     assert {"titulo", "objetivo", "pasos", "criterios", "instrucciones"} <= set(r["propuesta"])
@@ -85,11 +85,11 @@ def test_proponer_refuerzo_con_falencias_reales(sincronizado):  # noqa: F811
 
     log = [x for x in repositories.filas("logs_sistema") if x["tipo_proceso"] == "AGENTE_HERRAMIENTA"][-1]
     assert log["detalle"]["herramienta"] == "proponer_refuerzo"
-    assert log["detalle"]["parametros"] == {"student_query": "Diego Curillo", "course_id": 2}
+    assert log["detalle"]["parametros"] == {"student_query": "Carlos Mendoza", "course_id": 2}
 
 
 def test_refuerzo_sin_curso_elige_el_curso_con_nota_mas_baja(sincronizado):  # noqa: F811
-    data = _chat(sincronizado, "Prepara un refuerzo para Diego Curillo")
+    data = _chat(sincronizado, "Prepara un refuerzo para Carlos Mendoza")
     r = data["herramientas"][0]["resultado"]
     notas = {c["id"]: e["nota_final"] for c in sync_service.cursos_del_docente("rgomez@uta.edu.ec")
              for e in c["estudiantes"] if e["id_number"] == "U-04"}
@@ -104,7 +104,7 @@ def test_refuerzo_de_estudiante_inexistente_informa_sin_inventar(sincronizado): 
 
 def test_respuesta_estructurada_en_viñetas(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "¿Qué estudiantes de POO necesitan atención?")
-    assert "- **Diego Curillo** (SOF-POO-A)" in data["respuesta"]
+    assert "- **Carlos Mendoza** (SOF-POO-A)" in data["respuesta"]
     assert "; Sebastián" not in data["respuesta"]            # ya no hay listas planas separadas por punto y coma
     data = _chat(sincronizado, "Dame un resumen y las alertas de POO")
     assert data["respuesta"].startswith("**Resumen ejecutivo**")
@@ -121,10 +121,10 @@ def test_plan_del_llm_de_refuerzo_usa_el_estudiante_mencionado(sincronizado, mon
 
     monkeypatch.setattr(agente_herramientas.httpx, "AsyncClient",
                         lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
-    data = _chat(sincronizado, "Prepárame una actividad de refuerzo para Diego Curillo")
+    data = _chat(sincronizado, "Prepárame una actividad de refuerzo para Carlos Mendoza")
     assert data["plan_fuente"] == "ollama_slm"
     assert [h["herramienta"] for h in data["herramientas"]] == ["proponer_refuerzo"]
-    assert data["herramientas"][0]["parametros"]["student_query"] == "Diego Curillo"
+    assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Mendoza"
 
 
 def test_catalogo_expone_las_seis_herramientas(sincronizado):  # noqa: F811
@@ -146,3 +146,61 @@ def test_refuerzo_propuesto_por_el_llm_sin_pedido_explicito_se_descarta(sincroni
     data = _chat(sincronizado, "¿Cuántos cursos y estudiantes tengo en total?")
     assert data["plan_fuente"] == "reglas_deterministas"
     assert [h["herramienta"] for h in data["herramientas"]] == ["listar_cursos_autorizados"]
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("mensaje,esperado", [
+    ("Hola", "¡Hola"), ("buenos días", "¡Hola"), ("¡Gracias!", "Con gusto"), ("ok", "Perfecto"),
+    ("muchas gracias, muy amable", "Con gusto"), ("chao", "¡Hasta pronto"),
+])
+def test_saludos_y_cortesias_sin_herramientas(sincronizado, monkeypatch, mensaje, esperado):  # noqa: F811
+    def no_llamar(**kw):
+        raise AssertionError("una cortesía no debe consultar al LLM")
+
+    monkeypatch.setattr(agente_herramientas.httpx, "AsyncClient", no_llamar)
+    data = _chat(sincronizado, mensaje, course_id=2)
+    assert data["herramientas"] == [] and data["plan_fuente"] == "cortesia"
+    assert data["respuesta"].startswith(esperado) and len(data["respuesta"]) < 220
+    logs = [x for x in repositories.filas("logs_sistema") if x["tipo_proceso"] == "AGENTE_HERRAMIENTA"]
+    chat = repositories.filas("logs_sistema")[-1]
+    assert chat["tipo_proceso"] == "AGENTE_CHAT" and chat["detalle"]["herramientas"] == []
+    assert all(x["detalle"].get("plan") != "cortesia" for x in logs)
+
+
+def test_cortesia_con_consulta_si_ejecuta_herramientas(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "Hola, ¿qué estudiantes de POO necesitan atención?")
+    assert [h["herramienta"] for h in data["herramientas"]] == ["identificar_alertas"]
+
+
+def test_conteo_responde_solo_cifras_y_lista_compacta(sincronizado, monkeypatch):  # noqa: F811
+    real = httpx.AsyncClient
+
+    def handler(request):  # el LLM intenta anexar un informe completo
+        return httpx.Response(200, json={"fuente": "ollama_slm", "llamadas": [
+            {"herramienta": "listar_cursos_autorizados", "parametros": {}},
+            {"herramienta": "generar_resumen", "parametros": {}},
+            {"herramienta": "identificar_alertas", "parametros": {}}]})
+
+    monkeypatch.setattr(agente_herramientas.httpx, "AsyncClient",
+                        lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    data = _chat(sincronizado, "¿Cuántos cursos o estudiantes tengo en total?", course_id=2)
+    assert [h["herramienta"] for h in data["herramientas"]] == ["listar_cursos_autorizados"]
+    assert data["plan_fuente"] == "ollama_slm"
+    for prohibido in ("alerta", "Recomendaci", "crítico", "promedio", "Resumen ejecutivo"):
+        assert prohibido not in data["respuesta"]
+    assert data["respuesta"].count("\n- **") == data["herramientas"][0]["resultado"]["totales"]["cursos"]
+
+
+def test_resumen_general_cubre_todos_los_cursos(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "Dame un resumen general", course_id=2)
+    resumen = _herramienta(data, "generar_resumen")
+    assert resumen["parametros"] == {}
+    assert len(resumen["resultado"]["resumenes"]) == len(sync_service.cursos_del_docente("rgomez@uta.edu.ec"))
+
+
+def test_mensaje_sin_intencion_pide_precisar_sin_lanzar_informes(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "necesito revisar algo", course_id=2)
+    assert data["herramientas"] == [] and data["plan_fuente"] == "aclaracion"
+    assert "resumen general" in data["respuesta"]

@@ -79,7 +79,7 @@ function Informe() {
       </div>
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <article className="card informe" aria-label="Vista previa del informe">
+      <article className="card informe stagger-1" aria-label="Vista previa del informe">
         <header className="informe-head">
           <div>
             <div className="muted small">Universidad Técnica de Ambato · FISEI · Ingeniería de Software</div>

@@ -40,20 +40,20 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     const u = userEvent.setup();
     renderApp('/alertas');
 
-    // 1) Atender a Diego: el panel muestra a Diego sin esperar al backend
+    // 1) Atender a Carlos: el panel muestra a Carlos sin esperar al backend
     await u.click(within(await screen.findByTestId('alerta-1')).getByRole('button', { name: 'Atender' }));
-    expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Diego Curillo');
-    expect(screen.getByDisplayValue(/Diego Curillo <u-04@uta.edu.ec>/)).toBeInTheDocument();
+    expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Carlos Mendoza');
+    expect(screen.getByDisplayValue(/Carlos Mendoza <u-04@uta.edu.ec>/)).toBeInTheDocument();
 
     // 2) Antes de que responda, el docente atiende a Valeria: el panel cambia de inmediato
     await u.click(within(screen.getByTestId('alerta-2')).getByRole('button', { name: 'Atender' }));
     expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Valeria Ortiz');
     expect(await screen.findByDisplayValue('Instrucciones para Valeria Ortiz')).toBeInTheDocument();
 
-    // 3) Llega tarde la respuesta de Diego: se ignora
-    await act(async () => lento.resolver(json(respuestaAtender(1, 'Diego Curillo'))));
+    // 3) Llega tarde la respuesta de Carlos: se ignora
+    await act(async () => lento.resolver(json(respuestaAtender(1, 'Carlos Mendoza'))));
     expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Valeria Ortiz');
-    expect(screen.queryByDisplayValue('Instrucciones para Diego Curillo')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Instrucciones para Carlos Mendoza')).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('Instrucciones para Valeria Ortiz')).toBeInTheDocument();
   });
 
@@ -95,13 +95,13 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
   it('si Moodle falla (502) informa sin marcar la alerta como publicada', async () => {
     iniciarSesionFalsa();
     mockApi({
-      'POST /api/v1/alertas/1/atender': () => json(respuestaAtender(1, 'Diego Curillo')),
+      'POST /api/v1/alertas/1/atender': () => json(respuestaAtender(1, 'Carlos Mendoza')),
       'POST /api/v1/refuerzos/101/publicar': () => json({ detail: 'Moodle no creó la tarea: timeout' }, 502),
     });
     const u = userEvent.setup();
     renderApp('/alertas');
     await u.click(within(await screen.findByTestId('alerta-1')).getByRole('button', { name: 'Atender' }));
-    await screen.findByDisplayValue('Instrucciones para Diego Curillo');
+    await screen.findByDisplayValue('Instrucciones para Carlos Mendoza');
     await u.click(screen.getByRole('button', { name: 'Aprobar y publicar en Moodle' }));
     await u.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Aprobar y publicar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/la alerta no cambió de estado/i);
