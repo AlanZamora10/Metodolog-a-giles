@@ -70,6 +70,7 @@ usuarios = Table(
     _fecha("created_at"),
     Column("moodle_user_id", Integer),
     Column("moodle_username", Unicode(100)),
+    Column("cedula", Unicode(10)),
     _fecha("ultimo_acceso", con_defecto=False),
     CheckConstraint("rol IN ('DOCENTE', 'ESTUDIANTE', 'ADMIN')", name="usuarios_rol_check"),
 )
@@ -117,6 +118,7 @@ estudiantes = Table(
     Column("nombres", Unicode(120), nullable=False),
     Column("email", Unicode(120), nullable=False, unique=True),
     Column("moodle_user_id", Integer),
+    Column("cedula", Unicode(10)),               # Cédula ecuatoriana (perfil de Moodle, campo «cedula»)
     Column("activo", Boolean, default=True),
     _fecha("created_at"),
 )
@@ -260,6 +262,8 @@ _COLUMNAS_NUEVAS = [
     ("usuarios", "ultimo_acceso", "DATETIME2"),
     ("refuerzos", "moodle_url", "NVARCHAR(255)"),
     ("refuerzos", "fecha_entrega", "DATETIME2"),
+    ("estudiantes", "cedula", "NVARCHAR(10)"),
+    ("usuarios", "cedula", "NVARCHAR(10)"),
 ]
 
 
@@ -269,7 +273,7 @@ def _migrar_columnas(conn, dialecto: str) -> None:
             conn.execute(text(
                 f"IF COL_LENGTH('{tabla}', '{columna}') IS NULL ALTER TABLE {tabla} ADD {columna} {tipo_mssql}"))
         elif dialecto == "postgresql":
-            tipo = {"NVARCHAR(100)": "VARCHAR(100)", "NVARCHAR(255)": "VARCHAR(255)",
+            tipo = {"NVARCHAR(10)": "VARCHAR(10)", "NVARCHAR(100)": "VARCHAR(100)", "NVARCHAR(255)": "VARCHAR(255)",
                     "DATETIME2": "TIMESTAMP"}.get(tipo_mssql, tipo_mssql)
             conn.execute(text(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS {columna} {tipo}"))
 

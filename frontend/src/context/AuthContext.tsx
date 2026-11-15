@@ -21,7 +21,7 @@ export function mensajeErrorLogin(ex: unknown): string {
     if (ex.status === 403)
       return ex.detail || 'Su cuenta de Moodle no tiene rol docente en ningún curso de Ingeniería de Software.';
     if (ex.status === 503) return 'Moodle UTA no responde en este momento. Intente nuevamente en unos minutos.';
-    if (ex.status === 422) return 'Complete el usuario y la contraseña.';
+    if (ex.status === 422) return ex.detail || 'Ingrese su correo institucional completo (@uta.edu.ec).';
     if (ex.status === 0) return ex.detail;
     return `Error inesperado (${ex.status}): ${ex.detail}`;
   }

@@ -29,7 +29,7 @@ def test_totales_de_cursos_y_estudiantes(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "¿Cuántos cursos y estudiantes tengo en total?", course_id=2)
     assert [h["herramienta"] for h in data["herramientas"]] == ["listar_cursos_autorizados"]
     totales = _herramienta(data, "listar_cursos_autorizados")["resultado"]["totales"]
-    propios = sync_service.cursos_del_docente("rgomez@uta.edu.ec")
+    propios = sync_service.cursos_del_docente("rgomez4824@uta.edu.ec")
     assert totales["cursos"] == len(propios)
     assert totales["estudiantes_unicos"] == len({e["id_number"] for c in propios for e in c["estudiantes"]})
     assert f"**{totales['cursos']} cursos**" in data["respuesta"]
@@ -41,7 +41,7 @@ def test_consulta_transversal_de_un_estudiante_ignora_el_curso_activo(sincroniza
     data = _chat(sincronizado, "¿Cómo va Carlos Mendoza en mis materias?", course_id=2)
     llamada = _herramienta(data, "obtener_calificaciones")
     assert llamada["parametros"] == {"estudiante": "Carlos Mendoza"}          # sin course_id: todos sus cursos
-    cursos_reales = {c["shortname"] for c in sync_service.cursos_del_docente("rgomez@uta.edu.ec")
+    cursos_reales = {c["shortname"] for c in sync_service.cursos_del_docente("rgomez4824@uta.edu.ec")
                      if any(e["id_number"] == "U-04" for e in c["estudiantes"])}
     assert {f["curso"] for f in llamada["resultado"]["calificaciones"]} == cursos_reales
     assert "generar_resumen" not in {h["herramienta"] for h in data["herramientas"]}
@@ -91,7 +91,7 @@ def test_proponer_refuerzo_con_falencias_reales(sincronizado):  # noqa: F811
 def test_refuerzo_sin_curso_elige_el_curso_con_nota_mas_baja(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "Prepara un refuerzo para Carlos Mendoza")
     r = data["herramientas"][0]["resultado"]
-    notas = {c["id"]: e["nota_final"] for c in sync_service.cursos_del_docente("rgomez@uta.edu.ec")
+    notas = {c["id"]: e["nota_final"] for c in sync_service.cursos_del_docente("rgomez4824@uta.edu.ec")
              for e in c["estudiantes"] if e["id_number"] == "U-04"}
     assert r["curso_id"] == min(notas, key=notas.get)
 
@@ -104,11 +104,12 @@ def test_refuerzo_de_estudiante_inexistente_informa_sin_inventar(sincronizado): 
 
 def test_respuesta_estructurada_en_viñetas(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "¿Qué estudiantes de POO necesitan atención?")
-    assert "- **Carlos Mendoza** (SOF-POO-A)" in data["respuesta"]
+    assert "- **Carlos Mendoza** (Programación orientada a objetos, paralelo A)" in data["respuesta"]
+    assert "SOF-POO-A" not in data["respuesta"]
     assert "; Sebastián" not in data["respuesta"]            # ya no hay listas planas separadas por punto y coma
     data = _chat(sincronizado, "Dame un resumen y las alertas de POO")
     assert data["respuesta"].startswith("**Resumen ejecutivo**")
-    assert "### Resumen de SOF-POO-A" in data["respuesta"] and "### Alertas tempranas" in data["respuesta"]
+    assert "### Resumen de Programación orientada a objetos, paralelo A" in data["respuesta"] and "### Alertas tempranas" in data["respuesta"]
 
 
 def test_plan_del_llm_de_refuerzo_usa_el_estudiante_mencionado(sincronizado, monkeypatch):  # noqa: F811
@@ -197,10 +198,45 @@ def test_resumen_general_cubre_todos_los_cursos(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "Dame un resumen general", course_id=2)
     resumen = _herramienta(data, "generar_resumen")
     assert resumen["parametros"] == {}
-    assert len(resumen["resultado"]["resumenes"]) == len(sync_service.cursos_del_docente("rgomez@uta.edu.ec"))
+    assert len(resumen["resultado"]["resumenes"]) == len(sync_service.cursos_del_docente("rgomez4824@uta.edu.ec"))
 
 
 def test_mensaje_sin_intencion_pide_precisar_sin_lanzar_informes(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "necesito revisar algo", course_id=2)
     assert data["herramientas"] == [] and data["plan_fuente"] == "aclaracion"
     assert "resumen general" in data["respuesta"]
+
+
+def test_sincronizacion_trae_la_cedula_del_perfil_de_moodle(sincronizado):  # noqa: F811
+    data = client.get("/api/cursos/2/estudiantes", headers=sincronizado).json()
+    cedulas = {e["id_number"]: e["cedula"] for e in data["estudiantes"]}
+    assert cedulas["U-04"] == "1804923199" and cedulas["U-03"] == "0503128746"
+    resumen = client.get("/api/sincronizacion", headers=sincronizado).json()["estudiantes"]
+    assert {e["id_number"]: e["cedula"] for e in resumen}["U-04"] == "1804923199"
+
+
+@pytest.mark.parametrize("mensaje", [
+    "Dame el plan de estudio para Carlos Mendoza",
+    "¿Cómo ayudarlo? Me refiero a Carlos Mendoza",
+    "Necesito un plan de apoyo para Carlos Mendoza",
+    "plan de apoyo para 1804923199",
+])
+def test_frases_de_plan_de_apoyo_activan_proponer_refuerzo(sincronizado, mensaje):  # noqa: F811
+    data = _chat(sincronizado, mensaje, course_id=2)
+    assert [h["herramienta"] for h in data["herramientas"]] == ["proponer_refuerzo"]
+    assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Mendoza"
+    assert "generar_resumen" not in {h["herramienta"] for h in data["herramientas"]}
+
+
+def test_plan_de_apoyo_sin_estudiante_pregunta_por_el(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "¿Cómo puedo ayudarlo?", course_id=2)
+    assert data["herramientas"] == [] and "cédula" in data["respuesta"]
+
+
+def test_respuestas_del_agente_sin_codigos_tecnicos(sincronizado):  # noqa: F811
+    for mensaje in ("¿Qué estudiantes de POO necesitan atención?", "Dame las notas de Carlos Mendoza",
+                    "Prepárame un refuerzo para Carlos Mendoza"):
+        texto = _chat(sincronizado, mensaje)["respuesta"]
+        for codigo in ("R1", "R2", "ACD", "PAE", "SIN_ENTREGA"):
+            assert codigo not in texto, (mensaje, codigo)
+    assert "Exámenes" in _chat(sincronizado, "Dame las notas de Carlos Mendoza")["respuesta"]

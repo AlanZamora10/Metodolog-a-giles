@@ -10,6 +10,7 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import (
     AuthService,
+    CorreoNoInstitucional,
     LoginRechazado,
     MoodleError,
     create_access_token,
@@ -68,6 +69,8 @@ async def login(req: UserLoginRequest):
     """
     try:
         user = await AuthService.autenticar_docente(req.email, req.password)
+    except CorreoNoInstitucional as ex:
+        raise HTTPException(status_code=422, detail=str(ex))
     except LoginRechazado as ex:
         repositories.insert_log("LOGIN", "ADVERTENCIA", f"Acceso rechazado (no docente): {req.email.strip().lower()}",
                                 {"usuario": req.email.strip().lower()})

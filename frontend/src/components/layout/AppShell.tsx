@@ -1,15 +1,16 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCurso } from '../../context/CursoContext';
 import { CORTES, type Corte } from '../../utils/academico';
 import { fechaHora, haceCuanto, iniciales } from '../../utils/formato';
+import { nombreCurso } from '../../utils/nombres';
 
 const NAV = [
-  { a: '/dashboard', texto: 'Dashboard', rf: 'RF-05' },
-  { a: '/estudiantes', texto: 'Estudiantes', rf: 'RF-04' },
-  { a: '/alertas', texto: 'Centro de alertas', rf: 'RF-07' },
-  { a: '/agente', texto: 'Agente IA', rf: 'RF-09' },
-  { a: '/reporte', texto: 'Informe', rf: 'RF-11' },
+  { a: '/dashboard', texto: 'Dashboard' },
+  { a: '/estudiantes', texto: 'Estudiantes' },
+  { a: '/alertas', texto: 'Centro de alertas' },
+  { a: '/agente', texto: 'Agente IA' },
+  { a: '/reporte', texto: 'Informe' },
 ];
 
 const ACTIVAS = new Set(['ABIERTA', 'ATENDIDA']);
@@ -17,30 +18,27 @@ const ACTIVAS = new Set(['ABIERTA', 'ATENDIDA']);
 export function AppShell() {
   const { usuario, cerrarSesion } = useAuth();
   const { alertas } = useCurso();
+  const { pathname } = useLocation();
   const pendientes = alertas.filter((a) => ACTIVAS.has(a.estado)).length;
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-logo" aria-hidden>
-            EM
-          </div>
+          <img src="/uta-escudo-blanco.png" alt="Escudo de la Universidad Técnica de Ambato" className="brand-escudo" />
           <div>
             <div className="brand-name">EduMonitor AI</div>
-            <div className="brand-sub">Moodle UTA · FISEI</div>
+            <div className="brand-sub">UTA · FISEI</div>
           </div>
         </div>
         <nav className="nav" aria-label="Secciones">
           {NAV.map((n) => (
             <NavLink key={n.a} to={n.a}>
               {n.texto}
-              {n.a === '/alertas' && pendientes > 0 ? (
+              {n.a === '/alertas' && pendientes > 0 && (
                 <span className="nav-badge" aria-label={`${pendientes} alertas por atender`}>
                   {pendientes}
                 </span>
-              ) : (
-                <span className="rf">{n.rf}</span>
               )}
             </NavLink>
           ))}
@@ -62,7 +60,7 @@ export function AppShell() {
       </aside>
       <div className="main">
         <BarraSuperior />
-        <main className="content">
+        <main className={`content${pathname.startsWith('/agente') ? ' content-chat' : ''}`}>
           <Outlet />
         </main>
       </div>
@@ -70,15 +68,10 @@ export function AppShell() {
   );
 }
 
-/** Selector de curso, período y corte + estado de sincronización (RF-03, RF-04, RNF-08). */
+/** Selector de curso, período y corte + estado de sincronización. */
 function BarraSuperior() {
   const c = useCurso();
   const cursos = c.sync?.cursos ?? [];
-  const origen = c.sync?.persistencia?.origen === 'restaurado_desde_bd'
-    ? `restaurado desde ${c.sync?.persistencia?.motor === 'mssql' ? 'SQL Server' : (c.sync?.persistencia?.motor ?? 'la base')}`
-    : c.sync?.moodle?.sitio
-      ? `${c.sync.moodle.sitio}${c.sync.moodle.version ? ` ${c.sync.moodle.version.split(' ')[0]}` : ''}`
-      : 'Moodle UTA';
 
   return (
     <header className="topbar">
@@ -94,7 +87,7 @@ function BarraSuperior() {
           {!cursos.length && <option value="">Sin cursos sincronizados</option>}
           {cursos.map((cu) => (
             <option key={cu.id} value={cu.id}>
-              {cu.shortname} — {cu.fullname.replace(/^\(SOF\)\s*/, '')}
+              {nombreCurso(cu.fullname)}
             </option>
           ))}
         </select>
@@ -111,7 +104,7 @@ function BarraSuperior() {
           {!c.periodos.length && <option value="">—</option>}
           {c.periodos.map((p) => (
             <option key={p.codigo} value={p.codigo}>
-              {p.nombre} ({p.codigo})
+              {p.nombre}
             </option>
           ))}
         </select>
@@ -146,13 +139,11 @@ function BarraSuperior() {
                 <span className={`dot ${c.sync?.ultima_sincronizacion ? 'ok' : 'err'}`} />
                 <strong>
                   {c.sync?.ultima_sincronizacion
-                    ? `Última sincronización ${haceCuanto(c.sync.ultima_sincronizacion)}`
+                    ? `Sincronizado ${haceCuanto(c.sync.ultima_sincronizacion)}`
                     : 'Sin sincronizar'}
                 </strong>
               </div>
-              <div className="muted">
-                {fechaHora(c.sync?.ultima_sincronizacion)} · Origen: {origen}
-              </div>
+              <div className="muted">{fechaHora(c.sync?.ultima_sincronizacion)}</div>
             </>
           )}
         </div>

@@ -262,7 +262,7 @@ JOIN parciales p ON cp.parcial_id = p.id;
 -- calculados con SEED_DOCENTE_PASSWORD / SEED_ESTUDIANTE_PASSWORD / SEED_ADMIN_PASSWORD del entorno.
 INSERT INTO usuarios (nombres, email, password_hash, rol, id_number) VALUES
 ('Ing. Roberto Gómez', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
-('Carlos Mendoza', 'cmendoza@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
+('Carlos Mendoza', 'cmendoza3199@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
 ('Administrador 1', 'admin@uta.edu.ec', 'e3a1f822$7b5c11029e88', 'ADMIN', 'U-02');
 
 -- 1. Insertar Materias
@@ -281,26 +281,26 @@ INSERT INTO parciales (periodo_id, numero_parcial, nombre, fecha_inicio, fecha_f
 -- 3. Insertar los 20 Estudiantes de Moodle UTA (U-03 a U-22, mismos idnumber y correos que docker/moodle/seed.php)
 -- Los ids 1..7 (U-03 a U-09) conservan los datos analíticos heredados de HU-01 (MAT1).
 INSERT INTO estudiantes (id_number, nombres, email) VALUES
-('U-03', 'Camila Andrade', 'candrade@uta.edu.ec'),
-('U-04', 'Carlos Mendoza', 'cmendoza@uta.edu.ec'),
-('U-05', 'Mateo Paredes', 'mparedes@uta.edu.ec'),
-('U-06', 'Sofía Villacís', 'svillacis@uta.edu.ec'),
-('U-07', 'Carlos Mena', 'cmena@uta.edu.ec'),
-('U-08', 'Valeria Ortiz', 'vortiz@uta.edu.ec'),
-('U-09', 'Andrés Salazar', 'asalazar@uta.edu.ec'),
-('U-10', 'Gabriela Viteri', 'gviteri@uta.edu.ec'),
-('U-11', 'Sebastián Romero', 'sromero@uta.edu.ec'),
-('U-12', 'Daniela Espinoza', 'despinoza@uta.edu.ec'),
-('U-13', 'Joel Chicaiza', 'jchicaiza@uta.edu.ec'),
-('U-14', 'María José Lozada', 'mlozada@uta.edu.ec'),
-('U-15', 'Kevin Toapanta', 'ktoapanta@uta.edu.ec'),
-('U-16', 'Paula Guamán', 'pguaman@uta.edu.ec'),
-('U-17', 'Ricardo Sánchez', 'rsanchez@uta.edu.ec'),
-('U-18', 'Nicole Barrera', 'nbarrera@uta.edu.ec'),
-('U-19', 'Jonathan Pilco', 'jpilco@uta.edu.ec'),
-('U-20', 'Fernanda Altamirano', 'faltamirano@uta.edu.ec'),
-('U-21', 'Bryan Jácome', 'bjacome@uta.edu.ec'),
-('U-22', 'Alejandra Cevallos', 'acevallos@uta.edu.ec');
+('U-03', 'Camila Andrade', 'candrade8746@uta.edu.ec'),
+('U-04', 'Carlos Mendoza', 'cmendoza3199@uta.edu.ec'),
+('U-05', 'Mateo Paredes', 'mparedes1230@uta.edu.ec'),
+('U-06', 'Sofía Villacís', 'svillacis3416@uta.edu.ec'),
+('U-07', 'Carlos Mena', 'cmena4553@uta.edu.ec'),
+('U-08', 'Valeria Ortiz', 'vortiz7322@uta.edu.ec'),
+('U-09', 'Andrés Salazar', 'asalazar2875@uta.edu.ec'),
+('U-10', 'Gabriela Viteri', 'gviteri4569@uta.edu.ec'),
+('U-11', 'Sebastián Romero', 'sromero1238@uta.edu.ec'),
+('U-12', 'Daniela Espinoza', 'despinoza2194@uta.edu.ec'),
+('U-13', 'Joel Chicaiza', 'jchicaiza3487@uta.edu.ec'),
+('U-14', 'María José Lozada', 'mlozada2540@uta.edu.ec'),
+('U-15', 'Kevin Toapanta', 'ktoapanta8635@uta.edu.ec'),
+('U-16', 'Paula Guamán', 'pguaman1274@uta.edu.ec'),
+('U-17', 'Ricardo Sánchez', 'rsanchez5683@uta.edu.ec'),
+('U-18', 'Nicole Barrera', 'nbarrera8716@uta.edu.ec'),
+('U-19', 'Jonathan Pilco', 'jpilco4199@uta.edu.ec'),
+('U-20', 'Fernanda Altamirano', 'faltamirano3642@uta.edu.ec'),
+('U-21', 'Bryan Jácome', 'bjacome6320@uta.edu.ec'),
+('U-22', 'Alejandra Cevallos', 'acevallos4522@uta.edu.ec');
 
 -- 4. Insertar Categorías de Unidad (Unidad 1 a Unidad 4 para MAT1 y MAT2)
 INSERT INTO categorias_unidad (materia_id, numero_unidad, nombre, titulo, descripcion) VALUES

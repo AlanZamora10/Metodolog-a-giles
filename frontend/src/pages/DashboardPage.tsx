@@ -16,10 +16,11 @@ import {
   resumenGrupo,
 } from '../utils/academico';
 import { nota } from '../utils/formato';
+import { nombreCurso } from '../utils/nombres';
 
 const ACTIVAS = new Set(['ABIERTA', 'ATENDIDA', 'PUBLICADO']);
 
-/** RF-05 / RF-08: dashboard académico grupal. */
+/** Dashboard académico grupal. */
 export function DashboardPage() {
   return (
     <CursoRequerido>
@@ -60,10 +61,8 @@ function Dashboard() {
     <>
       <div className="page-head">
         <div>
-          <h1>{datos!.shortname}</h1>
-          <p>
-            {datos!.fullname} · {etiquetaCorte}
-          </p>
+          <h1>{nombreCurso(datos!.fullname)}</h1>
+          <p>{etiquetaCorte}</p>
         </div>
         <Link className="btn" to="/reporte">
           Ver informe del curso
@@ -84,7 +83,7 @@ function Dashboard() {
           etiqueta="Tasa de aprobación"
           valor={r.tasaAprobacion === null ? '—' : r.tasaAprobacion.toFixed(1)}
           unidad="%"
-          detalle={`${r.aprobados} estudiante(s) con nota ≥ 7.00`}
+          detalle={`${r.aprobados} estudiante(s) aprobados`}
         />
         <KpiCard
           className="stagger-4"
@@ -122,7 +121,7 @@ function Dashboard() {
       <section className="card">
         <div className="card-head">
           <h2>Rendimiento por actividad</h2>
-          <p>Promedio del grupo en cada actividad calificada (U = unidad, A = ACD, T = tarea, P = PAE)</p>
+          <p>Promedio del grupo en cada actividad calificada (U = unidad · A = examen · T = tarea · P = APE)</p>
         </div>
         <div className="card-body">
           {actividades.length ? (
@@ -137,7 +136,7 @@ function Dashboard() {
         <section className="card">
           <div className="card-head">
             <h2>Componentes</h2>
-            <p>ACD 40 % · Tareas 30 % · PAE 30 %</p>
+            <p>Exámenes 40 % · Tareas 30 % · APE 30 %</p>
           </div>
           <div className="card-body">
             <BarrasPromedio datos={componentes} clave="componente" alto={220} />
@@ -155,10 +154,10 @@ function Dashboard() {
         <section className="card">
           <div className="card-head">
             <h2>Requieren seguimiento</h2>
-            <p>Nota &lt; 7.00</p>
+            <p>Bajo la nota de aprobación</p>
           </div>
           <div className="card-body" style={{ paddingTop: 4 }}>
-            {prioritarios.length === 0 && <p className="muted">Todos los estudiantes tienen nota ≥ 7.00.</p>}
+            {prioritarios.length === 0 && <p className="muted">Todos los estudiantes están aprobando.</p>}
             <table className="tabla">
               <tbody>
                 {prioritarios.map(({ e, m }) => (

@@ -1,7 +1,7 @@
 """
 Moodle simulado y utilidades compartidas por las pruebas del Sprint 3.
 
-Curso 2 (SOF-POO-A) lo dicta rgomez@uta.edu.ec; curso 3 (SOF-ED-B) lo dicta otro docente.
+Curso 2 (SOF-POO-A) lo dicta rgomez4824@uta.edu.ec; curso 3 (SOF-ED-B) lo dicta otro docente.
 Estudiantes del curso 2:
   U-03 Camila Andrade   -> aceptable, sin alerta
   U-04 Carlos Mendoza    -> R1 (nota < 5) con nota 0 y SIN ENTREGA
@@ -13,9 +13,9 @@ from app import repositories
 from app.services.auth_service import create_access_token
 from app.services.moodle_client import CredencialesMoodleInvalidas, MoodleError
 
-DOCENTE = {"email": "rgomez@uta.edu.ec", "password": "Docente2026!"}
-ESTUDIANTE = {"email": "cmendoza@uta.edu.ec", "password": "Estudiante2026!"}
-OTRO_DOCENTE = {"email": "otro.docente@uta.edu.ec", "password": "OtroDocente2026!"}
+DOCENTE = {"email": "rgomez4824@uta.edu.ec", "password": "Docente2026!"}
+ESTUDIANTE = {"email": "cmendoza3199@uta.edu.ec", "password": "Estudiante2026!"}
+OTRO_DOCENTE = {"email": "odocente3458@uta.edu.ec", "password": "OtroDocente2026!"}
 
 
 def gi(idnumber, raw=None, feedback="", grademax=10):
@@ -23,8 +23,14 @@ def gi(idnumber, raw=None, feedback="", grademax=10):
             "grademax": grademax, "feedback": feedback}
 
 
-def _alumno(uid, nombre, idn, email):
-    return {"id": uid, "fullname": nombre, "email": email, "idnumber": idn, "roles": [{"shortname": "student"}]}
+def _cedula(valor):
+    """Campo de perfil personalizado «cedula» tal como lo devuelve core_enrol_get_enrolled_users."""
+    return [{"type": "text", "value": valor, "name": "Cédula", "shortname": "cedula"}]
+
+
+def _alumno(uid, nombre, idn, email, cedula):
+    return {"id": uid, "fullname": nombre, "email": email, "idnumber": idn, "roles": [{"shortname": "student"}],
+            "customfields": _cedula(cedula)}
 
 
 class FakeMoodleSprint3:
@@ -48,10 +54,10 @@ class FakeMoodleSprint3:
         profesor = DOCENTE["email"] if course_id == 2 else OTRO_DOCENTE["email"]
         return [
             {"id": 10, "fullname": "Profesor", "email": profesor, "roles": [{"shortname": "editingteacher"}]},
-            _alumno(11, "Camila Andrade", "U-03", "candrade@uta.edu.ec"),
-            _alumno(12, "Carlos Mendoza", "U-04", "cmendoza@uta.edu.ec"),
-            _alumno(13, "Sebastián Romero", "U-11", "sromero@uta.edu.ec"),
-            _alumno(14, "Andrés Salazar", "U-09", "asalazar@uta.edu.ec"),
+            _alumno(11, "Camila Andrade", "U-03", "candrade8746@uta.edu.ec", "0503128746"),
+            _alumno(12, "Carlos Mendoza", "U-04", "cmendoza3199@uta.edu.ec", "1804923199"),
+            _alumno(13, "Sebastián Romero", "U-11", "sromero1238@uta.edu.ec", "0504781238"),
+            _alumno(14, "Andrés Salazar", "U-09", "asalazar2875@uta.edu.ec", "1805112875"),
         ]
 
     async def get_grade_items(self, course_id):
@@ -70,13 +76,13 @@ class FakeMoodleSprint3:
 
 # ------------------------------------------------------------------ Login unificado (Fase A)
 USUARIOS_MOODLE = {
-    "rgomez": {"id": 10, "username": "rgomez", "email": "rgomez@uta.edu.ec", "fullname": "Ing. Roberto Gómez",
-               "idnumber": "U-01", "password": "Docente2026!", "cursos": {2: "editingteacher", 4: "editingteacher"}},
-    "otrodocente": {"id": 20, "username": "otrodocente", "email": "otro.docente@uta.edu.ec",
+    "rgomez": {"id": 10, "username": "rgomez", "email": "rgomez4824@uta.edu.ec", "fullname": "Ing. Roberto Gómez",
+               "idnumber": "U-01", "customfields": _cedula("1803454824"), "password": "Docente2026!", "cursos": {2: "editingteacher", 4: "editingteacher"}},
+    "otrodocente": {"id": 20, "username": "otrodocente", "email": "odocente3458@uta.edu.ec",
                     "fullname": "Ing. Otro Docente", "idnumber": "U-90", "password": "OtroDocente2026!",
                     "cursos": {3: "editingteacher"}},
-    "cmendoza": {"id": 12, "username": "cmendoza", "email": "cmendoza@uta.edu.ec", "fullname": "Carlos Mendoza",
-                 "idnumber": "U-04", "password": "Estudiante2026!", "cursos": {2: "student", 3: "student"}},
+    "cmendoza": {"id": 12, "username": "cmendoza", "email": "cmendoza3199@uta.edu.ec", "fullname": "Carlos Mendoza",
+                 "idnumber": "U-04", "customfields": _cedula("1804923199"), "password": "Estudiante2026!", "cursos": {2: "student", 3: "student"}},
 }
 CURSOS_MOODLE = {2: "SOF-POO-A", 3: "SOF-ED-B", 4: "SOF-MA-B", 9: "OTRO-CURSO"}
 

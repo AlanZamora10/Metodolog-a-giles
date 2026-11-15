@@ -61,7 +61,7 @@ def main():
 
     # 1. Autenticación Docente (HU-01)
     status_code, auth_data = make_request("/auth/login", method="POST", payload={
-        "email": "rgomez@uta.edu.ec",
+        "email": "rgomez4824@uta.edu.ec",
         "password": "Docente2026!"
     })
     if status_code != 200 or "access_token" not in auth_data:

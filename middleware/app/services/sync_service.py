@@ -107,6 +107,16 @@ def metricas(actividades: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def cedula_de(user: Dict[str, Any]) -> Optional[str]:
+    """Cédula ecuatoriana del usuario: campo de perfil personalizado «cedula» de Moodle."""
+    if user.get("cedula"):
+        return str(user["cedula"])
+    for campo in user.get("customfields") or []:
+        if (campo.get("shortname") or "").lower() == "cedula" and campo.get("value"):
+            return str(campo["value"]).strip()
+    return None
+
+
 def construir_estudiante(user: Dict[str, Any], gradeitems: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Convierte un usuario de Moodle + sus ítems de calificación en el registro analítico."""
     estados: Dict[str, str] = {}
@@ -144,6 +154,7 @@ def construir_estudiante(user: Dict[str, Any], gradeitems: List[Dict[str, Any]])
         "id_number": user.get("idnumber") or f"MDL-{user.get('id')}",
         "nombres": user.get("fullname"),
         "email": user.get("email"),
+        "cedula": cedula_de(user),
         "acd": m["acd"],
         "tareas": m["tareas"],
         "pae": m["pae"],
@@ -188,7 +199,7 @@ def respuesta_para_docente(email: str) -> Dict[str, Any]:
     estudiantes: Dict[str, Dict[str, Any]] = {}
     for c in cursos:
         for e in c["estudiantes"]:
-            estudiantes.setdefault(e["id_number"], {k: e[k] for k in ("id_number", "nombres", "email")})
+            estudiantes.setdefault(e["id_number"], {k: e.get(k) for k in ("id_number", "nombres", "email", "cedula")})
     return {
         "ultima_sincronizacion": SYNC_STATE["ultima_sincronizacion"],
         "moodle": SYNC_STATE["moodle"],
@@ -223,13 +234,15 @@ def _candidata_alerta(est: Dict[str, Any], estudiante_id: int, parcial_ids: Dict
     unidad_critica = min(unidades, key=unidades.get) if unidades else None
     calificadas = [a for a in est["actividades"] if a["nota"] is not None]
     peor = min(calificadas, key=lambda a: a["nota"]) if calificadas else None
-    incidencias = [f"{a['id_number']} ({a['estado']})" for a in est["actividades"] if a["estado"] != "CALIFICADO"]
+    texto_estado = {"SIN_ENTREGA": "sin entrega", "PENDIENTE": "pendiente de calificación"}
+    incidencias = [f"{a['id_number']} ({texto_estado.get(a['estado'], a['estado'].lower())})"
+                   for a in est["actividades"] if a["estado"] != "CALIFICADO"]
     if est["regla_alerta"] == GradeCalculator.REGLA_R1:
-        motivo = f"R1: nota ponderada {est['nota_final']:.2f}/10 (< 5.00)."
+        motivo = f"Nota crítica: nota ponderada {est['nota_final']:.2f}/10."
     else:
-        serie = " -> ".join(f"{u} {v:.2f}" for u, v in unidades.items())
-        motivo = (f"R2: descenso entre unidades ({serie}; pendiente {est['pendiente']:+.3f} < -0.25) "
-                  f"con nota ponderada {est['nota_final']:.2f}/10 (< 7.00).")
+        serie = " → ".join(f"{u} {v:.2f}" for u, v in unidades.items())
+        motivo = (f"Descenso sostenido entre unidades ({serie}; pendiente {est['pendiente']:+.3f}) "
+                  f"con nota ponderada {est['nota_final']:.2f}/10.")
     if incidencias:
         motivo += " Incidencias: " + ", ".join(incidencias) + "."
     return {

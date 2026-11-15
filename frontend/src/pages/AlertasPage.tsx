@@ -1,5 +1,5 @@
 /**
- * RF-07 / RF-10: Centro de alertas e intervención.
+ * Centro de alertas e intervención.
  *  - Lista de alertas con evidencia numérica (sin etiquetas definitivas sobre el estudiante).
  *  - Al seleccionar/atender, el panel cambia AL INSTANTE al estudiante elegido; las respuestas
  *    tardías de una alerta anterior se descartan (contador de petición).
@@ -16,6 +16,7 @@ import { CursoRequerido } from '../components/layout/CursoRequerido';
 import { Aviso, Confirmacion, EstadoAlertaBadge, NivelBadge, Spinner, Vacio } from '../components/ui/ui';
 import { REGLAS } from '../utils/academico';
 import { fecha, fechaHora, fechaISOEnDias, nota } from '../utils/formato';
+import { nombreCurso } from '../utils/nombres';
 
 type Filtro = 'activas' | 'ABIERTA' | 'ATENDIDA' | 'PUBLICADO' | 'cerradas' | 'todas';
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
@@ -96,6 +97,10 @@ function CentroAlertas() {
     [alertas, filtro],
   );
   const sel = alertas.find((a) => a.id === selId) ?? null;
+  const cedulas = useMemo(
+    () => Object.fromEntries((datos?.estudiantes ?? []).map((e) => [e.id_number, e.cedula ?? ''])),
+    [datos],
+  );
 
   /** Cambia el panel inmediatamente al estudiante de la alerta (sin esperar al backend). */
   const preparar = useCallback(
@@ -215,7 +220,7 @@ function CentroAlertas() {
         <div>
           <h1>Centro de alertas</h1>
           <p>
-            {datos!.shortname} · Alertas tempranas R1 (nota &lt; 5.00) y R2 (descenso sostenido) detectadas al sincronizar
+            {nombreCurso(datos!.fullname)} · Alertas tempranas de nota crítica y descenso sostenido
           </p>
         </div>
         <div className="filtros" role="group" aria-label="Filtrar por estado">
@@ -248,14 +253,14 @@ function CentroAlertas() {
             >
               <div className="fila">
                 <strong>{a.nombres}</strong>
-                <span className="muted small">{a.id_number}</span>
+                {cedulas[a.id_number] && <span className="muted small">C.I. {cedulas[a.id_number]}</span>}
                 <span style={{ marginLeft: 'auto' }}>
                   <EstadoAlertaBadge estado={a.estado} />
                 </span>
               </div>
               <div className="evidencia-num">
                 <span>
-                  Regla: <b>{REGLAS[a.regla] ?? a.regla}</b>
+                  <b>{REGLAS[a.regla] ?? a.regla}</b>
                 </span>
                 <span>
                   Nota ponderada: <b>{nota(a.nota_promedio)}</b>/10
@@ -300,7 +305,7 @@ function CentroAlertas() {
                 <div>
                   <h2 data-testid="panel-destinatario">{sel.nombres}</h2>
                   <p>
-                    {sel.id_number} · {sel.email}
+                    {cedulas[sel.id_number] ? `C.I. ${cedulas[sel.id_number]} · ` : ''}{sel.email}
                   </p>
                 </div>
                 <EstadoAlertaBadge estado={sel.estado} />

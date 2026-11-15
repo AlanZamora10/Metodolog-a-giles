@@ -65,7 +65,7 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
     },
 }
 
-NOMBRE_COMPONENTE = {"acd": "ACD", "tareas": "Tareas", "pae": "PAE"}
+NOMBRE_COMPONENTE = {"acd": "Exámenes", "tareas": "Tareas", "pae": "APE"}
 PESO_COMPONENTE = {"acd": 40, "tareas": 30, "pae": 30}
 NIVEL_TEXTO = {"CRITICO": "crítico", "EN_RIESGO": "en riesgo", "ACEPTABLE": "aceptable"}
 ESTADO_ALERTA_TEXTO = {"ABIERTA": "abierta", "ATENDIDA": "en atención", "PUBLICADO": "refuerzo publicado"}
@@ -81,14 +81,27 @@ def _normalizar(texto: str) -> str:
     return re.sub(r"\s+", " ", texto.lower()).strip()
 
 
+_TILDES = {"programacion": "programación", "metodologias": "metodologías", "agiles": "ágiles",
+           "configuracion": "configuración", "informatica": "informática", "ingenieria": "ingeniería",
+           "analisis": "análisis", "logica": "lógica", "matematica": "matemática", "computacion": "computación"}
+
+
 def _nombre_curso(fullname: str) -> str:
-    """'(SOF) PROGRAMACION ORIENTADA A OBJETOS - A' -> 'Programacion orientada a objetos (A)'."""
+    """'(SOF) PROGRAMACION ORIENTADA A OBJETOS - A' -> 'Programación orientada a objetos, paralelo A'."""
     nombre = re.sub(r"^\(\w+\)\s*", "", fullname or "").strip()
     paralelo = re.search(r"\s+-\s+([A-Z])$", nombre)
     if paralelo:
         nombre = nombre[:paralelo.start()]
-    nombre = nombre.capitalize()
-    return f"{nombre} ({paralelo.group(1)})" if paralelo else nombre
+    nombre = " ".join(_TILDES.get(p, p) for p in nombre.lower().split())
+    nombre = nombre[:1].upper() + nombre[1:]
+    return f"{nombre}, paralelo {paralelo.group(1)}" if paralelo else nombre
+
+
+def _sin_codigos(texto: str, cursos: List[Dict[str, Any]]) -> str:
+    """La respuesta al docente usa el nombre de la materia, no el código interno del curso (SOF-POO-A)."""
+    for c in sorted(cursos, key=lambda x: len(x["shortname"]), reverse=True):
+        texto = texto.replace(c["shortname"], _nombre_curso(c["fullname"]))
+    return texto
 
 
 def _unidad(clave: Optional[str]) -> str:
@@ -124,7 +137,8 @@ def _cursos(docente: dict, course_id: Optional[int]) -> List[Dict[str, Any]]:
 
 
 def _coincide(e: Dict[str, Any], filtro: str) -> bool:
-    return filtro == _normalizar(e["id_number"]) or filtro in _normalizar(e["nombres"] or "")
+    return (filtro == _normalizar(e["id_number"]) or filtro == (e.get("cedula") or "")
+            or filtro in _normalizar(e["nombres"] or ""))
 
 
 def listar_cursos_autorizados(docente: dict) -> Dict[str, Any]:
@@ -263,7 +277,7 @@ def proponer_refuerzo(docente: dict, student_query: Optional[str] = None,
                 or (calificadas[0] if calificadas else None))
     foco = foco_act.get("nombre") if foco_act else None
     titulo = (f"Refuerzo Unidad {num_unidad}" if num_unidad else "Refuerzo académico") + \
-             (f": {foco.split(':')[-1].strip()}" if foco else "") + f" — {curso['shortname']}"
+             (f": {foco.split(':')[-1].strip()}" if foco else "") + f" — {_nombre_curso(curso['fullname'])}"
 
     objetivo = (f"Que {e['nombres']} consolide los aprendizajes de la Unidad {num_unidad} "
                 f"(promedio actual {_f(unidades[unidad_critica])}/10)" if unidad_critica
@@ -342,8 +356,10 @@ _PARAMETROS_VALIDOS = {
 _GLOBAL = re.compile(r"\b(mis (\d+|dos|tres|cuatro|cinco) (cursos|materias|asignaturas)|todas? (mis |las |los )?"
                      r"(materias|cursos|asignaturas)|mis materias|mis asignaturas|en total|en general|global|"
                      r"todos mis|cada (curso|materia)|entre (mis )?cursos|(resumen|panorama|informe|reporte) general)\b")
-_REFUERZO = re.compile(r"\b(refuerzo|reforzar|plan de mejora|recuperacion|nivelacion|actividad de apoyo|"
-                       r"prepar\w* (una |un )?(actividad|tarea))\b")
+_REFUERZO = re.compile(r"\b(refuerzo|reforzar|plan de mejora|plan de estudios?|plan de apoyo|plan de accion|"
+                       r"recuperacion|nivelacion|actividad de apoyo|apoyo academico|tutoria|"
+                       r"como (le |lo |la )?(puedo )?(ayudar\w*|apoyar\w*)|ayudarl[oae]s?|apoyarl[oae]s?|"
+                       r"prepar\w* (una |un )?(actividad|tarea|plan))\b")
 _ACTIVIDADES = re.compile(r"\b((actividad|actividades|tarea|tareas|evaluacion|evaluaciones)\b.*\b(menor|bajo|baja|"
                           r"peor|peores|dificil\w*|problema\w*|rendimiento|cuesta)|(menor|peor|bajo) rendimiento)")
 _CURSOS = re.compile(r"\b(mis cursos|que cursos|cuales cursos|cursos tengo|lista de cursos|listar cursos|"
@@ -400,6 +416,12 @@ def _curso_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[int]
 
 
 def _estudiante_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[str]:
+    cedula = re.search(r"\b\d{10}\b", texto)
+    if cedula:
+        for c in cursos:
+            for e in c["estudiantes"]:
+                if e.get("cedula") == cedula.group(0):
+                    return e["nombres"]
     codigo = re.search(r"\bu-?\d{2}\b", texto)
     if codigo:
         valor = codigo.group(0).upper()
@@ -560,7 +582,7 @@ def _seccion_cursos(r: Dict[str, Any]) -> Seccion:
     clave = (f"Tiene **{t['cursos']} cursos** asignados con **{t['estudiantes_unicos']} estudiantes únicos** "
              f"({t['matriculas']} matrículas en total).")
     # Lista compacta: sólo cifras (alertas y recomendaciones se reservan para el «resumen general»).
-    lineas = [f"- **{c['shortname']}** · {_nombre_curso(c['fullname'])}: {c['total_estudiantes']} estudiantes"
+    lineas = [f"- **{_nombre_curso(c['fullname'])}**: {c['total_estudiantes']} estudiantes"
               for c in r["cursos"]]
     return "Cursos asignados", clave, lineas
 
@@ -576,7 +598,7 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
         lineas = []
         for f in sorted(filas, key=lambda x: x["nota_final"]):
             lineas.append(f"- **{f['curso']}**: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])}) · "
-                          f"ACD {_f(f['acd'])} · Tareas {_f(f['tareas'])} · PAE {_f(f['pae'])} · tendencia "
+                          f"Exámenes {_f(f['acd'])} · Tareas {_f(f['tareas'])} · APE {_f(f['pae'])} · tendencia "
                           f"{TENDENCIA_TEXTO.get(f['tendencia'], (f['tendencia'] or '—').lower())}")
             if f["incidencias"]:
                 lineas.append("  - Incidencias: " + ", ".join(
@@ -593,13 +615,13 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
     for curso, lista in por_curso.items():
         lista.sort(key=lambda x: x["nota_final"])
         aprobados = sum(1 for f in lista if f["nota_final"] >= UMBRAL_APROBACION)
-        lineas.append(f"- **{curso}** ({len(lista)} estudiantes, {aprobados} con nota ≥ 7.00)")
+        lineas.append(f"- **{curso}** ({len(lista)} estudiantes, {aprobados} aprobados)")
         seguimiento = [f for f in lista if f["nivel_riesgo"] != "ACEPTABLE"]
         for f in seguimiento[:6]:
             lineas.append(f"  - {f['nombres']}: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'])})"
                           + (f" · {len(f['incidencias'])} incidencia(s)" if f["incidencias"] else ""))
         if not seguimiento:
-            lineas.append("  - Todos los estudiantes tienen nota ≥ 7.00.")
+            lineas.append("  - Todos los estudiantes están aprobando.")
     return "Calificaciones", clave, lineas
 
 
@@ -610,8 +632,8 @@ def _seccion_alertas(r: Dict[str, Any]) -> Seccion:
     abiertas = sum(1 for a in alertas if a["estado"] == "ABIERTA")
     clave = (f"Hay **{len(alertas)} alerta(s) activa(s)**; {abiertas} sigue(n) abierta(s) y requiere(n) "
              f"atención prioritaria.")
-    lineas = [f"- **{a['nombres']}** ({a['curso']}) · {a['regla'].split('_')[0]} "
-              f"{'nota crítica' if a['regla'].startswith('R1') else 'descenso sostenido'} · nota **{_f(a.get('nota_final'))}/10**"
+    lineas = [f"- **{a['nombres']}** ({a['curso']}) · "
+              f"{'Nota crítica' if a['regla'].startswith('R1') else 'Descenso sostenido'} · nota **{_f(a.get('nota_final'))}/10**"
               + (f" · pendiente {a['pendiente']:+.2f}" if a.get("pendiente") is not None else "")
               + f" · {ESTADO_ALERTA_TEXTO.get(a['estado'], a['estado'].lower())}" for a in alertas]
     if abiertas:
@@ -743,6 +765,11 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
     cortesia = respuesta_cortesia(mensaje, docente)
     if cortesia:  # saludo o cortesía: sin herramientas ni LLM
         return _respuesta_sin_herramientas(cortesia, "cortesia", docente, inicio)
+    ctx = _contexto(mensaje, docente, course_id)
+    if _REFUERZO.search(ctx["texto"]) and not ctx["estudiante"]:
+        return _respuesta_sin_herramientas(
+            "Con gusto preparo un plan de apoyo. ¿Para qué estudiante? Indíqueme su **nombre completo** o su "
+            "**cédula** (por ejemplo, «plan de apoyo para Carlos Mendoza»).", "aclaracion", docente, inicio)
     plan, fuente = await planificar(mensaje, docente, course_id)
     if not plan:
         return _respuesta_sin_herramientas(AYUDA_SIN_INTENCION, "aclaracion", docente, inicio)
@@ -763,7 +790,7 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
         )
         usadas.append({"herramienta": nombre, "parametros": params, "resultado": resultado, "duracion_ms": duracion})
 
-    respuesta = redactar(usadas)
+    respuesta = _sin_codigos(redactar(usadas), sync_service.cursos_del_docente(docente["email"]))
     repositories.insert_log(
         "AGENTE_CHAT", "EXITO", f"Consulta del docente atendida con {len(usadas)} herramienta(s).",
         {"docente": docente["email"], "herramientas": [u["herramienta"] for u in usadas], "plan": fuente},

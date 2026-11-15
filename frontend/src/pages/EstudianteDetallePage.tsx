@@ -6,10 +6,11 @@ import { DesgloseEstados, EvolucionEstudiante } from '../components/charts/Grafi
 import { EstadoAlertaBadge, EstadoDeActividad, NivelBadge, Vacio } from '../components/ui/ui';
 import { actividadesEnCorte, contarEstados, metricasEnCorte, REGLAS } from '../utils/academico';
 import { iniciales, nota } from '../utils/formato';
+import { nombreCurso } from '../utils/nombres';
 
-const COMPONENTE: Record<string, string> = { ACD: 'ACD', TAREAS: 'Tarea', PAE: 'PAE' };
+const COMPONENTE: Record<string, string> = { ACD: 'Examen', TAREAS: 'Tarea', PAE: 'APE' };
 
-/** RF-06: ficha individual del estudiante. */
+/** Ficha individual del estudiante. */
 export function EstudianteDetallePage() {
   return (
     <CursoRequerido>
@@ -38,7 +39,7 @@ function Ficha() {
   if (!e) {
     return (
       <div className="card">
-        <Vacio titulo={`El estudiante ${idNumber} no está en ${datos!.shortname}`}>
+        <Vacio titulo={`El estudiante ${idNumber} no está en ${nombreCurso(datos!.fullname)}`}>
           <Link className="btn" to="/estudiantes">
             Volver al listado
           </Link>
@@ -61,7 +62,7 @@ function Ficha() {
           <div>
             <h1>{e.nombres}</h1>
             <p>
-              {e.id_number} · {e.email} · {datos!.shortname}
+              {e.cedula ? `C.I. ${e.cedula}` : e.id_number} · {e.email} · {nombreCurso(datos!.fullname)}
             </p>
           </div>
         </div>
@@ -89,7 +90,7 @@ function Ficha() {
               <NivelBadge nivel={m.nivel_riesgo} />
             </div>
             <div>
-              <span>ACD (40 %)</span>
+              <span>Exámenes (40 %)</span>
               <b>{nota(m.acd)}</b>
             </div>
             <div>
@@ -97,7 +98,7 @@ function Ficha() {
               <b>{nota(m.tareas)}</b>
             </div>
             <div>
-              <span>PAE (30 %)</span>
+              <span>APE (30 %)</span>
               <b>{nota(m.pae)}</b>
             </div>
             <div>
@@ -108,7 +109,7 @@ function Ficha() {
               </b>
             </div>
             <div>
-              <span>Regla de alerta</span>
+              <span>Alerta</span>
               <b style={{ fontSize: 13 }}>{e.regla_alerta ? REGLAS[e.regla_alerta] ?? e.regla_alerta : 'Ninguna'}</b>
             </div>
           </div>

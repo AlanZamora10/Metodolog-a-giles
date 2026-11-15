@@ -8,11 +8,11 @@ import type { Actividad, Estudiante, MetricasEstudiante } from '../api/types';
 
 export type EstadoVisual = 'calificada' | 'cero' | 'sin_entrega' | 'pendiente';
 
-export const ESTADOS_VISUALES: Record<EstadoVisual, { etiqueta: string; icono: string; color: string }> = {
-  calificada: { etiqueta: 'Calificada', icono: '✓', color: 'var(--estado-calificada)' },
-  cero: { etiqueta: 'Nota cero (0.0)', icono: '0', color: 'var(--estado-cero)' },
-  sin_entrega: { etiqueta: 'Sin entrega', icono: '✕', color: 'var(--estado-sin-entrega)' },
-  pendiente: { etiqueta: 'Pendiente de calificación', icono: '…', color: 'var(--estado-pendiente)' },
+export const ESTADOS_VISUALES: Record<EstadoVisual, { etiqueta: string; color: string }> = {
+  calificada: { etiqueta: 'Calificada', color: 'var(--estado-calificada)' },
+  cero: { etiqueta: 'Nota cero (0.0)', color: 'var(--estado-cero)' },
+  sin_entrega: { etiqueta: 'Sin entrega', color: 'var(--estado-sin-entrega)' },
+  pendiente: { etiqueta: 'Pendiente de calificación', color: 'var(--estado-pendiente)' },
 };
 
 export const ORDEN_ESTADOS: EstadoVisual[] = ['calificada', 'cero', 'sin_entrega', 'pendiente'];
@@ -35,8 +35,8 @@ export type Corte = 'periodo' | '1' | '2';
 
 export const CORTES: { valor: Corte; etiqueta: string }[] = [
   { valor: 'periodo', etiqueta: 'Período completo' },
-  { valor: '1', etiqueta: 'Primer parcial (U1–U2)' },
-  { valor: '2', etiqueta: 'Segundo parcial (U3–U4)' },
+  { valor: '1', etiqueta: 'Primer parcial' },
+  { valor: '2', etiqueta: 'Segundo parcial' },
 ];
 
 /** Métricas del estudiante para el corte elegido; null si no tiene evaluaciones en ese parcial. */
@@ -53,14 +53,14 @@ export const UMBRAL_CRITICO = 5;
 export const UMBRAL_APROBACION = 7;
 
 export const NIVELES: Record<string, { etiqueta: string; clase: string }> = {
-  CRITICO: { etiqueta: 'Crítico (< 5.00)', clase: 'nivel-critico' },
-  EN_RIESGO: { etiqueta: 'En riesgo (5.00–6.99)', clase: 'nivel-riesgo' },
-  ACEPTABLE: { etiqueta: 'Aceptable (≥ 7.00)', clase: 'nivel-aceptable' },
+  CRITICO: { etiqueta: 'Crítico', clase: 'nivel-critico' },
+  EN_RIESGO: { etiqueta: 'En riesgo', clase: 'nivel-riesgo' },
+  ACEPTABLE: { etiqueta: 'Aceptable', clase: 'nivel-aceptable' },
 };
 
 export const REGLAS: Record<string, string> = {
-  R1_NOTA_CRITICA: 'R1 · nota ponderada < 5.00',
-  R2_DESCENSO: 'R2 · descenso sostenido entre unidades',
+  R1_NOTA_CRITICA: 'Nota crítica',
+  R2_DESCENSO: 'Descenso sostenido',
 };
 
 export function nivelPorNota(nota: number): 'CRITICO' | 'EN_RIESGO' | 'ACEPTABLE' {
@@ -135,7 +135,7 @@ export function promedioPorActividad(estudiantes: Estudiante[], corte: Corte): {
     }));
 }
 
-/** Promedio del grupo por componente (ACD 40 %, Tareas 30 %, PAE 30 %) en el corte. */
+/** Promedio del grupo por componente (Exámenes 40 %, Tareas 30 %, APE 30 %) en el corte. */
 export function promedioPorComponente(estudiantes: Estudiante[], corte: Corte) {
   const comp = { acd: [] as number[], tareas: [] as number[], pae: [] as number[] };
   for (const e of estudiantes) {
@@ -147,9 +147,9 @@ export function promedioPorComponente(estudiantes: Estudiante[], corte: Corte) {
   }
   const prom = (v: number[]) => (v.length ? redondear(v.reduce((s, n) => s + n, 0) / v.length) : 0);
   return [
-    { componente: 'ACD (40 %)', promedio: prom(comp.acd) },
+    { componente: 'Exámenes (40 %)', promedio: prom(comp.acd) },
     { componente: 'Tareas (30 %)', promedio: prom(comp.tareas) },
-    { componente: 'PAE (30 %)', promedio: prom(comp.pae) },
+    { componente: 'APE (30 %)', promedio: prom(comp.pae) },
   ];
 }
 

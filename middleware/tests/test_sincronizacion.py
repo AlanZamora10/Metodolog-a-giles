@@ -21,7 +21,7 @@ from moodle_fake import token_con_rol
 
 client = TestClient(app)
 
-DOCENTE = {"email": "rgomez@uta.edu.ec", "password": "Docente2026!"}
+DOCENTE = {"email": "rgomez4824@uta.edu.ec", "password": "Docente2026!"}
 
 
 def _gi(idnumber: str, raw=None, feedback="", grademax=10):
@@ -48,7 +48,7 @@ class FakeMoodle:
         ]
 
     async def get_enrolled_users(self, course_id):
-        profesor = "rgomez@uta.edu.ec" if course_id == 2 else "otro.docente@uta.edu.ec"
+        profesor = "rgomez4824@uta.edu.ec" if course_id == 2 else "odocente3458@uta.edu.ec"
         return [
             {"id": 10, "fullname": "Profesor", "email": profesor, "roles": [{"shortname": "editingteacher"}]},
             {"id": 11, "fullname": "Estudiante A", "email": "estudiante.a@uta.edu.ec", "idnumber": "U-03",
@@ -194,7 +194,7 @@ def test_sincronizacion_importa_todos_los_matriculados(monkeypatch):
             return [{"id": 5, "shortname": "SOF-MCS-A", "idnumber": "SOF-MCS-A", "fullname": "(SOF) MCS - A"}]
 
         async def get_enrolled_users(self, course_id):
-            profesor = {"id": 1, "fullname": "Docente", "email": "rgomez@uta.edu.ec", "roles": [{"shortname": "editingteacher"}]}
+            profesor = {"id": 1, "fullname": "Docente", "email": "rgomez4824@uta.edu.ec", "roles": [{"shortname": "editingteacher"}]}
             return [profesor] + [
                 {"id": 100 + i, "fullname": f"Alumno {i}", "email": f"a{i}@uta.edu.ec", "idnumber": f"U-{i:02d}",
                  "roles": [{"shortname": "student"}]} for i in range(3, 18)
@@ -247,3 +247,4 @@ def test_cliente_moodle_reporta_excepcion_ws(monkeypatch):
     )
     with pytest.raises(MoodleError, match="Token no válido"):
         asyncio.run(MoodleClient(token="x").call("core_course_get_courses"))
+

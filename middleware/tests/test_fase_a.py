@@ -115,7 +115,7 @@ def test_publicar_crea_tarea_real_en_moodle(sincronizado, moodle_publicacion):
 
     llamada = moodle_publicacion.llamadas[0]
     assert llamada["course_id"] == 2
-    assert llamada["email_estudiante"] == "cmendoza@uta.edu.ec"   # visible sólo para ese estudiante
+    assert llamada["email_estudiante"] == "cmendoza3199@uta.edu.ec"   # visible sólo para ese estudiante
     assert llamada["nombre"] == "Refuerzo Tareas U2"
     assert llamada["codigo"] == f"REF-{refuerzo['id']}"
     assert llamada["fecha_entrega"] == int(datetime(2099, 1, 16, 4, 59, tzinfo=timezone.utc).timestamp())
@@ -179,7 +179,8 @@ def test_reporte_del_curso(sincronizado):
     assert (r["alertas"]["r1_activas"], r["alertas"]["r2_activas"]) == (1, 1)
     assert [p["id_number"] for p in r["estudiantes_prioritarios"]] == ["U-04", "U-11"]
     assert any("Carlos Mendoza (2.65)" in h for h in r["hallazgos"])
-    assert any("R2" in h and "Sebastián Romero" in h for h in r["hallazgos"])
+    assert any("descenso sostenido" in h and "Sebastián Romero" in h for h in r["hallazgos"])
+    assert not any("R1" in t or "R2" in t for t in r["hallazgos"] + r["recomendaciones"])
     assert any("pendientes" in x for x in r["recomendaciones"])
 
 
@@ -215,7 +216,7 @@ def test_chat_alertas_de_un_curso_con_herramienta_real(sincronizado):
     logs = [log for log in repositories.filas("logs_sistema") if log["tipo_proceso"] == "AGENTE_HERRAMIENTA"]
     assert logs[-1]["detalle"]["herramienta"] == "identificar_alertas"
     assert logs[-1]["detalle"]["parametros"] == {"course_id": 2}
-    assert logs[-1]["detalle"]["docente"] == "rgomez@uta.edu.ec"
+    assert logs[-1]["detalle"]["docente"] == "rgomez4824@uta.edu.ec"
     assert repositories.filas("logs_sistema")[-1]["tipo_proceso"] == "AGENTE_CHAT"
 
 

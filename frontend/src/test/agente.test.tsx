@@ -7,8 +7,8 @@ import { Markdown } from '../components/ui/Markdown';
 const RESPUESTA_ALERTAS = {
   respuesta:
     '**Resumen ejecutivo**\n- Hay **2 alerta(s) activa(s)**; 2 siguen abiertas.\n\n### Alertas tempranas\n' +
-    '- **Carlos Mendoza** (SOF-POO-A) · R1 nota crítica · nota **3.04/10**\n  - Incidencias: U2-T4 (sin entrega)\n' +
-    '- **Valeria Ortiz** (SOF-POO-A) · R1 nota crítica · nota **4.07/10**',
+    '- **Carlos Mendoza** (POO) · Nota crítica · nota **3.04/10**\n  - Incidencias: U2-T4 (sin entrega)\n' +
+    '- **Valeria Ortiz** (POO) · Nota crítica · nota **4.07/10**',
   formato: 'markdown',
   herramientas: [
     { herramienta: 'listar_cursos_autorizados', parametros: {}, resultado: { filas: 4 }, duracion_ms: 3 },
@@ -66,24 +66,24 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     const u = userEvent.setup();
     renderApp('/agente');
     await screen.findByRole('heading', { name: 'Agente IA' });
-    await waitFor(() => expect(screen.getByLabelText('Curso')).toHaveDisplayValue(/SOF-POO-A/));
+    await waitFor(() => expect(screen.getByLabelText('Curso')).toHaveDisplayValue('Programación orientada a objetos — Paralelo A'));
 
     expect(screen.queryByText(/herramientas disponibles/i)).not.toBeInTheDocument();
     expect(screen.queryByText('listar_cursos_autorizados')).not.toBeInTheDocument();
     for (const g of ['Panorama general', 'Seguimiento de estudiantes', 'Actividades', 'Intervención']) {
       expect(screen.getByText(g)).toBeInTheDocument();
     }
-    expect(within(screen.getByLabelText('Contexto activo')).getByText('SOF-POO-A')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Contexto activo')).getByText('Programación orientada a objetos — Paralelo A')).toBeInTheDocument();
 
-    await u.click(screen.getByRole('button', { name: '¿Qué estudiantes de SOF-POO-A necesitan atención?' }));
+    await u.click(screen.getByRole('button', { name: '¿Qué estudiantes de Programación orientada a objetos necesitan atención?' }));
     expect(await screen.findByRole('heading', { name: 'Alertas tempranas' })).toBeInTheDocument();
     expect(screen.getByText('Carlos Mendoza', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByText('Incidencias: U2-T4 (sin entrega)')).toBeInTheDocument();
     const [, init] = fetch.mock.calls.find(([url]) => url === '/api/v1/agent/chat')!;
-    expect(JSON.parse(String(init!.body))).toEqual({ mensaje: '¿Qué estudiantes de SOF-POO-A necesitan atención?', course_id: 2 });
+    expect(JSON.parse(String(init!.body))).toEqual({ mensaje: '¿Qué estudiantes de Programación orientada a objetos necesitan atención?', course_id: 2 });
   });
 
-  it('RF-12: auditoría colapsada con nombres amigables y tiempo; JSON sólo al expandir', async () => {
+  it('fuentes consultadas colapsadas con nombres amigables y tiempo; JSON sólo al expandir', async () => {
     iniciarSesionFalsa();
     mockApi({ 'POST /api/v1/agent/chat': () => json(RESPUESTA_ALERTAS) });
     const u = userEvent.setup();
@@ -94,9 +94,9 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     expect(auditoria).not.toHaveAttribute('open');
     const resumen = within(auditoria).getByText(/Cursos autorizados del docente · Alertas tempranas · 7\.4 s/);
     expect(resumen).toBeVisible();
-    expect(within(auditoria).getByText('Auditoría y fuentes consultadas (RF-12)')).toBeInTheDocument();
+    expect(within(auditoria).getByText('Fuentes consultadas')).toBeInTheDocument();
 
-    await u.click(within(auditoria).getByText('Auditoría y fuentes consultadas (RF-12)'));
+    await u.click(within(auditoria).getByText('Fuentes consultadas'));
     expect(auditoria).toHaveAttribute('open');
     const fuentes = within(auditoria).getAllByTestId('herramienta-usada');
     expect(fuentes).toHaveLength(2);
@@ -143,7 +143,7 @@ describe('RF-01 · login minimalista', () => {
   it('campos vacíos sin placeholder, enlace de recuperación a Moodle y sin texto técnico', async () => {
     mockApi();
     renderApp('/login');
-    const usuario = await screen.findByLabelText(/correo o usuario/i);
+    const usuario = await screen.findByLabelText(/correo institucional/i);
     const clave = screen.getByLabelText(/contraseña/i);
     expect(usuario).toHaveValue('');
     expect(clave).toHaveValue('');
@@ -183,10 +183,10 @@ describe('Agente conversacional e interfaz animada', () => {
     expect(screen.queryByTestId('auditoria')).not.toBeInTheDocument();
   });
 
-  it('el login muestra el emblema UTA · FISEI y entra con animación escalonada', async () => {
+  it('el login muestra el escudo oficial UTA y entra con animación escalonada', async () => {
     mockApi();
     renderApp('/login');
-    expect(await screen.findByRole('img', { name: 'Emblema UTA · FISEI' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Universidad Técnica de Ambato' })).toHaveAttribute('src', '/uta-logo-azul.png');
     expect(screen.getByRole('button', { name: 'Ingresar' })).toHaveClass('stagger-4');
   });
 

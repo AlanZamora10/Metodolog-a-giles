@@ -4,13 +4,15 @@ import { mensajeErrorLogin, useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
 import { Aviso } from '../components/ui/ui';
 import { URL_RECUPERAR_CLAVE } from '../utils/config';
-import { Emblema } from '../components/ui/Emblema';
 
-/** RF-01: inicio de sesión con la cuenta institucional de Moodle UTA (correo o usuario). */
+/** Correo institucional completo: usuario + 4 últimos dígitos de la cédula @uta.edu.ec */
+export const CORREO_UTA = /^[a-z0-9._%+-]+@uta\.edu\.ec$/i;
+
+/** Inicio de sesión con el correo institucional de Moodle UTA. */
 export function LoginPage() {
   const { usuario, iniciarSesion, aviso } = useAuth();
   const location = useLocation();
-  const [identificador, setIdentificador] = useState('');
+  const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<{ texto: string; estado: number } | null>(null);
@@ -22,14 +24,19 @@ export function LoginPage() {
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
-    if (!identificador.trim() || !password) {
-      setError({ texto: 'Ingrese su correo o usuario de Moodle y su contraseña.', estado: 0 });
+    const limpio = correo.trim();
+    if (!limpio || !password) {
+      setError({ texto: 'Ingrese su correo institucional y su contraseña.', estado: 0 });
+      return;
+    }
+    if (!CORREO_UTA.test(limpio)) {
+      setError({ texto: 'Ingrese su correo institucional completo (por ejemplo, usuario1234@uta.edu.ec).', estado: 422 });
       return;
     }
     setEnviando(true);
     setError(null);
     try {
-      await iniciarSesion(identificador, password);
+      await iniciarSesion(limpio, password);
     } catch (ex) {
       setError({ texto: mensajeErrorLogin(ex), estado: ex instanceof ApiError ? ex.status : 0 });
       setPassword('');
@@ -42,7 +49,7 @@ export function LoginPage() {
     <div className="login-page">
       <section className="login-hero">
         <div className="brand login-brand stagger-1" style={{ borderBottom: 'none', padding: 0 }}>
-          <Emblema tamano={46} />
+          <img src="/uta-escudo-blanco.png" alt="" aria-hidden className="login-escudo" />
           <div>
             <div className="brand-name">EduMonitor AI</div>
             <div className="brand-sub">Universidad Técnica de Ambato · FISEI</div>
@@ -55,8 +62,8 @@ export function LoginPage() {
       <section className="login-form-wrap">
         <form className="login-form" onSubmit={enviar} noValidate>
           <div className="stagger-1">
-            <Emblema tamano={40} titulo="UTA · FISEI" />
-            <h1 style={{ marginTop: 10 }}>Iniciar sesión</h1>
+            <img src="/uta-logo-azul.png" alt="Universidad Técnica de Ambato" className="login-logo" />
+            <h1 style={{ marginTop: 18 }}>Iniciar sesión</h1>
             <p className="muted" style={{ marginTop: 6 }}>
               Ingrese con sus credenciales institucionales de Moodle UTA
             </p>
@@ -70,14 +77,15 @@ export function LoginPage() {
           )}
 
           <label className="field stagger-2">
-            <span>Correo o usuario de Moodle UTA</span>
+            <span>Correo institucional</span>
             <input
               className="input"
-              type="text"
-              name="username"
+              type="email"
+              name="email"
               autoComplete="username"
-              value={identificador}
-              onChange={(e) => setIdentificador(e.target.value)}
+              inputMode="email"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
               disabled={enviando}
               autoFocus
             />

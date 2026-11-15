@@ -3,9 +3,9 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DOCENTE, iniciarSesionFalsa, json, mockApi, renderApp, tokenFalso } from './helpers';
 
-async function intentarLogin(usuario = 'rgomez@uta.edu.ec', clave = 'Docente2026!') {
+async function intentarLogin(usuario = 'rgomez4824@uta.edu.ec', clave = 'Docente2026!') {
   const u = userEvent.setup();
-  await u.type(screen.getByLabelText(/correo o usuario/i), usuario);
+  await u.type(screen.getByLabelText(/correo institucional/i), usuario);
   await u.type(screen.getByLabelText(/contraseña/i), clave);
   await u.click(screen.getByRole('button', { name: /ingresar/i }));
 }
@@ -23,15 +23,15 @@ describe('RF-01 · Login con Moodle UTA', () => {
     expect(sessionStorage.getItem('edumonitor.sesion')).toBeNull();
   });
 
-  it('envía correo o usuario en el campo email y guarda el JWT con su vencimiento', async () => {
+  it('envía el correo institucional en el campo email y guarda el JWT con su vencimiento', async () => {
     const token = tokenFalso(120);
     const fetch = mockApi({ 'POST /api/v1/auth/login': () => json({ access_token: token, token_type: 'bearer', user: DOCENTE }) });
     renderApp('/login');
-    await intentarLogin('  rgomez  ');
-    expect(await screen.findByRole('heading', { name: 'SOF-POO-A' })).toBeInTheDocument();
+    await intentarLogin('  rgomez4824@uta.edu.ec  ');
+    expect(await screen.findByRole('heading', { name: 'Programación orientada a objetos — Paralelo A' })).toBeInTheDocument();
 
     const [, init] = fetch.mock.calls.find(([u]) => String(u).endsWith('/auth/login'))!;
-    expect(JSON.parse(String(init!.body))).toEqual({ email: 'rgomez', password: 'Docente2026!' });
+    expect(JSON.parse(String(init!.body))).toEqual({ email: 'rgomez4824@uta.edu.ec', password: 'Docente2026!' });
     const sesion = JSON.parse(sessionStorage.getItem('edumonitor.sesion')!);
     expect(sesion.token).toBe(token);
     expect(sesion.expira).toBeGreaterThan(Date.now() + 119 * 60_000);

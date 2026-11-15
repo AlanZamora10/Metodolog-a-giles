@@ -5,8 +5,9 @@ import { CursoRequerido } from '../components/layout/CursoRequerido';
 import { EstadoActividadBadge, NivelBadge } from '../components/ui/ui';
 import { actividadesEnCorte, contarEstados, metricasEnCorte, REGLAS } from '../utils/academico';
 import { nota } from '../utils/formato';
+import { nombreCurso } from '../utils/nombres';
 
-/** RF-04: listado de estudiantes del curso con buscador y filtros. */
+/** Listado de estudiantes del curso con buscador (cédula o nombre completo) y filtros. */
 export function EstudiantesPage() {
   return (
     <CursoRequerido>
@@ -15,7 +16,16 @@ export function EstudiantesPage() {
   );
 }
 
-const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** Coincidencia por cédula (dígitos, admite búsqueda parcial) o por nombre completo (sin tildes). */
+export function coincideBusqueda(e: { nombres: string; cedula?: string | null }, consulta: string): boolean {
+  const q = normalizar(consulta);
+  if (!q) return true;
+  const digitos = q.replace(/\D/g, '');
+  if (digitos && digitos.length === q.replace(/[\s.-]/g, '').length) return (e.cedula ?? '').includes(digitos);
+  return normalizar(e.nombres).includes(q);
+}
 
 function Listado() {
   const { datos, corte } = useCurso();
@@ -26,7 +36,6 @@ function Listado() {
   const [conIncidencias, setConIncidencias] = useState(false);
 
   const filas = useMemo(() => {
-    const q = normalizar(busqueda.trim());
     return datos!.estudiantes
       .map((e) => {
         const m = metricasEnCorte(e, corte);
@@ -34,7 +43,7 @@ function Listado() {
         return { e, m, estados, incidencias: estados.cero + estados.sin_entrega + estados.pendiente };
       })
       .filter(({ e, m, incidencias }) => {
-        if (q && !normalizar(`${e.nombres} ${e.id_number} ${e.email}`).includes(q)) return false;
+        if (!coincideBusqueda(e, busqueda)) return false;
         if (nivel && m?.nivel_riesgo !== nivel) return false;
         if (regla === 'ninguna' ? e.regla_alerta : regla && e.regla_alerta !== regla) return false;
         if (conIncidencias && incidencias === 0) return false;
@@ -56,7 +65,7 @@ function Listado() {
         <div>
           <h1>Estudiantes</h1>
           <p>
-            {datos!.shortname} · {datos!.estudiantes.length} matriculados en Moodle UTA
+            {nombreCurso(datos!.fullname)} · {datos!.estudiantes.length} matriculados en Moodle UTA
           </p>
         </div>
       </div>
@@ -68,7 +77,7 @@ function Listado() {
             <input
               className="input buscar"
               type="search"
-              placeholder="Nombre, código (U-04) o correo"
+              placeholder="Cédula o nombre completo"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
@@ -77,23 +86,23 @@ function Listado() {
             <span>Nivel</span>
             <select className="select" value={nivel} onChange={(e) => setNivel(e.target.value)}>
               <option value="">Todos</option>
-              <option value="CRITICO">Crítico (&lt; 5.00)</option>
-              <option value="EN_RIESGO">En riesgo (5.00–6.99)</option>
-              <option value="ACEPTABLE">Aceptable (≥ 7.00)</option>
+              <option value="CRITICO">Crítico</option>
+              <option value="EN_RIESGO">En riesgo</option>
+              <option value="ACEPTABLE">Aceptable</option>
             </select>
           </label>
           <label className="field">
-            <span>Regla de alerta</span>
+            <span>Alerta</span>
             <select className="select" value={regla} onChange={(e) => setRegla(e.target.value)}>
               <option value="">Todas</option>
-              <option value="R1_NOTA_CRITICA">R1 · nota crítica</option>
-              <option value="R2_DESCENSO">R2 · descenso</option>
+              <option value="R1_NOTA_CRITICA">Nota crítica</option>
+              <option value="R2_DESCENSO">Descenso sostenido</option>
               <option value="ninguna">Sin alerta</option>
             </select>
           </label>
           <label className="check">
             <input type="checkbox" checked={conIncidencias} onChange={(e) => setConIncidencias(e.target.checked)} />
-            Con incidencias (cero, sin entrega, pendiente)
+            Con incidencias
           </label>
           <button className="btn btn-sm" onClick={limpiar} style={{ marginLeft: 'auto' }}>
             Limpiar filtros
@@ -105,9 +114,9 @@ function Listado() {
             <thead>
               <tr>
                 <th>Estudiante</th>
-                <th className="right">ACD</th>
+                <th className="right">Exámenes</th>
                 <th className="right">Tareas</th>
-                <th className="right">PAE</th>
+                <th className="right">APE</th>
                 <th className="right">Nota final</th>
                 <th>Nivel</th>
                 <th>Tendencia</th>
@@ -120,16 +129,11 @@ function Listado() {
                 <tr key={e.id_number} className="clickable" onClick={() => navegar(`/estudiantes/${e.id_number}`)}>
                   <td>
                     <div className="nombre-cell">
-                      <a
-                        href={`/estudiantes/${e.id_number}`}
-                        onClick={(ev) => {
-                          ev.preventDefault();
-                        }}
-                      >
+                      <a href={`/estudiantes/${e.id_number}`} onClick={(ev) => ev.preventDefault()}>
                         {e.nombres}
                       </a>
-                      <span>
-                        {e.id_number} · {e.email}
+                      <span data-testid="datos-estudiante">
+                        {e.cedula ? `C.I. ${e.cedula}` : 'C.I. —'} · {e.email}
                       </span>
                     </div>
                   </td>
@@ -157,7 +161,7 @@ function Listado() {
               {filas.length === 0 && (
                 <tr>
                   <td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 28 }}>
-                    Ningún estudiante coincide con los filtros.
+                    Ningún estudiante coincide con la búsqueda.
                   </td>
                 </tr>
               )}

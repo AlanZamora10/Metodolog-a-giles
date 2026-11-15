@@ -14,11 +14,11 @@ from typing import Any, Dict, List, Optional
 
 from app.config import settings
 
-COMPONENTES = {"acd": "ACD (40%)", "tareas": "Tareas (30%)", "pae": "PAE (30%)"}
+COMPONENTES = {"acd": "Exámenes (40%)", "tareas": "Tareas (30%)", "pae": "APE (30%)"}
 _RECOMENDACION_COMPONENTE = {
-    "acd": "Reforzar las evaluaciones en contacto con el docente (ACD) con repasos guiados antes de cada evaluación.",
+    "acd": "Reforzar la preparación de los exámenes con repasos guiados antes de cada evaluación.",
     "tareas": "Revisar la carga y las instrucciones de las tareas autónomas; habilitar asesorías para su desarrollo.",
-    "pae": "Acompañar las prácticas de aplicación (PAE) con laboratorios guiados y retroalimentación temprana.",
+    "pae": "Acompañar el aprendizaje práctico experimental (APE) con laboratorios guiados y retroalimentación temprana.",
 }
 
 
@@ -110,7 +110,7 @@ def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
             f"{metricas['aceptables']} de {total} estudiantes ({metricas['porcentaje_aceptables']}%) en nivel aceptable.")
     if metricas["criticos"]:
         criticos = [p for p in prioritarios if p["nivel_riesgo"] == "CRITICO"]
-        hallazgos.append(f"{metricas['criticos']} estudiante(s) en nivel crítico (< 5.00): "
+        hallazgos.append(f"{metricas['criticos']} estudiante(s) en nivel crítico: "
                          + ", ".join(f"{p['nombres']} ({p['nota_final']:.2f})" for p in criticos) + ".")
     comp_validos = {k: v for k, v in componentes.items() if v is not None}
     comp_bajo = min(comp_validos, key=comp_validos.get) if comp_validos else None
@@ -123,7 +123,7 @@ def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
         hallazgos.append(f"El promedio por unidad {tendencia} de {u_ini} ({v_ini:.2f}) a {u_fin} ({v_fin:.2f}).")
     if resumen_alertas["r2_activas"]:
         nombres_r2 = [p["nombres"] for p in prioritarios if p["regla_alerta"] == "R2_DESCENSO"]
-        hallazgos.append(f"{resumen_alertas['r2_activas']} estudiante(s) con descenso sostenido entre unidades (R2): "
+        hallazgos.append(f"{resumen_alertas['r2_activas']} estudiante(s) con descenso sostenido entre unidades: "
                          + ", ".join(nombres_r2) + ".")
     if incidencias_actividad:
         actividad, veces = incidencias_actividad.most_common(1)[0]
@@ -135,11 +135,11 @@ def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
     # ------------------------------------------------------------------ Recomendaciones (reglas sobre los datos)
     recomendaciones: List[str] = []
     if metricas["criticos"]:
-        recomendaciones.append("Atender primero las alertas R1 desde el Centro de Alertas y publicar un refuerzo "
+        recomendaciones.append("Atender primero las alertas de nota crítica desde el Centro de alertas y publicar un refuerzo "
                                "personalizado en Moodle para cada estudiante crítico.")
     if resumen_alertas["r2_activas"]:
         unidad_baja = min(unidades, key=unidades.get) if unidades else "la última unidad"
-        recomendaciones.append(f"Revisar los contenidos de {unidad_baja} con los estudiantes en descenso (R2) "
+        recomendaciones.append(f"Revisar los contenidos de {unidad_baja} con los estudiantes en descenso sostenido "
                                "antes de que su nota baje de 5.00.")
     if comp_bajo and comp_validos[comp_bajo] < 7:
         recomendaciones.append(_RECOMENDACION_COMPONENTE[comp_bajo])
@@ -186,7 +186,7 @@ def reporte_markdown(r: Dict[str, Any]) -> str:
         f"| Promedio / mediana | {m['promedio']:.2f} / {m['mediana']:.2f} |",
         f"| Mínima / máxima | {m['nota_minima']:.2f} / {m['nota_maxima']:.2f} |",
         f"| Críticos / en riesgo / aceptables | {m['criticos']} / {m['en_riesgo']} / {m['aceptables']} |",
-        f"| ACD / Tareas / PAE | {fmt(comp['acd'])} / {fmt(comp['tareas'])} / {fmt(comp['pae'])} |",
+        f"| Exámenes / Tareas / APE | {fmt(comp['acd'])} / {fmt(comp['tareas'])} / {fmt(comp['pae'])} |",
         "",
         "## Distribución de estados de las actividades",
         "| Estado | Registros | Estudiantes |", "|---|---|---|",
@@ -196,7 +196,7 @@ def reporte_markdown(r: Dict[str, Any]) -> str:
         f"| Pendiente de revisión | {d['pendiente']} | {d['estudiantes_con_pendiente']} |",
         "",
         "## Alertas",
-        f"R1 activas: {a['r1_activas']} · R2 activas: {a['r2_activas']} · abiertas {a['abiertas']}, "
+        f"Nota crítica: {a['r1_activas']} · Descenso sostenido: {a['r2_activas']} · abiertas {a['abiertas']}, "
         f"atendidas {a['atendidas']}, publicadas {a['publicadas']}, cerradas {a['cerradas']}, resueltas {a['resueltas']}.",
         "",
         "## Hallazgos",

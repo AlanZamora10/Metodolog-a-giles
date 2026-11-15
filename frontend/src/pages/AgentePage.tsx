@@ -1,5 +1,5 @@
 /**
- * RF-09 / RF-12: chat con el agente IA (POST /api/v1/agent/chat).
+ * Chat con el agente IA (POST /api/v1/agent/chat).
  * Respuestas estructuradas (Markdown seguro) y, bajo cada una, un acordeón colapsado de auditoría con las
  * fuentes consultadas; los parámetros JSON y los registros sólo se ven al expandirlo.
  */
@@ -11,6 +11,7 @@ import { useChat, type MensajeChat } from '../context/ChatContext';
 import { useCurso } from '../context/CursoContext';
 import { Markdown } from '../components/ui/Markdown';
 import { fechaHora, haceCuanto } from '../utils/formato';
+import { materiaCurso, nombreCurso } from '../utils/nombres';
 
 export const NOMBRES_HERRAMIENTAS: Record<string, string> = {
   listar_cursos_autorizados: 'Cursos autorizados del docente',
@@ -42,7 +43,7 @@ export function sugerenciasPara(curso?: string, estudiante?: string): GrupoSuger
       preguntas: [`¿Qué estudiantes de ${c} necesitan atención?`, `¿Cómo va ${e} en mis materias?`],
     },
     { titulo: 'Actividades', preguntas: [`¿Qué actividades tienen menor rendimiento en ${c}?`] },
-    { titulo: 'Intervención', preguntas: [`Prepárame una actividad de refuerzo para ${e}`] },
+    { titulo: 'Intervención', preguntas: [`Prepárame un plan de apoyo para ${e}`] },
   ];
 }
 
@@ -58,7 +59,7 @@ export function AgentePage() {
 
   const curso = sync?.cursos.find((c) => c.id === cursoId);
   const critico = datos?.estudiantes.filter((e) => e.nivel_riesgo === 'CRITICO').sort((a, b) => a.nota_final - b.nota_final)[0];
-  const grupos = sugerenciasPara(curso?.shortname, critico?.nombres);
+  const grupos = sugerenciasPara(curso ? materiaCurso(curso.fullname) : undefined, critico?.nombres);
   const activas = alertas.filter((a) => a.estado === 'ABIERTA' || a.estado === 'ATENDIDA').length;
 
   function enviarForm(e: FormEvent) {
@@ -128,7 +129,7 @@ export function AgentePage() {
             {curso ? (
               <dl>
                 <dt>Curso</dt>
-                <dd>{curso.shortname}</dd>
+                <dd>{nombreCurso(curso.fullname)}</dd>
                 <dt>Estudiantes</dt>
                 <dd>{curso.total_estudiantes}</dd>
                 <dt>Promedio</dt>
@@ -213,7 +214,7 @@ function Auditoria({ r }: { r: ChatResponse }) {
   return (
     <details className="auditoria" data-testid="auditoria">
       <summary>
-        <span className="auditoria-titulo">Auditoría y fuentes consultadas (RF-12)</span>
+        <span className="auditoria-titulo">Fuentes consultadas</span>
         <span className="auditoria-resumen">
           {nombres.join(' · ')} · {(r.duracion_ms / 1000).toFixed(1)} s
         </span>

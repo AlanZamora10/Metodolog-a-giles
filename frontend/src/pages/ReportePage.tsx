@@ -1,4 +1,4 @@
-/** RF-11: vista previa del informe académico del curso, descarga en Markdown e impresión/PDF. */
+/** Vista previa del informe académico del curso, descarga en Markdown e impresión/PDF. */
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { DesgloseEstados } from '../components/charts/Graficos';
 import { Aviso, NivelBadge } from '../components/ui/ui';
 import { REGLAS } from '../utils/academico';
 import { fecha, fechaHora, nota } from '../utils/formato';
+import { nombreCurso } from '../utils/nombres';
 
 export function ReportePage() {
   return (
@@ -83,8 +84,7 @@ function Informe() {
         <header className="informe-head">
           <div>
             <div className="muted small">Universidad Técnica de Ambato · FISEI · Ingeniería de Software</div>
-            <h1 style={{ marginTop: 4 }}>Informe académico — {r.curso.shortname}</h1>
-            <p className="muted">{r.curso.fullname}</p>
+            <h1 style={{ marginTop: 4 }}>Informe académico — {nombreCurso(r.curso.fullname)}</h1>
           </div>
           <dl className="informe-meta">
             <dt>Período</dt>
@@ -130,7 +130,7 @@ function Informe() {
               <b>{nota(m.desviacion_estandar)}</b>
             </div>
             <div>
-              <span>Aprobación (≥ 7.00)</span>
+              <span>Aprobación</span>
               <b>{m.porcentaje_aceptables.toFixed(1)} %</b>
             </div>
           </div>
@@ -138,17 +138,17 @@ function Informe() {
             <TablaSimple
               titulo="Nivel"
               filas={[
-                ['Crítico (< 5.00)', String(m.criticos)],
-                ['En riesgo (5.00–6.99)', String(m.en_riesgo)],
-                ['Aceptable (≥ 7.00)', String(m.aceptables)],
+                ['Crítico', String(m.criticos)],
+                ['En riesgo', String(m.en_riesgo)],
+                ['Aceptable', String(m.aceptables)],
               ]}
             />
             <TablaSimple
               titulo="Componente"
               filas={[
-                ['ACD (40 %)', nota(m.componentes.acd)],
+                ['Exámenes (40 %)', nota(m.componentes.acd)],
                 ['Tareas (30 %)', nota(m.componentes.tareas)],
-                ['PAE (30 %)', nota(m.componentes.pae)],
+                ['APE (30 %)', nota(m.componentes.pae)],
               ]}
             />
             <TablaSimple
@@ -170,7 +170,7 @@ function Informe() {
         <section>
           <h2>3. Alertas tempranas</h2>
           <p>
-            R1 activas: <b>{r.alertas.r1_activas}</b> · R2 activas: <b>{r.alertas.r2_activas}</b> · Abiertas: {r.alertas.abiertas} · En
+            Nota crítica: <b>{r.alertas.r1_activas}</b> · Descenso sostenido: <b>{r.alertas.r2_activas}</b> · Abiertas: {r.alertas.abiertas} · En
             atención: {r.alertas.atendidas} · Publicadas: {r.alertas.publicadas} · Cerradas: {r.alertas.cerradas} · Resueltas:{' '}
             {r.alertas.resueltas}
           </p>
@@ -181,14 +181,14 @@ function Informe() {
                   <th>Estudiante prioritario</th>
                   <th className="right">Nota final</th>
                   <th>Nivel</th>
-                  <th>Regla</th>
+                  <th>Alerta</th>
                 </tr>
               </thead>
               <tbody>
                 {r.estudiantes_prioritarios.map((e) => (
                   <tr key={e.id_number}>
                     <td>
-                      <Link to={`/estudiantes/${e.id_number}`}>{e.nombres}</Link> <span className="muted small">{e.id_number}</span>
+                      <Link to={`/estudiantes/${e.id_number}`}>{e.nombres}</Link>
                     </td>
                     <td className="right num">{nota(e.nota_final)}</td>
                     <td>

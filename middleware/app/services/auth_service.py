@@ -15,6 +15,7 @@ locales de servicio si se necesitaran; los docentes ya no tienen contraseña loc
 ==============================================================================
 """
 
+import re
 import hashlib
 import logging
 import secrets
@@ -31,6 +32,13 @@ logger = logging.getLogger("edumonitor.auth")
 
 ITERACIONES_PBKDF2 = 100000
 ROLES_DOCENTE_MOODLE = {"editingteacher", "teacher"}
+
+
+from app.services.sync_service import cedula_de  # noqa: E402
+
+
+class CorreoNoInstitucional(Exception):
+    """El identificador no es un correo institucional @uta.edu.ec."""
 
 
 class LoginRechazado(Exception):
@@ -112,19 +120,17 @@ class AuthService:
         Valida las credenciales contra Moodle. Devuelve el perfil local del docente, None si las
         credenciales son inválidas, lanza LoginRechazado si no es docente y MoodleError si Moodle no responde.
         """
-        identificador = (identificador or "").strip()
+        identificador = (identificador or "").strip().lower()
         if not identificador or not password:
             return None
+        if not re.fullmatch(r"[a-z0-9._%+-]+@uta\.edu\.ec", identificador):
+            raise CorreoNoInstitucional("Ingrese su correo institucional completo (por ejemplo, usuario1234@uta.edu.ec).")
         client = MoodleClient()
 
-        usuario = None
-        if "@" in identificador:
-            usuario = await client.buscar_usuario("email", identificador.lower())
-            if usuario is None:
-                return None
-            username = usuario["username"]
-        else:
-            username = identificador.lower()
+        usuario = await client.buscar_usuario("email", identificador)
+        if usuario is None:
+            return None
+        username = usuario["username"]
 
         try:
             await client.obtener_token_usuario(username, password)
@@ -146,12 +152,13 @@ class AuthService:
             "id_number": usuario.get("idnumber") or None,
             "moodle_user_id": usuario["id"],
             "moodle_username": usuario.get("username"),
+            "cedula": cedula_de(usuario),
         })
         perfil["cursos_docente"] = cursos
         return perfil
 
 
 __all__ = [
-    "AuthService", "LoginRechazado", "MoodleError", "create_access_token", "decode_access_token",
+    "AuthService", "CorreoNoInstitucional", "LoginRechazado", "MoodleError", "create_access_token", "decode_access_token",
     "hash_password", "verify_password",
 ]

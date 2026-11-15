@@ -7,7 +7,9 @@
  *  3. Usuarios: admin, docente titular (rgomez) y 20 estudiantes con nombres ficticios.
  *  4. 4 cursos con nóminas distintas (7 / 10 / 12 / 15 estudiantes); el docente es editingteacher en todos.
  *  5. Estructura del aula virtual UTA: Informativo | Primer Parcial | Segundo Parcial | Supletorio, con
- *     Zona de información, ACD (40%), Tareas (30%) y PAE (30%) por parcial.
+ *     Zona de información, Exámenes (40%), Tareas (30%) y APE (30%) por parcial.
+ *     Cada usuario tiene cédula ecuatoriana válida (campo de perfil «cedula») y correo institucional
+ *     inicial + primer apellido + 4 últimos dígitos de la cédula (@uta.edu.ec); se ingresa con el correo.
  *     Las fechas se calculan desde el día de ejecución: Primer Parcial cerrado (vencimientos en las últimas
  *     semanas, con entregas y notas) y Segundo Parcial en curso (vencimientos en las próximas semanas).
  *  6. Libro de calificaciones ponderado 40/30/30 y notas variadas del Primer Parcial
@@ -70,6 +72,8 @@ set_config('forcetimezone', 'America/Guayaquil');
 set_config('enableavailability', 1);
 // Login unificado de EduMonitor AI: valida las credenciales del docente con login/token.php
 set_config('enablemobilewebservice', 1);
+// Inicio de sesión con el correo institucional completo (además del nombre de usuario)
+set_config('authloginviaemail', 1);
 $DB->set_field('external_services', 'enabled', 1, ['shortname' => 'moodle_mobile_app']);
 
 $site = get_site();
@@ -146,36 +150,77 @@ function upsert_user($username, $firstname, $lastname, $email, $idnumber, $passw
     return $user;
 }
 
+/** Campo de perfil personalizado «cedula» (cédula ecuatoriana de 10 dígitos). */
+function ensure_campo_cedula() {
+    global $DB;
+    $campo = $DB->get_record('user_info_field', ['shortname' => 'cedula']);
+    if ($campo) {
+        return $campo->id;
+    }
+    $categoria = $DB->get_field_sql('SELECT MIN(id) FROM {user_info_category}');
+    if (!$categoria) {
+        $categoria = $DB->insert_record('user_info_category', (object)['name' => 'Datos institucionales', 'sortorder' => 1]);
+    }
+    return $DB->insert_record('user_info_field', (object)[
+        'shortname' => 'cedula', 'name' => 'Cédula', 'datatype' => 'text', 'description' => 'Cédula de identidad',
+        'descriptionformat' => FORMAT_HTML, 'categoryid' => $categoria, 'sortorder' => 1, 'required' => 0,
+        'locked' => 1, 'visible' => 2, 'forceunique' => 1, 'signup' => 0, 'defaultdata' => '',
+        'defaultdataformat' => 0, 'param1' => 10, 'param2' => 10, 'param3' => 0,
+    ]);
+}
+
+function set_cedula($userid, $cedula) {
+    global $DB;
+    $fieldid = ensure_campo_cedula();
+    if ($fila = $DB->get_record('user_info_data', ['userid' => $userid, 'fieldid' => $fieldid])) {
+        $DB->set_field('user_info_data', 'data', $cedula, ['id' => $fila->id]);
+    } else {
+        $DB->insert_record('user_info_data', (object)['userid' => $userid, 'fieldid' => $fieldid, 'data' => $cedula,
+            'dataformat' => 0]);
+    }
+}
+
+/** Correo institucional UTA: inicial del nombre + primer apellido + 4 últimos dígitos de la cédula. */
+function correo_uta($nombres, $apellidos, $cedula) {
+    $plano = fn($t) => strtolower(preg_replace('/[^A-Za-z]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $t)));
+    return substr($plano(explode(' ', $nombres)[0]), 0, 1) . $plano(explode(' ', $apellidos)[0]) . substr($cedula, -4)
+        . '@uta.edu.ec';
+}
+
 const DOCENTE_NOMBRE = 'Ing. Roberto Gómez';
-$docente = upsert_user('rgomez', 'Ing. Roberto', 'Gómez', 'rgomez@uta.edu.ec', 'U-01', 'Docente2026!');
+const DOCENTE_CEDULA = '1803454824';
+$docente = upsert_user('rgomez', 'Ing. Roberto', 'Gómez', correo_uta('Roberto', 'Gómez', DOCENTE_CEDULA), 'U-01',
+    'Docente2026!');
+set_cedula($docente->id, DOCENTE_CEDULA);
 out("  = Docente titular: rgomez (" . DOCENTE_NOMBRE . ")");
 
-// idnumber => [username, nombres, apellidos]
+// idnumber => [username, nombres, apellidos, cédula]
 $students_def = [
-    'U-03' => ['candrade',    'Camila',      'Andrade'],
-    'U-04' => ['cmendoza',    'Carlos',      'Mendoza'],
-    'U-05' => ['mparedes',    'Mateo',       'Paredes'],
-    'U-06' => ['svillacis',   'Sofía',       'Villacís'],
-    'U-07' => ['cmena',       'Carlos',      'Mena'],
-    'U-08' => ['vortiz',      'Valeria',     'Ortiz'],
-    'U-09' => ['asalazar',    'Andrés',      'Salazar'],
-    'U-10' => ['gviteri',     'Gabriela',    'Viteri'],
-    'U-11' => ['sromero',     'Sebastián',   'Romero'],
-    'U-12' => ['despinoza',   'Daniela',     'Espinoza'],
-    'U-13' => ['jchicaiza',   'Joel',        'Chicaiza'],
-    'U-14' => ['mlozada',     'María José',  'Lozada'],
-    'U-15' => ['ktoapanta',   'Kevin',       'Toapanta'],
-    'U-16' => ['pguaman',     'Paula',       'Guamán'],
-    'U-17' => ['rsanchez',    'Ricardo',     'Sánchez'],
-    'U-18' => ['nbarrera',    'Nicole',      'Barrera'],
-    'U-19' => ['jpilco',      'Jonathan',    'Pilco'],
-    'U-20' => ['faltamirano', 'Fernanda',    'Altamirano'],
-    'U-21' => ['bjacome',     'Bryan',       'Jácome'],
-    'U-22' => ['acevallos',   'Alejandra',   'Cevallos'],
+    'U-03' => ['candrade',      'Camila', 'Andrade', '0503128746'],
+    'U-04' => ['cmendoza',      'Carlos', 'Mendoza', '1804923199'],
+    'U-05' => ['mparedes',      'Mateo', 'Paredes', '1704561230'],
+    'U-06' => ['svillacis',     'Sofía', 'Villacís', '0602873416'],
+    'U-07' => ['cmena',         'Carlos', 'Mena', '1802764553'],
+    'U-08' => ['vortiz',        'Valeria', 'Ortiz', '1601987322'],
+    'U-09' => ['asalazar',      'Andrés', 'Salazar', '1805112875'],
+    'U-10' => ['gviteri',       'Gabriela', 'Viteri', '1709234569'],
+    'U-11' => ['sromero',       'Sebastián', 'Romero', '0504781238'],
+    'U-12' => ['despinoza',     'Daniela', 'Espinoza', '0603452194'],
+    'U-13' => ['jchicaiza',     'Joel', 'Chicaiza', '0506213487'],
+    'U-14' => ['mlozada',       'María José', 'Lozada', '1803672540'],
+    'U-15' => ['ktoapanta',     'Kevin', 'Toapanta', '0507128635'],
+    'U-16' => ['pguaman',       'Paula', 'Guamán', '0604981274'],
+    'U-17' => ['rsanchez',      'Ricardo', 'Sánchez', '1712345683'],
+    'U-18' => ['nbarrera',      'Nicole', 'Barrera', '1003458716'],
+    'U-19' => ['jpilco',        'Jonathan', 'Pilco', '1806234199'],
+    'U-20' => ['faltamirano',   'Fernanda', 'Altamirano', '0202873642'],
+    'U-21' => ['bjacome',       'Bryan', 'Jácome', '1807456320'],
+    'U-22' => ['acevallos',     'Alejandra', 'Cevallos', '0103984522'],
 ];
 $students = [];
-foreach ($students_def as $idn => [$uname, $fn, $ln]) {
-    $students[$idn] = upsert_user($uname, $fn, $ln, "$uname@uta.edu.ec", $idn, 'Estudiante2026!');
+foreach ($students_def as $idn => [$uname, $fn, $ln, $cedula]) {
+    $students[$idn] = upsert_user($uname, $fn, $ln, correo_uta($fn, $ln, $cedula), $idn, 'Estudiante2026!');
+    set_cedula($students[$idn]->id, $cedula);
 }
 out("  = " . count($students) . " estudiantes sincronizados (contraseña Estudiante2026!)");
 
@@ -364,7 +409,7 @@ function refresh_resource_pdf($cm, $filename, $title, array $lines) {
 // (vencimientos en las últimas semanas) y el Segundo Parcial está en curso (vencimientos en las próximas).
 $hoy = usergetmidnight(time(), 'America/Guayaquil') + DAYSECS - MINSECS;
 
-// Plan de actividades por parcial: [sección, unidades, ACD, Tareas, PAE]
+// Plan de actividades por parcial: [sección, unidades, Exámenes, Tareas, APE]
 $parciales = [
     1 => ['nombre' => 'Primer Parcial', 'unidades' => [1, 2], 'cerrado' => true,
           'acd' => ['U1-A1' => 'Evaluación Unidad 1', 'U2-A2' => 'Evaluación Unidad 2'],
@@ -412,7 +457,7 @@ foreach ($courses as $short => $course) {
     $silabo = [
         'name' => 'Sílabo de la asignatura', 'filename' => 'Silabo_' . $short . '.pdf',
         'lines' => [$course->fullname, 'Período académico: Julio - Diciembre 2026', 'Docente: ' . DOCENTE_NOMBRE,
-                    'Ponderación: ACD 40% | Tareas 30% | PAE 30%'],
+                    'Ponderación: Exámenes 40% | Tareas 30% | APE 30%'],
     ];
     $cm_silabo = ensure_module($course, 0, 'resource', 'INFO-SILABO', $silabo);
     refresh_resource_pdf($cm_silabo, $silabo['filename'], $silabo['name'], $silabo['lines']);
@@ -437,9 +482,9 @@ foreach ($courses as $short => $course) {
             ]);
         }
         $blocks = [
-            'acd'    => ['ACD', 'Actividades de Aprendizaje en Contacto con el Docente (ACD - 40%)', false],
-            'tareas' => ['TAR', 'Actividades de Aprendizaje Autónomo / Tareas (30%)', true],
-            'pae'    => ['PAE', 'Actividades Prácticas de Aplicación y Experimentación (PAE - 30%)', true],
+            'acd'    => ['ACD', 'Exámenes (40%)', false],
+            'tareas' => ['TAR', 'Tareas (30%)', true],
+            'pae'    => ['PAE', 'APE (30%)', true],
         ];
         foreach ($blocks as $key => [$tag, $title, $files]) {
             block_label($course, $sec, "S$sec-$tag", $title);
@@ -476,9 +521,9 @@ function seed_grade($base, $key) {
 }
 
 $componentes = [
-    'ACD'    => ['Actividades en Contacto con el Docente - ACD (40%)', 40, '/^U\d+-A\d+$/'],
-    'TAREAS' => ['Aprendizaje Autónomo / Tareas (30%)', 30, '/^U\d+-T\d+$/'],
-    'PAE'    => ['Prácticas de Aplicación y Experimentación - PAE (30%)', 30, '/^U\d+-P\d+$/'],
+    'ACD'    => ['Exámenes (40%)', 40, '/^U\d+-A\d+$/'],
+    'TAREAS' => ['Tareas (30%)', 30, '/^U\d+-T\d+$/'],
+    'PAE'    => ['APE (30%)', 30, '/^U\d+-P\d+$/'],
 ];
 
 /**
@@ -531,7 +576,13 @@ foreach ($courses as $short => $course) {
 
     $cats = [];
     foreach ($componentes as $code => [$fullname, $weight]) {
-        $cat = grade_category::fetch(['courseid' => $course->id, 'fullname' => $fullname]);
+        $item_cat = grade_item::fetch(['courseid' => $course->id, 'itemtype' => 'category', 'idnumber' => "CAT-$code"]);
+        $cat = $item_cat ? grade_category::fetch(['id' => $item_cat->iteminstance])
+            : grade_category::fetch(['courseid' => $course->id, 'fullname' => $fullname]);
+        if ($cat && $cat->fullname !== $fullname) {
+            $cat->fullname = $fullname;
+            $cat->update('seed');
+        }
         if (!$cat) {
             $cat = new grade_category(['courseid' => $course->id, 'fullname' => $fullname], false);
             $cat->aggregation = GRADE_AGGREGATE_MEAN;
@@ -659,6 +710,6 @@ foreach ($courses_def as $short => $def) {
     printf("  %-10s %2d estudiantes\n", $short, count($def['roster']));
 }
 echo "  Admin: admin / MoodleAdmin2026!\n";
-echo "  Docente: rgomez (rgomez@uta.edu.ec) / Docente2026!  <- también es el login de EduMonitor AI\n";
-echo "  Estudiante (caso crítico): cmendoza / Estudiante2026!\n";
+echo "  Docente: rgomez4824@uta.edu.ec / Docente2026!  <- también es el login de EduMonitor AI\n";
+echo "  Estudiante (caso crítico): cmendoza3199@uta.edu.ec / Estudiante2026!\n";
 echo "====================================================================\n";

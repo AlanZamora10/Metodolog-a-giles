@@ -9,7 +9,7 @@ import type { Alerta, CursoEstudiantes, EstadoSincronizacion, Estudiante, Report
 export const DOCENTE: Usuario = {
   id: 1,
   nombres: 'Ing. Roberto Gómez',
-  email: 'rgomez@uta.edu.ec',
+  email: 'rgomez4824@uta.edu.ec',
   rol: 'DOCENTE',
   id_number: 'U-01',
   activo: true,
@@ -47,6 +47,7 @@ function est(id: string, nombres: string, nota_final: number, nivel: Estudiante[
     id_number: id,
     nombres,
     email: `${id.toLowerCase()}@uta.edu.ec`,
+    cedula: { 'U-04': '1804923199', 'U-05': '1704561230', 'U-06': '0602873416' }[id] ?? null,
     estados: {},
     actividades,
     regla_alerta: regla,
@@ -77,7 +78,7 @@ function alerta(id: number, id_number: string, nombres: string, nota: number): A
   return {
     id, curso_id: 2, curso_codigo: 'SOF-POO-A', curso_nombre: 'POO', id_number, nombres,
     email: `${id_number.toLowerCase()}@uta.edu.ec`, regla: 'R1_NOTA_CRITICA', nivel: 'CRITICO', nota_promedio: nota,
-    pendiente: -0.25, evidencia: `R1: nota ponderada ${nota}/10 (< 5.00).`, unidad_critica: 'Unidad 2',
+    pendiente: -0.25, evidencia: `Nota crítica: nota ponderada ${nota}/10.`, unidad_critica: 'Unidad 2',
     tema_critico: 'U1-T2 - Tarea 2', estado: 'ABIERTA', diagnostico_ia: null, tipo_accion_sugerida: null,
     fecha_creacion: '2026-11-14T02:48:55+00:00', fecha_actualizacion: null, refuerzo_id: null,
   };
@@ -86,7 +87,7 @@ function alerta(id: number, id_number: string, nombres: string, nota: number): A
 export const ALERTAS: Alerta[] = [alerta(1, 'U-04', 'Carlos Mendoza', 3.04), alerta(2, 'U-07', 'Valeria Ortiz', 4.07)];
 
 export const REPORTE: Reporte = {
-  curso: { id: 2, shortname: 'SOF-POO-A', fullname: '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A', docentes: ['rgomez@uta.edu.ec'] },
+  curso: { id: 2, shortname: 'SOF-POO-A', fullname: '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A', docentes: ['rgomez4824@uta.edu.ec'] },
   periodo: { codigo: '2026-JD', nombre: 'Julio a Diciembre 2026', inicio: '2026-07-01', fin: '2026-12-31' },
   fecha_sincronizacion: SYNC.ultima_sincronizacion,
   generado_en: '2026-11-14T03:00:00+00:00',
@@ -99,7 +100,7 @@ export const REPORTE: Reporte = {
   alertas: { r1_activas: 2, r2_activas: 0, abiertas: 2, atendidas: 0, publicadas: 0, cerradas: 0, resueltas: 0 },
   estudiantes_prioritarios: [{ id_number: 'U-04', nombres: 'Carlos Mendoza', nota_final: 3.04, nivel_riesgo: 'CRITICO', regla_alerta: 'R1_NOTA_CRITICA' }],
   hallazgos: ['Promedio del curso 6.05/10 (mediana 6.20).'],
-  recomendaciones: ['Atender primero las alertas R1.'],
+  recomendaciones: ['Atender primero las alertas de nota crítica.'],
 };
 
 export const json = (cuerpo: unknown, status = 200, headers: Record<string, string> = {}) =>

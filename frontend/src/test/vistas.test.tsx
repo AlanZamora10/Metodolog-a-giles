@@ -4,17 +4,21 @@ import userEvent from '@testing-library/user-event';
 import { REPORTE, iniciarSesionFalsa, json, mockApi, renderApp } from './helpers';
 
 describe('RF-03 / RF-04 / RNF-08 · cursos, período y sincronización', () => {
-  it('muestra selector de curso, período académico y el origen/fecha de la última sincronización', async () => {
+  it('selectores limpios (materia y paralelo, período sin código) y fecha de la última sincronización', async () => {
     iniciarSesionFalsa();
     mockApi();
     renderApp('/dashboard');
-    expect(await screen.findByRole('heading', { name: 'SOF-POO-A' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Curso')).toHaveDisplayValue(/SOF-POO-A/);
-    expect(screen.getByLabelText('Período académico')).toHaveDisplayValue('Julio a Diciembre 2026 (2026-JD)');
-    expect(screen.getByText(/origen: restaurado desde sql server/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Programación orientada a objetos — Paralelo A' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Curso')).toHaveDisplayValue('Programación orientada a objetos — Paralelo A');
+    expect(screen.getByLabelText('Período académico')).toHaveDisplayValue('Julio a Diciembre 2026');
+    expect(screen.getByLabelText('Corte de evaluación')).toHaveDisplayValue('Período completo');
+    expect(screen.getByText(/sincronizado hace/i)).toBeInTheDocument();
+    for (const tecnico of [/SOF-POO-A/, /2026-JD/, /origen/i, /SQL Server/, /RF-\d/, /U1–U2/]) {
+      expect(document.body.textContent).not.toMatch(tecnico);
+    }
   });
 
-  it('el botón Sincronizar llama a POST /api/sincronizacion y actualiza el origen', async () => {
+  it('el botón Sincronizar llama a POST /api/sincronizacion y actualiza la fecha', async () => {
     iniciarSesionFalsa();
     const fetch = mockApi({
       'POST /api/sincronizacion': () =>
@@ -28,9 +32,9 @@ describe('RF-03 / RF-04 / RNF-08 · cursos, período y sincronización', () => {
         }),
     });
     renderApp('/dashboard');
-    await screen.findByRole('heading', { name: 'SOF-POO-A' });
+    await screen.findByRole('heading', { name: 'Programación orientada a objetos — Paralelo A' });
     await userEvent.click(screen.getByRole('button', { name: /sincronizar/i }));
-    expect(await screen.findByText(/origen: moodle uta 4\.3\.2/i)).toBeInTheDocument();
+    expect(await screen.findByText(/sincronizado hace instantes/i)).toBeInTheDocument();
     expect(fetch.mock.calls.some(([u, i]) => u === '/api/sincronizacion' && i?.method === 'POST')).toBe(true);
   });
 
@@ -40,10 +44,10 @@ describe('RF-03 / RF-04 / RNF-08 · cursos, período y sincronización', () => {
     const u = userEvent.setup();
     renderApp('/estudiantes');
     await screen.findByText('Carlos Mendoza');
-    await u.type(screen.getByPlaceholderText(/nombre, código/i), 'valeria');
+    await u.type(screen.getByPlaceholderText(/cédula o nombre completo/i), 'valeria');
     expect(screen.queryByText('Carlos Mendoza')).not.toBeInTheDocument();
     expect(screen.getByText('Valeria Ortiz')).toBeInTheDocument();
-    await u.clear(screen.getByPlaceholderText(/nombre, código/i));
+    await u.clear(screen.getByPlaceholderText(/cédula o nombre completo/i));
     await u.click(screen.getByLabelText(/con incidencias/i));
     expect(screen.getByText('Carlos Mendoza')).toBeInTheDocument();
     expect(screen.queryByText('Camila Andrade')).not.toBeInTheDocument();
@@ -92,9 +96,9 @@ describe('RF-11 · informe', () => {
     const u = userEvent.setup();
     renderApp('/reporte');
 
-    expect(await screen.findByRole('heading', { name: /informe académico — sof-poo-a/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /informe académico — programación orientada a objetos — paralelo a/i })).toBeInTheDocument();
     expect(screen.getByText(/julio a diciembre 2026/i, { selector: 'dd' })).toBeInTheDocument();
-    expect(screen.getByText('Atender primero las alertas R1.')).toBeInTheDocument();
+    expect(screen.getByText('Atender primero las alertas de nota crítica.')).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: /descargar \.md/i }));
     await waitFor(() => expect(clic).toHaveBeenCalled());
@@ -110,5 +114,44 @@ describe('RF-11 · informe', () => {
     renderApp('/reporte');
     await userEvent.click(await screen.findByRole('button', { name: /imprimir/i }));
     expect(imprimir).toHaveBeenCalled();
+  });
+});
+
+describe('Buscador por cédula y nombre completo', () => {
+  it('filtra en tiempo real por cédula (completa o parcial) y por nombre completo, mostrando cédula y correo', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    const u = userEvent.setup();
+    renderApp('/estudiantes');
+    await screen.findByText('Carlos Mendoza');
+    expect(screen.getByText('Carlos Mendoza').closest('td')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
+
+    const buscar = screen.getByPlaceholderText(/cédula o nombre completo/i);
+    await u.type(buscar, '1804923199');
+    expect(screen.getByText('Carlos Mendoza')).toBeInTheDocument();
+    expect(screen.queryByText('Valeria Ortiz')).not.toBeInTheDocument();
+
+    await u.clear(buscar);
+    await u.type(buscar, '17045');
+    expect(screen.getByText('Valeria Ortiz')).toBeInTheDocument();
+    expect(screen.queryByText('Carlos Mendoza')).not.toBeInTheDocument();
+
+    await u.clear(buscar);
+    await u.type(buscar, 'camila andrade');
+    expect(screen.getByText('Camila Andrade')).toBeInTheDocument();
+    expect(screen.getAllByTestId('datos-estudiante')).toHaveLength(1);
+  });
+});
+
+describe('Login con correo institucional', () => {
+  it('rechaza el nombre de usuario sin llamar al servidor', async () => {
+    const fetch = mockApi();
+    const u = userEvent.setup();
+    renderApp('/login');
+    await u.type(await screen.findByLabelText(/correo institucional/i), 'rgomez');
+    await u.type(screen.getByLabelText(/contraseña/i), 'Docente2026!');
+    await u.click(screen.getByRole('button', { name: 'Ingresar' }));
+    expect(await screen.findByTestId('login-error')).toHaveTextContent(/correo institucional completo/i);
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/auth/login'))).toBe(false);
   });
 });

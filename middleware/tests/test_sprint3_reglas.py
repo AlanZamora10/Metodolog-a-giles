@@ -105,7 +105,7 @@ def test_sincronizar_genera_alertas_r1_y_r2(headers):
     r1 = alertas["U-04"]
     assert r1["regla"] == R1 and r1["nivel"] == "CRITICO" and r1["estado"] == "ABIERTA"
     assert r1["nota_promedio"] == 2.65
-    assert "SIN_ENTREGA" in r1["evidencia"]
+    assert r1["evidencia"].startswith("Nota crítica:") and "U2-T4 (sin entrega)" in r1["evidencia"]
 
     r2 = alertas["U-11"]
     assert r2["regla"] == R2 and r2["nivel"] == "EN_RIESGO"

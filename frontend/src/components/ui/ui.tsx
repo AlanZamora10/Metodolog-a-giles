@@ -20,14 +20,12 @@ export function NivelBadge({ nivel }: { nivel: string }) {
   return <span className={`badge ${n?.clase ?? 'badge-neutral'}`}>{n?.etiqueta ?? nivel}</span>;
 }
 
-/** Estado visual de una actividad: icono + texto + color (nunca sólo color). */
+/** Estado visual de una actividad: punto fino + texto (nunca sólo color). */
 export function EstadoActividadBadge({ estado }: { estado: EstadoVisual }) {
   const e = ESTADOS_VISUALES[estado];
   return (
     <span className="badge estado-badge" style={{ color: e.color }} data-estado={estado}>
-      <span className="estado-icono" style={{ background: e.color }} aria-hidden>
-        {e.icono}
-      </span>
+      <span className="estado-punto" style={{ background: e.color }} aria-hidden />
       {e.etiqueta}
     </span>
   );

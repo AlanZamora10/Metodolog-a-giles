@@ -10,6 +10,7 @@ export interface Usuario {
   email: string;
   rol: string;
   id_number: string | null;
+  cedula?: string | null;
   activo: boolean;
 }
 
@@ -40,7 +41,7 @@ export interface EstadoSincronizacion {
   total_cursos: number;
   total_estudiantes: number;
   cursos: CursoResumen[];
-  estudiantes: { id_number: string; nombres: string; email: string }[];
+  estudiantes: { id_number: string; nombres: string; email: string; cedula?: string | null }[];
   // Sólo en la respuesta del POST
   status?: string;
   duracion_ms?: number;
@@ -79,6 +80,8 @@ export interface Estudiante extends MetricasEstudiante {
   id_number: string;
   nombres: string;
   email: string;
+  /** Cédula ecuatoriana (campo de perfil «cedula» de Moodle). */
+  cedula?: string | null;
   estados: Partial<Record<Componente, EstadoActividadMoodle>>;
   actividades: Actividad[];
   regla_alerta: string | null;

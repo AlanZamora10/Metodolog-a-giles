@@ -113,9 +113,7 @@ export function DesgloseEstados({ conteo }: { conteo: Record<EstadoVisual, numbe
       <div className="leyenda-estados">
         {ORDEN_ESTADOS.map((k) => (
           <div key={k} data-testid={`estado-${k}`}>
-            <span className="estado-icono" style={{ background: ESTADOS_VISUALES[k].color }} aria-hidden>
-              {ESTADOS_VISUALES[k].icono}
-            </span>
+            <span className="estado-punto" style={{ background: ESTADOS_VISUALES[k].color }} aria-hidden />
             <span>{ESTADOS_VISUALES[k].etiqueta}</span>
             <b>{conteo[k]}</b>
           </div>

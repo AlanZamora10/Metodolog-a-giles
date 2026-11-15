@@ -61,7 +61,7 @@ def test_sincronizacion_persiste_en_todas_las_tablas(motor):
 
     materia = next(m for m in repositories.filas("materias", motor) if m["codigo"] == "SOF-POO-A")
     assert materia["moodle_course_id"] == 2
-    assert materia["docentes"] == ["rgomez@uta.edu.ec"]
+    assert materia["docentes"] == ["rgomez4824@uta.edu.ec"]
 
     actividades = {a["id"]: a for a in repositories.filas("actividades", motor)}
     notas = {
@@ -136,16 +136,18 @@ def test_datos_sobreviven_a_reinicio(motor):
 
 def test_login_moodle_guarda_perfil_sin_contrasena_local(motor):
     assert client.post("/api/v1/auth/login", json=DOCENTE).status_code == 200
-    fila = repositories.user_by_email("rgomez@uta.edu.ec", motor)
+    fila = repositories.user_by_email("rgomez4824@uta.edu.ec", motor)
     assert fila["rol"] == "DOCENTE" and fila["nombres"] == "Ing. Roberto Gómez"
     assert fila["password_hash"] == "MOODLE"          # la contraseña sólo vive en Moodle
     assert fila["moodle_user_id"] == 10 and fila["moodle_username"] == "rgomez"
     primer_acceso = fila["ultimo_acceso"]
 
-    # Un segundo login (ahora con el usuario de Moodle) actualiza el mismo perfil, no lo duplica
-    assert client.post("/api/v1/auth/login", json={"email": "rgomez", "password": "Docente2026!"}).status_code == 200
+    assert fila["cedula"] == "1803454824"
+
+    # Un segundo login (correo en mayúsculas) actualiza el mismo perfil, no lo duplica
+    assert client.post("/api/v1/auth/login", json={"email": "RGOMEZ4824@uta.edu.ec", "password": "Docente2026!"}).status_code == 200
     assert repositories.contar("usuarios", motor) == 1
-    assert repositories.user_by_email("rgomez@uta.edu.ec", motor)["ultimo_acceso"] >= primer_acceso
+    assert repositories.user_by_email("rgomez4824@uta.edu.ec", motor)["ultimo_acceso"] >= primer_acceso
     logs = [log for log in repositories.filas("logs_sistema", motor) if log["tipo_proceso"] == "LOGIN"]
     assert len(logs) == 2 and all(log["estado"] == "EXITO" for log in logs)
 
@@ -159,3 +161,13 @@ def test_fallo_de_persistencia_no_impide_sincronizar(motor, monkeypatch):
     assert data["total_cursos"] == 1
     assert "error" in data["persistencia"]
     assert repositories.filas("logs_sistema", motor)[-1]["estado"] == "ADVERTENCIA"
+
+
+def test_cambio_de_correo_institucional_conserva_el_perfil_del_docente(motor):
+    # Perfil creado con el correo anterior (antes del formato inicial+apellido+4 dígitos de la cédula)
+    anterior = repositories.upsert_usuario_moodle({"email": "rgomez@uta.edu.ec", "nombres": "Ing. Roberto Gómez",
+                                                   "rol": "DOCENTE", "moodle_user_id": 10}, motor)
+    assert client.post("/api/v1/auth/login", json=DOCENTE).status_code == 200
+    nuevo = repositories.user_by_email("rgomez4824@uta.edu.ec", motor)
+    assert nuevo["id"] == anterior["id"] and repositories.contar("usuarios", motor) == 1
+    assert repositories.user_by_email("rgomez@uta.edu.ec", motor) is None

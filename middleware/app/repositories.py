@@ -75,10 +75,16 @@ def upsert_usuario_moodle(perfil: Dict[str, Any], engine: Optional[Engine] = Non
         "nombres": perfil["nombres"][:120], "rol": perfil["rol"], "id_number": perfil.get("id_number"),
         "activo": True, "moodle_user_id": perfil.get("moodle_user_id"),
         "moodle_username": perfil.get("moodle_username"), "ultimo_acceso": ahora(),
-        "password_hash": "MOODLE",
+        "password_hash": "MOODLE", "cedula": perfil.get("cedula"),
     }
     with _engine(engine).begin() as conn:
-        _upsert(conn, usuarios, {"email": email}, datos)
+        # Se identifica primero por el id de Moodle: si el correo institucional cambia, el docente conserva su registro.
+        existente = (_id_por_clave(conn, usuarios, {"moodle_user_id": perfil["moodle_user_id"]})
+                     if perfil.get("moodle_user_id") else None)
+        if existente is not None:
+            conn.execute(update(usuarios).where(usuarios.c.id == existente).values(email=email, **datos))
+        else:
+            _upsert(conn, usuarios, {"email": email}, datos)
         return _dict(conn.execute(select(usuarios).where(usuarios.c.email == email)).one())
 
 
@@ -141,7 +147,7 @@ def _upsert_estudiante(conn: Connection, est: Dict[str, Any]) -> int:
     email = (est.get("email") or f"{est['id_number'].lower()}@moodle.local").strip().lower()
     return _upsert(conn, estudiantes, {"id_number": est["id_number"]}, {
         "nombres": est.get("nombres") or est["id_number"], "email": email,
-        "moodle_user_id": est.get("moodle_id"), "activo": True,
+        "moodle_user_id": est.get("moodle_id"), "cedula": est.get("cedula"), "activo": True,
     })
 
 
@@ -257,7 +263,8 @@ def load_sync(engine: Optional[Engine] = None) -> List[Dict[str, Any]]:
                 "id": m.moodle_course_id, "shortname": m.codigo, "fullname": m.nombre,
                 "docentes": list(m.docentes or []),
                 "usuarios": [{
-                    "user": {"id": e.moodle_user_id, "fullname": e.nombres, "idnumber": e.id_number, "email": e.email},
+                    "user": {"id": e.moodle_user_id, "fullname": e.nombres, "idnumber": e.id_number, "email": e.email,
+                             "cedula": e.cedula},
                     "gradeitems": items.get(e.id, []),
                 } for e in matriculados],
             })

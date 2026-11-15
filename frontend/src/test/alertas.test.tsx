@@ -26,7 +26,8 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     const item = await screen.findByTestId('alerta-1');
     expect(item).toHaveTextContent('3.04');
     expect(item).toHaveTextContent('-0.25');
-    expect(item).toHaveTextContent('R1 · nota ponderada < 5.00');
+    expect(item).toHaveTextContent('Nota crítica');
+    expect(item).not.toHaveTextContent(/R1|< 5\.00/);
     expect(item).not.toHaveTextContent(/reprobad/i);
   });
 
