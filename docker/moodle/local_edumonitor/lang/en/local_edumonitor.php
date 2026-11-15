@@ -13,3 +13,5 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'EduMonitor AI integration';
 $string['seccionrefuerzos'] = 'Refuerzos';
+$string['messageprovider:refuerzo_asignado'] = 'New reinforcement activity notice (EduMonitor AI)';
+$string['errornotificacion'] = 'The reinforcement notification could not be sent.';

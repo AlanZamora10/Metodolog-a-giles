@@ -22,7 +22,7 @@ def test_login_docente_con_correo_de_moodle():
     assert "access_token" in data and data["token_type"] == "bearer"
     assert data["user"]["rol"] == "DOCENTE"
     assert data["user"]["email"] == "rgomez4824@uta.edu.ec"
-    assert "Roberto Gómez" in data["user"]["nombres"]
+    assert "Roberto Patricio Gómez Salazar" == data["user"]["nombres"]
     assert data["user"]["id_number"] == "U-01"
 
 

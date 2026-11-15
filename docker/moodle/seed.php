@@ -4,7 +4,8 @@
  *
  *  1. Sitio "Moodle UTA" en español, inicio en "Mis cursos" e identidad visual UTA (CSS en additionalhtmlhead).
  *  2. Categorías FISEI -> SOFTWARE -> Julio a Diciembre 2026.
- *  3. Usuarios: admin, docente titular (rgomez) y 20 estudiantes con nombres ficticios.
+ *  3. Usuarios: admin, docente titular (rgomez) y 20 estudiantes con nombres ficticios
+ *     (dos nombres y dos apellidos; el correo usa el primer nombre y el primer apellido).
  *  4. 4 cursos con nóminas distintas (7 / 10 / 12 / 15 estudiantes); el docente es editingteacher en todos.
  *  5. Estructura del aula virtual UTA: Informativo | Primer Parcial | Segundo Parcial | Supletorio, con
  *     Zona de información, Exámenes (40%), Tareas (30%) y APE (30%) por parcial.
@@ -187,35 +188,36 @@ function correo_uta($nombres, $apellidos, $cedula) {
         . '@uta.edu.ec';
 }
 
-const DOCENTE_NOMBRE = 'Ing. Roberto Gómez';
+const DOCENTE_NOMBRE = 'Ing. Roberto Patricio Gómez Salazar';
 const DOCENTE_CEDULA = '1803454824';
-$docente = upsert_user('rgomez', 'Ing. Roberto', 'Gómez', correo_uta('Roberto', 'Gómez', DOCENTE_CEDULA), 'U-01',
+$docente = upsert_user('rgomez', 'Roberto Patricio', 'Gómez Salazar',
+    correo_uta('Roberto Patricio', 'Gómez Salazar', DOCENTE_CEDULA), 'U-01',
     'Docente2026!');
 set_cedula($docente->id, DOCENTE_CEDULA);
 out("  = Docente titular: rgomez (" . DOCENTE_NOMBRE . ")");
 
-// idnumber => [username, nombres, apellidos, cédula]
+// idnumber => [username, dos nombres, dos apellidos, cédula]
 $students_def = [
-    'U-03' => ['candrade',      'Camila', 'Andrade', '0503128746'],
-    'U-04' => ['cmendoza',      'Carlos', 'Mendoza', '1804923199'],
-    'U-05' => ['mparedes',      'Mateo', 'Paredes', '1704561230'],
-    'U-06' => ['svillacis',     'Sofía', 'Villacís', '0602873416'],
-    'U-07' => ['cmena',         'Carlos', 'Mena', '1802764553'],
-    'U-08' => ['vortiz',        'Valeria', 'Ortiz', '1601987322'],
-    'U-09' => ['asalazar',      'Andrés', 'Salazar', '1805112875'],
-    'U-10' => ['gviteri',       'Gabriela', 'Viteri', '1709234569'],
-    'U-11' => ['sromero',       'Sebastián', 'Romero', '0504781238'],
-    'U-12' => ['despinoza',     'Daniela', 'Espinoza', '0603452194'],
-    'U-13' => ['jchicaiza',     'Joel', 'Chicaiza', '0506213487'],
-    'U-14' => ['mlozada',       'María José', 'Lozada', '1803672540'],
-    'U-15' => ['ktoapanta',     'Kevin', 'Toapanta', '0507128635'],
-    'U-16' => ['pguaman',       'Paula', 'Guamán', '0604981274'],
-    'U-17' => ['rsanchez',      'Ricardo', 'Sánchez', '1712345683'],
-    'U-18' => ['nbarrera',      'Nicole', 'Barrera', '1003458716'],
-    'U-19' => ['jpilco',        'Jonathan', 'Pilco', '1806234199'],
-    'U-20' => ['faltamirano',   'Fernanda', 'Altamirano', '0202873642'],
-    'U-21' => ['bjacome',       'Bryan', 'Jácome', '1807456320'],
-    'U-22' => ['acevallos',     'Alejandra', 'Cevallos', '0103984522'],
+    'U-03' => ['candrade',      'Camila Alejandra', 'Andrade Morales', '0503128746'],
+    'U-04' => ['cmendoza',      'Carlos Andrés', 'Mendoza Paredes', '1804923199'],
+    'U-05' => ['mparedes',      'Marco Antonio', 'Paredes Velasco', '1704561230'],
+    'U-06' => ['svillacis',     'Sofía Valentina', 'Villacís Naranjo', '0602873416'],
+    'U-07' => ['cmena',         'Carlos Eduardo', 'Mena Castillo', '1802764553'],
+    'U-08' => ['vortiz',        'Valeria Sofía', 'Ortiz Zambrano', '1601987322'],
+    'U-09' => ['asalazar',      'Andrés Felipe', 'Salazar Cueva', '1805112875'],
+    'U-10' => ['gviteri',       'Gabriela Estefanía', 'Viteri Lescano', '1709234569'],
+    'U-11' => ['sromero',       'Sebastián Alejandro', 'Romero Haro', '0504781238'],
+    'U-12' => ['despinoza',     'Daniela Fernanda', 'Espinoza Carrillo', '0603452194'],
+    'U-13' => ['jchicaiza',     'Joel Santiago', 'Chicaiza Tipán', '0506213487'],
+    'U-14' => ['mlozada',       'María José', 'Lozada Freire', '1803672540'],
+    'U-15' => ['ktoapanta',     'Kevin Alexander', 'Toapanta Chango', '0507128635'],
+    'U-16' => ['pguaman',       'Paula Cristina', 'Guamán Yánez', '0604981274'],
+    'U-17' => ['rsanchez',      'Ricardo Javier', 'Sánchez Barreno', '1712345683'],
+    'U-18' => ['nbarrera',      'Nicole Belén', 'Barrera Ponce', '1003458716'],
+    'U-19' => ['jpilco',        'Jonathan Israel', 'Pilco Masaquiza', '1806234199'],
+    'U-20' => ['faltamirano',   'Fernanda Lucía', 'Altamirano Proaño', '0202873642'],
+    'U-21' => ['bjacome',       'Bryan Mauricio', 'Jácome Villavicencio', '1807456320'],
+    'U-22' => ['acevallos',     'Alejandra Paola', 'Cevallos Ruiz', '0103984522'],
 ];
 $students = [];
 foreach ($students_def as $idn => [$uname, $fn, $ln, $cedula]) {
@@ -682,7 +684,11 @@ if (!$service) {
 foreach (['core_webservice_get_site_info', 'core_course_get_courses', 'core_course_get_courses_by_field',
           'core_enrol_get_enrolled_users', 'gradereport_user_get_grade_items', 'core_grades_get_grades',
           // Fase A: login unificado y publicación real de refuerzos (plugin local_edumonitor)
-          'core_user_get_users_by_field', 'core_enrol_get_users_courses', 'local_edumonitor_crear_tarea'] as $fn) {
+          'core_user_get_users_by_field', 'core_enrol_get_users_courses', 'local_edumonitor_crear_tarea',
+          // Aviso al estudiante en la campana de notificaciones de Moodle
+          'local_edumonitor_notificar_refuerzo',
+          // Tarea de refuerzo con la guía de estudio PDF adjunta
+          'local_edumonitor_publicar_refuerzo'] as $fn) {
     if ($DB->record_exists('external_functions', ['name' => $fn]) &&
         !$DB->record_exists('external_services_functions', ['externalserviceid' => $service->id, 'functionname' => $fn])) {
         $DB->insert_record('external_services_functions', (object)['externalserviceid' => $service->id, 'functionname' => $fn]);

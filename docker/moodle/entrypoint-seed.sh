@@ -10,6 +10,7 @@
 # Uso manual (contenedor ya levantado):
 #   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --seed-only   # siembra completa
 #   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --tema-only   # sólo identidad visual
+#   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --plugin-only # plugin + avisos de refuerzos
 # ==============================================================================
 set -u
 
@@ -18,7 +19,7 @@ PHP_BIN="$(command -v php || echo /opt/bitnami/php/bin/php)"
 MOODLE_DIR="/opt/bitnami/moodle"
 MOODLEDATA_DIR="/bitnami/moodledata"
 
-# Instala/actualiza el plugin local_edumonitor (Web Service local_edumonitor_crear_tarea).
+# Instala/actualiza el plugin local_edumonitor (publicación de refuerzos con guía PDF y avisos).
 # El código de Moodle vive en el volumen persistente, así que la copia sobrevive a reinicios.
 install_plugin() {
     local origen="$SEED_DIR/local_edumonitor" destino="$MOODLE_DIR/local/edumonitor"
@@ -59,6 +60,17 @@ run_seed() {
 if [[ "${1:-}" == "--tema-only" ]]; then
     # Reaplica el CSS institucional sin tocar cursos, usuarios ni calificaciones.
     "$PHP_BIN" "$SEED_DIR/tema_uta.php"
+    chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
+    exit 0
+fi
+
+if [[ "${1:-}" == "--plugin-only" ]]; then
+    # Actualiza local_edumonitor (Web Services y avisos de la campana) sin re-sembrar datos, y notifica
+    # los refuerzos ya publicados que aún no tienen aviso.
+    install_plugin
+    "$PHP_BIN" "$SEED_DIR/registrar_ws.php"
+    "$PHP_BIN" "$MOODLE_DIR/local/edumonitor/cli/notificar_publicados.php"
+    "$PHP_BIN" "$MOODLE_DIR/admin/cli/purge_caches.php" >/dev/null 2>&1 || true
     chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
     exit 0
 fi

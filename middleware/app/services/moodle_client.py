@@ -132,16 +132,28 @@ class MoodleClient:
         return await self.call("core_enrol_get_users_courses", userid=user_id)
 
     # ------------------------------------------------------------------ Publicación real (plugin local_edumonitor)
-    async def crear_tarea_refuerzo(self, course_id: int, nombre: str, instrucciones: str, email_estudiante: str,
-                                   fecha_entrega: int, codigo: str) -> Dict[str, Any]:
+    async def publicar_refuerzo(self, course_id: int, nombre: str, instrucciones: str, email_estudiante: str,
+                                fecha_entrega: int, codigo: str, pdf_base64: str = "",
+                                pdf_nombre: str = "Guia_de_estudio.pdf") -> Dict[str, Any]:
         """
-        Crea (o devuelve, si ya existe con el mismo código) una tarea en la sección «Refuerzos» del curso,
-        visible sólo para el estudiante indicado. Requiere el plugin local_edumonitor en Moodle.
+        Crea (o recupera por código) la tarea restringida al estudiante y le adjunta la guía de estudio en PDF
+        (archivos adicionales de la descripción de mod_assign). Requiere local_edumonitor 1.2.0.
         """
         return await self.call(
-            "local_edumonitor_crear_tarea",
-            courseid=course_id, nombre=nombre, instrucciones=instrucciones,
-            emailestudiante=email_estudiante, fechaentrega=fecha_entrega, codigo=codigo,
+            "local_edumonitor_publicar_refuerzo",
+            courseid=course_id, nombre=nombre, instrucciones=instrucciones, emailestudiante=email_estudiante,
+            fechaentrega=fecha_entrega, codigo=codigo, pdfbase64=pdf_base64, pdfnombre=pdf_nombre,
+        )
+
+    async def notificar_refuerzo(self, cmid: int, email_estudiante: str, indicaciones: str = "",
+                                 email_docente: str = "") -> Dict[str, Any]:
+        """
+        Notificación oficial no leída en la campana de Moodle (notifications + message_popup_notifications)
+        para el estudiante destinatario de la tarea, con enlace directo a ella. Idempotente por tarea y estudiante.
+        """
+        return await self.call(
+            "local_edumonitor_notificar_refuerzo",
+            cmid=cmid, emailestudiante=email_estudiante, indicaciones=indicaciones, emaildocente=email_docente,
         )
 
 

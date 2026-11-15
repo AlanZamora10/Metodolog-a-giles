@@ -3,10 +3,10 @@ Moodle simulado y utilidades compartidas por las pruebas del Sprint 3.
 
 Curso 2 (SOF-POO-A) lo dicta rgomez4824@uta.edu.ec; curso 3 (SOF-ED-B) lo dicta otro docente.
 Estudiantes del curso 2:
-  U-03 Camila Andrade   -> aceptable, sin alerta
-  U-04 Carlos Mendoza    -> R1 (nota < 5) con nota 0 y SIN ENTREGA
-  U-11 Sebastián Romero -> R2 (U1 8.00 -> U2 5.00, nota 6.50): sólo alerta, nivel EN_RIESGO
-  U-09 Andrés Salazar   -> aceptable, con U2-P3 PENDIENTE
+  U-03 Camila Alejandra Andrade Morales -> aceptable, sin alerta
+  U-04 Carlos Andrés Mendoza Paredes    -> R1 (nota < 5) con nota 0 y SIN ENTREGA
+  U-11 Sebastián Alejandro Romero Haro -> R2 (U1 8.00 -> U2 5.00, nota 6.50): sólo alerta, nivel EN_RIESGO
+  U-09 Andrés Felipe Salazar Cueva      -> aceptable, con U2-P3 PENDIENTE
 """
 
 from app import repositories
@@ -54,10 +54,10 @@ class FakeMoodleSprint3:
         profesor = DOCENTE["email"] if course_id == 2 else OTRO_DOCENTE["email"]
         return [
             {"id": 10, "fullname": "Profesor", "email": profesor, "roles": [{"shortname": "editingteacher"}]},
-            _alumno(11, "Camila Andrade", "U-03", "candrade8746@uta.edu.ec", "0503128746"),
-            _alumno(12, "Carlos Mendoza", "U-04", "cmendoza3199@uta.edu.ec", "1804923199"),
-            _alumno(13, "Sebastián Romero", "U-11", "sromero1238@uta.edu.ec", "0504781238"),
-            _alumno(14, "Andrés Salazar", "U-09", "asalazar2875@uta.edu.ec", "1805112875"),
+            _alumno(11, "Camila Alejandra Andrade Morales", "U-03", "candrade8746@uta.edu.ec", "0503128746"),
+            _alumno(12, "Carlos Andrés Mendoza Paredes", "U-04", "cmendoza3199@uta.edu.ec", "1804923199"),
+            _alumno(13, "Sebastián Alejandro Romero Haro", "U-11", "sromero1238@uta.edu.ec", "0504781238"),
+            _alumno(14, "Andrés Felipe Salazar Cueva", "U-09", "asalazar2875@uta.edu.ec", "1805112875"),
         ]
 
     async def get_grade_items(self, course_id):
@@ -76,12 +76,12 @@ class FakeMoodleSprint3:
 
 # ------------------------------------------------------------------ Login unificado (Fase A)
 USUARIOS_MOODLE = {
-    "rgomez": {"id": 10, "username": "rgomez", "email": "rgomez4824@uta.edu.ec", "fullname": "Ing. Roberto Gómez",
+    "rgomez": {"id": 10, "username": "rgomez", "email": "rgomez4824@uta.edu.ec", "fullname": "Roberto Patricio Gómez Salazar",
                "idnumber": "U-01", "customfields": _cedula("1803454824"), "password": "Docente2026!", "cursos": {2: "editingteacher", 4: "editingteacher"}},
     "otrodocente": {"id": 20, "username": "otrodocente", "email": "odocente3458@uta.edu.ec",
-                    "fullname": "Ing. Otro Docente", "idnumber": "U-90", "password": "OtroDocente2026!",
+                    "fullname": "Otro Docente Ficticio Prueba", "idnumber": "U-90", "password": "OtroDocente2026!",
                     "cursos": {3: "editingteacher"}},
-    "cmendoza": {"id": 12, "username": "cmendoza", "email": "cmendoza3199@uta.edu.ec", "fullname": "Carlos Mendoza",
+    "cmendoza": {"id": 12, "username": "cmendoza", "email": "cmendoza3199@uta.edu.ec", "fullname": "Carlos Andrés Mendoza Paredes",
                  "idnumber": "U-04", "customfields": _cedula("1804923199"), "password": "Estudiante2026!", "cursos": {2: "student", 3: "student"}},
 }
 CURSOS_MOODLE = {2: "SOF-POO-A", 3: "SOF-ED-B", 4: "SOF-MA-B", 9: "OTRO-CURSO"}

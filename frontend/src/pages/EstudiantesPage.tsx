@@ -24,7 +24,12 @@ export function coincideBusqueda(e: { nombres: string; cedula?: string | null },
   if (!q) return true;
   const digitos = q.replace(/\D/g, '');
   if (digitos && digitos.length === q.replace(/[\s.-]/g, '').length) return (e.cedula ?? '').includes(digitos);
-  return normalizar(e.nombres).includes(q);
+  const nombre = normalizar(e.nombres);
+  if (nombre.includes(q)) return true;
+  // Nombre completo (dos nombres y dos apellidos): «carlos mendoza» o «mendoza par» también lo encuentran,
+  // cada palabra escrita debe ser el inicio de alguna palabra del nombre.
+  const palabras = nombre.split(/\s+/);
+  return q.split(/\s+/).every((t) => palabras.some((p) => p.startsWith(t)));
 }
 
 function Listado() {

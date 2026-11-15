@@ -43,14 +43,14 @@ describe('RF-03 / RF-04 / RNF-08 · cursos, período y sincronización', () => {
     mockApi();
     const u = userEvent.setup();
     renderApp('/estudiantes');
-    await screen.findByText('Carlos Mendoza');
+    await screen.findByText('Carlos Andrés Mendoza Paredes');
     await u.type(screen.getByPlaceholderText(/cédula o nombre completo/i), 'valeria');
-    expect(screen.queryByText('Carlos Mendoza')).not.toBeInTheDocument();
-    expect(screen.getByText('Valeria Ortiz')).toBeInTheDocument();
+    expect(screen.queryByText('Carlos Andrés Mendoza Paredes')).not.toBeInTheDocument();
+    expect(screen.getByText('Valeria Sofía Ortiz Zambrano')).toBeInTheDocument();
     await u.clear(screen.getByPlaceholderText(/cédula o nombre completo/i));
     await u.click(screen.getByLabelText(/con incidencias/i));
-    expect(screen.getByText('Carlos Mendoza')).toBeInTheDocument();
-    expect(screen.queryByText('Camila Andrade')).not.toBeInTheDocument();
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes')).toBeInTheDocument();
+    expect(screen.queryByText('Camila Alejandra Andrade Morales')).not.toBeInTheDocument();
   });
 });
 
@@ -71,7 +71,7 @@ describe('RF-06 · ficha del estudiante', () => {
     iniciarSesionFalsa();
     mockApi();
     renderApp('/estudiantes/U-04');
-    expect(await screen.findByRole('heading', { name: 'Carlos Mendoza' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Carlos Andrés Mendoza Paredes' })).toBeInTheDocument();
     for (const estado of ['calificada', 'cero', 'sin_entrega', 'pendiente']) {
       expect(document.querySelector(`.tabla [data-estado="${estado}"]`)).not.toBeNull();
     }
@@ -123,22 +123,28 @@ describe('Buscador por cédula y nombre completo', () => {
     mockApi();
     const u = userEvent.setup();
     renderApp('/estudiantes');
-    await screen.findByText('Carlos Mendoza');
-    expect(screen.getByText('Carlos Mendoza').closest('td')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
+    await screen.findByText('Carlos Andrés Mendoza Paredes');
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes').closest('td')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
 
     const buscar = screen.getByPlaceholderText(/cédula o nombre completo/i);
     await u.type(buscar, '1804923199');
-    expect(screen.getByText('Carlos Mendoza')).toBeInTheDocument();
-    expect(screen.queryByText('Valeria Ortiz')).not.toBeInTheDocument();
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes')).toBeInTheDocument();
+    expect(screen.queryByText('Valeria Sofía Ortiz Zambrano')).not.toBeInTheDocument();
 
     await u.clear(buscar);
     await u.type(buscar, '17045');
-    expect(screen.getByText('Valeria Ortiz')).toBeInTheDocument();
-    expect(screen.queryByText('Carlos Mendoza')).not.toBeInTheDocument();
+    expect(screen.getByText('Valeria Sofía Ortiz Zambrano')).toBeInTheDocument();
+    expect(screen.queryByText('Carlos Andrés Mendoza Paredes')).not.toBeInTheDocument();
 
     await u.clear(buscar);
     await u.type(buscar, 'camila andrade');
-    expect(screen.getByText('Camila Andrade')).toBeInTheDocument();
+    expect(screen.getByText('Camila Alejandra Andrade Morales')).toBeInTheDocument();
+    expect(screen.getAllByTestId('datos-estudiante')).toHaveLength(1);
+
+    // Mientras se escribe: inicio de cada palabra de los dos nombres y dos apellidos
+    await u.clear(buscar);
+    await u.type(buscar, 'mendoza par');
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes')).toBeInTheDocument();
     expect(screen.getAllByTestId('datos-estudiante')).toHaveLength(1);
   });
 });

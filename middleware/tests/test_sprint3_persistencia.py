@@ -137,7 +137,7 @@ def test_datos_sobreviven_a_reinicio(motor):
 def test_login_moodle_guarda_perfil_sin_contrasena_local(motor):
     assert client.post("/api/v1/auth/login", json=DOCENTE).status_code == 200
     fila = repositories.user_by_email("rgomez4824@uta.edu.ec", motor)
-    assert fila["rol"] == "DOCENTE" and fila["nombres"] == "Ing. Roberto Gómez"
+    assert fila["rol"] == "DOCENTE" and fila["nombres"] == "Roberto Patricio Gómez Salazar"
     assert fila["password_hash"] == "MOODLE"          # la contraseña sólo vive en Moodle
     assert fila["moodle_user_id"] == 10 and fila["moodle_username"] == "rgomez"
     primer_acceso = fila["ultimo_acceso"]

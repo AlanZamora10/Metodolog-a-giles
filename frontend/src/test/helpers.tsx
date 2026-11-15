@@ -8,7 +8,7 @@ import type { Alerta, CursoEstudiantes, EstadoSincronizacion, Estudiante, Report
 
 export const DOCENTE: Usuario = {
   id: 1,
-  nombres: 'Ing. Roberto Gómez',
+  nombres: 'Roberto Patricio Gómez Salazar',
   email: 'rgomez4824@uta.edu.ec',
   rol: 'DOCENTE',
   id_number: 'U-01',
@@ -59,16 +59,16 @@ function est(id: string, nombres: string, nota_final: number, nivel: Estudiante[
 export const ESTUDIANTES: CursoEstudiantes = {
   ...SYNC.cursos[0],
   estudiantes: [
-    est('U-04', 'Carlos Mendoza', 3.04, 'CRITICO', [
+    est('U-04', 'Carlos Andrés Mendoza Paredes', 3.04, 'CRITICO', [
       { id_number: 'U1-A1', nombre: 'Evaluación Unidad 1', componente: 'ACD', unidad: 1, parcial: 1, nota: 6.0, estado: 'CALIFICADO' },
       { id_number: 'U1-T2', nombre: 'Tarea 2', componente: 'TAREAS', unidad: 1, parcial: 1, nota: 0, estado: 'CALIFICADO' },
       { id_number: 'U2-T4', nombre: 'Tarea 4', componente: 'TAREAS', unidad: 2, parcial: 1, nota: 0, estado: 'SIN_ENTREGA' },
       { id_number: 'U2-P1', nombre: 'Proyecto', componente: 'PAE', unidad: 2, parcial: 1, nota: null, estado: 'PENDIENTE' },
     ], 'R1_NOTA_CRITICA'),
-    est('U-05', 'Valeria Ortiz', 6.2, 'EN_RIESGO', [
+    est('U-05', 'Valeria Sofía Ortiz Zambrano', 6.2, 'EN_RIESGO', [
       { id_number: 'U1-A1', nombre: 'Evaluación Unidad 1', componente: 'ACD', unidad: 1, parcial: 1, nota: 6.2, estado: 'CALIFICADO' },
     ]),
-    est('U-06', 'Camila Andrade', 8.9, 'ACEPTABLE', [
+    est('U-06', 'Camila Alejandra Andrade Morales', 8.9, 'ACEPTABLE', [
       { id_number: 'U1-A1', nombre: 'Evaluación Unidad 1', componente: 'ACD', unidad: 1, parcial: 1, nota: 8.9, estado: 'CALIFICADO' },
     ]),
   ],
@@ -84,7 +84,7 @@ function alerta(id: number, id_number: string, nombres: string, nota: number): A
   };
 }
 
-export const ALERTAS: Alerta[] = [alerta(1, 'U-04', 'Carlos Mendoza', 3.04), alerta(2, 'U-07', 'Valeria Ortiz', 4.07)];
+export const ALERTAS: Alerta[] = [alerta(1, 'U-04', 'Carlos Andrés Mendoza Paredes', 3.04), alerta(2, 'U-07', 'Valeria Sofía Ortiz Zambrano', 4.07)];
 
 export const REPORTE: Reporte = {
   curso: { id: 2, shortname: 'SOF-POO-A', fullname: '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A', docentes: ['rgomez4824@uta.edu.ec'] },
@@ -98,7 +98,7 @@ export const REPORTE: Reporte = {
   },
   distribucion_estados: { calificado: 4, cero: 1, sin_entrega: 1, pendiente: 1, total_registros: 7, estudiantes_con_cero: 1, estudiantes_sin_entrega: 1, estudiantes_con_pendiente: 1 },
   alertas: { r1_activas: 2, r2_activas: 0, abiertas: 2, atendidas: 0, publicadas: 0, cerradas: 0, resueltas: 0 },
-  estudiantes_prioritarios: [{ id_number: 'U-04', nombres: 'Carlos Mendoza', nota_final: 3.04, nivel_riesgo: 'CRITICO', regla_alerta: 'R1_NOTA_CRITICA' }],
+  estudiantes_prioritarios: [{ id_number: 'U-04', nombres: 'Carlos Andrés Mendoza Paredes', nota_final: 3.04, nivel_riesgo: 'CRITICO', regla_alerta: 'R1_NOTA_CRITICA' }],
   hallazgos: ['Promedio del curso 6.05/10 (mediana 6.20).'],
   recomendaciones: ['Atender primero las alertas de nota crítica.'],
 };

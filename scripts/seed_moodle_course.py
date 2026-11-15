@@ -32,14 +32,14 @@ COURSE_DATA: Dict[str, Any] = {
             "codigo": "MAT1",
             "nombre": "Metodologías Ágiles",
             "carrera": "Ingeniería de Software - FISEI",
-            "docente": "Ing. Roberto Gómez",
+            "docente": "Ing. Roberto Patricio Gómez Salazar",
             "creditos": 3
         },
         {
             "codigo": "MAT2",
             "nombre": "Ingeniería de Software",
             "carrera": "Ingeniería de Software - FISEI",
-            "docente": "Ing. Roberto Gómez",
+            "docente": "Ing. Roberto Patricio Gómez Salazar",
             "creditos": 3
         }
     ],

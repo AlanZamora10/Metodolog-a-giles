@@ -44,7 +44,7 @@ CREATE TABLE materias (
     codigo VARCHAR(20) UNIQUE NOT NULL,       -- ej: MAT1, MAT2
     nombre VARCHAR(150) NOT NULL,              -- ej: Metodologías Ágiles
     carrera VARCHAR(100) DEFAULT 'Ingeniería de Software - FISEI',
-    docente_titular VARCHAR(150) DEFAULT 'Ing. Roberto Gómez',
+    docente_titular VARCHAR(150) DEFAULT 'Ing. Roberto Patricio Gómez Salazar',
     creditos INT DEFAULT 3,
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -261,14 +261,14 @@ JOIN parciales p ON cp.parcial_id = p.id;
 -- Los password_hash son marcadores: al arrancar, el middleware los reemplaza por hashes PBKDF2 reales
 -- calculados con SEED_DOCENTE_PASSWORD / SEED_ESTUDIANTE_PASSWORD / SEED_ADMIN_PASSWORD del entorno.
 INSERT INTO usuarios (nombres, email, password_hash, rol, id_number) VALUES
-('Ing. Roberto Gómez', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
-('Carlos Mendoza', 'cmendoza3199@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
+('Ing. Roberto Patricio Gómez Salazar', 'docente@uta.edu.ec', 'b9f4a081$8d1c99837f48', 'DOCENTE', 'U-01'),
+('Carlos Andrés Mendoza Paredes', 'cmendoza3199@uta.edu.ec', 'c7a2b910$9e2d88194a51', 'ESTUDIANTE', 'U-04'),
 ('Administrador 1', 'admin@uta.edu.ec', 'e3a1f822$7b5c11029e88', 'ADMIN', 'U-02');
 
 -- 1. Insertar Materias
 INSERT INTO materias (codigo, nombre, docente_titular) VALUES
-('MAT1', 'Metodologías Ágiles', 'Ing. Roberto Gómez'),
-('MAT2', 'Ingeniería de Software', 'Ing. Roberto Gómez');
+('MAT1', 'Metodologías Ágiles', 'Ing. Roberto Patricio Gómez Salazar'),
+('MAT2', 'Ingeniería de Software', 'Ing. Roberto Patricio Gómez Salazar');
 
 -- 2. Insertar Periodo y Parciales
 INSERT INTO periodos (codigo, nombre, fecha_inicio, fecha_fin) VALUES
@@ -281,13 +281,13 @@ INSERT INTO parciales (periodo_id, numero_parcial, nombre, fecha_inicio, fecha_f
 -- 3. Insertar los 20 Estudiantes de Moodle UTA (U-03 a U-22, mismos idnumber y correos que docker/moodle/seed.php)
 -- Los ids 1..7 (U-03 a U-09) conservan los datos analíticos heredados de HU-01 (MAT1).
 INSERT INTO estudiantes (id_number, nombres, email) VALUES
-('U-03', 'Camila Andrade', 'candrade8746@uta.edu.ec'),
-('U-04', 'Carlos Mendoza', 'cmendoza3199@uta.edu.ec'),
-('U-05', 'Mateo Paredes', 'mparedes1230@uta.edu.ec'),
-('U-06', 'Sofía Villacís', 'svillacis3416@uta.edu.ec'),
-('U-07', 'Carlos Mena', 'cmena4553@uta.edu.ec'),
-('U-08', 'Valeria Ortiz', 'vortiz7322@uta.edu.ec'),
-('U-09', 'Andrés Salazar', 'asalazar2875@uta.edu.ec'),
+('U-03', 'Camila Alejandra Andrade Morales', 'candrade8746@uta.edu.ec'),
+('U-04', 'Carlos Andrés Mendoza Paredes', 'cmendoza3199@uta.edu.ec'),
+('U-05', 'Marco Antonio Paredes Velasco', 'mparedes1230@uta.edu.ec'),
+('U-06', 'Sofía Valentina Villacís Naranjo', 'svillacis3416@uta.edu.ec'),
+('U-07', 'Carlos Eduardo Mena Castillo', 'cmena4553@uta.edu.ec'),
+('U-08', 'Valeria Sofía Ortiz Zambrano', 'vortiz7322@uta.edu.ec'),
+('U-09', 'Andrés Felipe Salazar Cueva', 'asalazar2875@uta.edu.ec'),
 ('U-10', 'Gabriela Viteri', 'gviteri4569@uta.edu.ec'),
 ('U-11', 'Sebastián Romero', 'sromero1238@uta.edu.ec'),
 ('U-12', 'Daniela Espinoza', 'despinoza2194@uta.edu.ec'),
@@ -336,13 +336,13 @@ INSERT INTO actividades (materia_id, parcial_id, unidad_id, id_number_normalizad
 -- Verificación estricta de fórmula:
 -- Nota Final = (0.40 * Autónomo) + (0.30 * Tareas) + (0.30 * PAE)
 -- Cumpliendo Criterio HU-01:
--- * Mateo Paredes: 3.50 (Crítico < 5.0) -> Autónomo: 4.0, Tareas: 3.0, PAE: 3.5 -> (4.0*0.4)+(3.0*0.3)+(3.5*0.3) = 1.6 + 0.9 + 1.05 = 3.55 -> Ajustado a 3.50
--- * Sofía Villacís: 4.50 (Crítico < 5.0) -> Autónomo: 4.5, Tareas: 4.0, PAE: 5.0 -> (4.5*0.4)+(4.0*0.3)+(5.0*0.3) = 1.8 + 1.2 + 1.5 = 4.50
--- * Valeria Ortiz: 6.20 (En Riesgo)    -> Autónomo: 6.5, Tareas: 6.0, PAE: 6.0 -> (6.5*0.4)+(6.0*0.3)+(6.0*0.3) = 2.6 + 1.8 + 1.8 = 6.20
--- * Camila Andrade: 8.00 (Aceptable)    -> Autónomo: 8.0, Tareas: 8.0, PAE: 8.0 -> 8.00
--- * Carlos Mendoza: 8.50 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.5, PAE: 8.5 -> 8.50
--- * Carlos Mena: 7.60 (Aceptable)    -> Autónomo: 8.0, Tareas: 7.0, PAE: 7.67 -> (8.0*0.4)+(7.0*0.3)+(7.67*0.3) = 3.2 + 2.1 + 2.3 = 7.60
--- * Andrés Salazar: 8.40 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.0, PAE: 8.7 -> (8.5*0.4)+(8.0*0.3)+(8.7*0.3) = 3.4 + 2.4 + 2.61 = 8.41 -> 8.40
+-- * Marco Antonio Paredes Velasco: 3.50 (Crítico < 5.0) -> Autónomo: 4.0, Tareas: 3.0, PAE: 3.5 -> (4.0*0.4)+(3.0*0.3)+(3.5*0.3) = 1.6 + 0.9 + 1.05 = 3.55 -> Ajustado a 3.50
+-- * Sofía Valentina Villacís Naranjo: 4.50 (Crítico < 5.0) -> Autónomo: 4.5, Tareas: 4.0, PAE: 5.0 -> (4.5*0.4)+(4.0*0.3)+(5.0*0.3) = 1.8 + 1.2 + 1.5 = 4.50
+-- * Valeria Sofía Ortiz Zambrano: 6.20 (En Riesgo)    -> Autónomo: 6.5, Tareas: 6.0, PAE: 6.0 -> (6.5*0.4)+(6.0*0.3)+(6.0*0.3) = 2.6 + 1.8 + 1.8 = 6.20
+-- * Camila Alejandra Andrade Morales: 8.00 (Aceptable)    -> Autónomo: 8.0, Tareas: 8.0, PAE: 8.0 -> 8.00
+-- * Carlos Andrés Mendoza Paredes: 8.50 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.5, PAE: 8.5 -> 8.50
+-- * Carlos Eduardo Mena Castillo: 7.60 (Aceptable)    -> Autónomo: 8.0, Tareas: 7.0, PAE: 7.67 -> (8.0*0.4)+(7.0*0.3)+(7.67*0.3) = 3.2 + 2.1 + 2.3 = 7.60
+-- * Andrés Felipe Salazar Cueva: 8.40 (Aceptable)    -> Autónomo: 8.5, Tareas: 8.0, PAE: 8.7 -> (8.5*0.4)+(8.0*0.3)+(8.7*0.3) = 3.4 + 2.4 + 2.61 = 8.41 -> 8.40
 
 INSERT INTO calificaciones_ponderadas 
 (estudiante_id, materia_id, parcial_id, nota_autonomo, nota_tareas, nota_pae, nota_final, nivel_riesgo, tendencia, pendiente_regresion, probabilidad_aprobacion)
@@ -357,19 +357,19 @@ VALUES
 
 -- 7. Insertar Calificaciones Detalladas por Actividad (MAT1 - Parcial 1)
 -- Actividades: 1 (MAT1-P1-U1-T1), 2 (MAT1-P1-U2-T2), 3 (MAT1-P1-U2-T3), 4 (MAT1-P1-U3-T4), 5 (MAT1-P1-U4-T5)
--- Camila Andrade (1)
+-- Camila Alejandra Andrade Morales (1)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (1, 1, 8.0), (1, 2, 8.0), (1, 3, 8.0), (1, 4, 8.0), (1, 5, 8.0);
--- Carlos Mendoza (2)
+-- Carlos Andrés Mendoza Paredes (2)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (2, 1, 8.5), (2, 2, 8.5), (2, 3, 8.5), (2, 4, 8.5), (2, 5, 8.5);
--- Mateo Paredes (3) - Caso Crítico con severa falencia en Unidad 2 (Tema 2.3 = 2.0)
+-- Marco Antonio Paredes Velasco (3) - Caso Crítico con severa falencia en Unidad 2 (Tema 2.3 = 2.0)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (3, 1, 6.0), (3, 2, 2.0), (3, 3, 2.0), (3, 4, 4.0), (3, 5, 4.0);
--- Sofía Villacís (4) - Caso Crítico con falencia en Unidad 1 (Tema 1.1 = 3.5)
+-- Sofía Valentina Villacís Naranjo (4) - Caso Crítico con falencia en Unidad 1 (Tema 1.1 = 3.5)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (4, 1, 3.5), (4, 2, 5.5), (4, 3, 4.0), (4, 4, 4.0), (4, 5, 5.0);
--- Carlos Mena (5)
+-- Carlos Eduardo Mena Castillo (5)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (5, 1, 8.0), (5, 2, 8.0), (5, 3, 7.0), (5, 4, 7.0), (5, 5, 7.6);
--- Valeria Ortiz (6) - En Riesgo
+-- Valeria Sofía Ortiz Zambrano (6) - En Riesgo
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (6, 1, 7.0), (6, 2, 6.0), (6, 3, 6.0), (6, 4, 6.0), (6, 5, 6.0);
--- Andrés Salazar (7)
+-- Andrés Felipe Salazar Cueva (7)
 INSERT INTO calificaciones (estudiante_id, actividad_id, nota) VALUES (7, 1, 8.5), (7, 2, 8.5), (7, 3, 8.0), (7, 4, 8.0), (7, 5, 8.7);
 
 -- 8. Insertar Alertas Tempranas Iniciales (HU-08)

@@ -18,4 +18,16 @@ $functions = [
         'type'         => 'write',
         'capabilities' => 'moodle/course:manageactivities',
     ],
+    'local_edumonitor_publicar_refuerzo' => [
+        'classname'    => 'local_edumonitor\external\publicar_refuerzo',
+        'description'  => 'Crea la tarea de refuerzo restringida al estudiante y le adjunta la guía de estudio en PDF.',
+        'type'         => 'write',
+        'capabilities' => 'moodle/course:manageactivities',
+    ],
+    'local_edumonitor_notificar_refuerzo' => [
+        'classname'    => 'local_edumonitor\external\notificar_refuerzo',
+        'description'  => 'Notifica al estudiante (campana de Moodle) la tarea de refuerzo que se le asignó.',
+        'type'         => 'write',
+        'capabilities' => 'moodle/course:manageactivities',
+    ],
 ];

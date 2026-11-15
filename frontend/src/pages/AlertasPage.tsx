@@ -336,6 +336,16 @@ function CentroAlertas() {
                       Visible sólo para {sel.nombres}. Curso módulo (cmid): <b className="mono">{publicado.cmid}</b>
                     </span>
                     <span className="small">Fecha de entrega: {fechaHora(publicado.fecha_entrega)}</span>
+                    {publicado.guia_pdf && (
+                      <span className="small" data-testid="guia-pdf">
+                        Guía de estudio adjunta en la tarea: <b className="mono">{publicado.guia_pdf}</b>
+                      </span>
+                    )}
+                    <span className="small" data-testid="aviso-campana">
+                      {publicado.notificado
+                        ? `${sel.nombres} recibió el aviso en la campana de notificaciones de Moodle.`
+                        : 'La tarea se publicó, pero Moodle no envió el aviso a la campana del estudiante.'}
+                    </span>
                     <a href={publicado.moodle_link} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ justifySelf: 'start', marginTop: 4 }}>
                       Abrir tarea en Moodle ↗
                     </a>
@@ -380,7 +390,9 @@ function CentroAlertas() {
                       </Aviso>
                     )}
                     {origen && !borrador.desdeAgente && (
-                      <span className="badge badge-blue">Borrador generado por: {origen.toLowerCase().replace(/_/g, ' ')}</span>
+                      <span className="badge badge-blue" data-testid="origen-borrador">
+                        Borrador sugerido por: Asistente Académico EduMonitor AI
+                      </span>
                     )}
                     <label>
                       Destinatario

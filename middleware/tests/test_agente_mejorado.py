@@ -40,12 +40,12 @@ def test_totales_de_cursos_y_estudiantes(sincronizado):  # noqa: F811
 def test_consulta_transversal_de_un_estudiante_ignora_el_curso_activo(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "¿Cómo va Carlos Mendoza en mis materias?", course_id=2)
     llamada = _herramienta(data, "obtener_calificaciones")
-    assert llamada["parametros"] == {"estudiante": "Carlos Mendoza"}          # sin course_id: todos sus cursos
+    assert llamada["parametros"] == {"estudiante": "Carlos Andrés Mendoza Paredes"}          # sin course_id: todos sus cursos
     cursos_reales = {c["shortname"] for c in sync_service.cursos_del_docente("rgomez4824@uta.edu.ec")
                      if any(e["id_number"] == "U-04" for e in c["estudiantes"])}
     assert {f["curso"] for f in llamada["resultado"]["calificaciones"]} == cursos_reales
     assert "generar_resumen" not in {h["herramienta"] for h in data["herramientas"]}
-    assert data["respuesta"].startswith("**Carlos Mendoza** (U-04)")
+    assert data["respuesta"].startswith("**Carlos Andrés Mendoza Paredes** (U-04)")
 
 
 def test_actividades_con_menor_rendimiento_ordenadas_y_sin_inventar(sincronizado):  # noqa: F811
@@ -66,7 +66,7 @@ def test_proponer_refuerzo_con_falencias_reales(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "Prepárame una actividad de refuerzo para Carlos Mendoza", course_id=2)
     assert [h["herramienta"] for h in data["herramientas"]] == ["proponer_refuerzo"]
     llamada = data["herramientas"][0]
-    assert llamada["parametros"] == {"student_query": "Carlos Mendoza", "course_id": 2}
+    assert llamada["parametros"] == {"student_query": "Carlos Andrés Mendoza Paredes", "course_id": 2}
     r = llamada["resultado"]
     assert r["curso_id"] == 2 and r["estudiante"]["id_number"] == "U-04"
     assert {"titulo", "objetivo", "pasos", "criterios", "instrucciones"} <= set(r["propuesta"])
@@ -85,7 +85,7 @@ def test_proponer_refuerzo_con_falencias_reales(sincronizado):  # noqa: F811
 
     log = [x for x in repositories.filas("logs_sistema") if x["tipo_proceso"] == "AGENTE_HERRAMIENTA"][-1]
     assert log["detalle"]["herramienta"] == "proponer_refuerzo"
-    assert log["detalle"]["parametros"] == {"student_query": "Carlos Mendoza", "course_id": 2}
+    assert log["detalle"]["parametros"] == {"student_query": "Carlos Andrés Mendoza Paredes", "course_id": 2}
 
 
 def test_refuerzo_sin_curso_elige_el_curso_con_nota_mas_baja(sincronizado):  # noqa: F811
@@ -104,7 +104,7 @@ def test_refuerzo_de_estudiante_inexistente_informa_sin_inventar(sincronizado): 
 
 def test_respuesta_estructurada_en_viñetas(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "¿Qué estudiantes de POO necesitan atención?")
-    assert "- **Carlos Mendoza** (Programación orientada a objetos, paralelo A)" in data["respuesta"]
+    assert "- **Carlos Andrés Mendoza Paredes** (Programación orientada a objetos, paralelo A)" in data["respuesta"]
     assert "SOF-POO-A" not in data["respuesta"]
     assert "; Sebastián" not in data["respuesta"]            # ya no hay listas planas separadas por punto y coma
     data = _chat(sincronizado, "Dame un resumen y las alertas de POO")
@@ -125,7 +125,7 @@ def test_plan_del_llm_de_refuerzo_usa_el_estudiante_mencionado(sincronizado, mon
     data = _chat(sincronizado, "Prepárame una actividad de refuerzo para Carlos Mendoza")
     assert data["plan_fuente"] == "ollama_slm"
     assert [h["herramienta"] for h in data["herramientas"]] == ["proponer_refuerzo"]
-    assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Mendoza"
+    assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Andrés Mendoza Paredes"
 
 
 def test_catalogo_expone_las_seis_herramientas(sincronizado):  # noqa: F811
@@ -224,7 +224,7 @@ def test_sincronizacion_trae_la_cedula_del_perfil_de_moodle(sincronizado):  # no
 def test_frases_de_plan_de_apoyo_activan_proponer_refuerzo(sincronizado, mensaje):  # noqa: F811
     data = _chat(sincronizado, mensaje, course_id=2)
     assert [h["herramienta"] for h in data["herramientas"]] == ["proponer_refuerzo"]
-    assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Mendoza"
+    assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Andrés Mendoza Paredes"
     assert "generar_resumen" not in {h["herramienta"] for h in data["herramientas"]}
 
 
@@ -240,3 +240,101 @@ def test_respuestas_del_agente_sin_codigos_tecnicos(sincronizado):  # noqa: F811
         for codigo in ("R1", "R2", "ACD", "PAE", "SIN_ENTREGA"):
             assert codigo not in texto, (mensaje, codigo)
     assert "Exámenes" in _chat(sincronizado, "Dame las notas de Carlos Mendoza")["respuesta"]
+
+
+# ------------------------------------------------------------------ Nombres completos (dos nombres y dos apellidos)
+_CURSOS_NOMBRES = [{"estudiantes": [
+    {"id_number": "U-04", "nombres": "Carlos Andrés Mendoza Paredes", "cedula": "1804923199"},
+    {"id_number": "U-05", "nombres": "Marco Antonio Paredes Velasco", "cedula": "1704561230"},
+    {"id_number": "U-07", "nombres": "Carlos Eduardo Mena Castillo", "cedula": "1802764553"},
+]}]
+
+
+@pytest.mark.parametrize("mensaje, esperado", [
+    ("¿Cómo va Carlos Mendoza?", "Carlos Andrés Mendoza Paredes"),            # nombre parcial
+    ("Notas de Carlos Andrés Mendoza Paredes", "Carlos Andrés Mendoza Paredes"),
+    ("¿Y Marco Paredes?", "Marco Antonio Paredes Velasco"),                    # Paredes es 2.º apellido de Carlos
+    ("Revisa a Mendoza", "Carlos Andrés Mendoza Paredes"),                     # un apellido largo y único
+    ("¿Cómo va Paredes?", None),                                               # apellido compartido: ambiguo
+    ("¿Y Carlos?", None),                                                      # dos estudiantes se llaman Carlos
+])
+def test_estudiante_mencionado_con_nombres_completos(mensaje, esperado):
+    texto = agente_herramientas._normalizar(mensaje)
+    assert agente_herramientas._estudiante_mencionado(texto, _CURSOS_NOMBRES) == esperado
+
+
+def test_filtro_por_parte_del_nombre_completo():
+    carlos = _CURSOS_NOMBRES[0]["estudiantes"][0]
+    for filtro in ("carlos mendoza", "mendoza paredes", "carlos andres mendoza paredes", "u-04", "1804923199"):
+        assert agente_herramientas._coincide(carlos, filtro), filtro
+    assert not agente_herramientas._coincide(carlos, "carlos mena")
+
+
+# ------------------------------------------------------------------ Umbral numérico estricto
+def _notas(sincronizado):  # noqa: F811
+    propios = sync_service.cursos_del_docente("rgomez4824@uta.edu.ec")
+    return sorted((e["nota_final"], e["nombres"]) for c in propios for e in c["estudiantes"])
+
+
+@pytest.mark.parametrize("mensaje, cumple, texto", [
+    ("De mis materias qué estudiantes están con una nota menor de 4 puntos", lambda n: n < 4, "nota menor a 4.00"),
+    ("¿Quiénes tienen promedio mayor a 7?", lambda n: n > 7, "nota mayor a 7.00"),
+    ("Estudiantes con nota entre 6 y 7", lambda n: 6 <= n <= 7, "nota entre 6.00 y 7.00"),
+    ("notas menores o iguales a 6,5", lambda n: n <= 6.5, "nota menor o igual a 6.50"),
+])
+def test_umbral_explicito_filtra_estrictamente(sincronizado, mensaje, cumple, texto):  # noqa: F811
+    data = _chat(sincronizado, mensaje, course_id=2)
+    assert [h["herramienta"] for h in data["herramientas"]] == ["obtener_calificaciones"]
+    filas = data["herramientas"][0]["resultado"]["calificaciones"]
+    esperadas = [x for x in _notas(sincronizado) if cumple(round(x[0], 2))]
+    assert [(f["nota_final"], f["nombres"]) for f in filas] == esperadas          # sólo quienes cumplen, de menor a mayor
+    assert data["respuesta"].startswith(f"Encontré **{len(esperadas)} matrícula(s)** con **{texto}**")
+    lineas = [ln for ln in data["respuesta"].splitlines() if ln.startswith("- ")]
+    assert len(lineas) == len(esperadas)
+
+
+def test_umbral_sin_coincidencias_lo_dice_sin_listar(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "¿Quién tiene nota menor a 1?")
+    assert data["herramientas"][0]["resultado"]["calificaciones"] == []
+    assert data["respuesta"].startswith("Ninguna matrícula tiene **nota menor a 1.00**")
+
+
+def test_umbral_respeta_la_materia_nombrada(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "En Programación orientada a objetos, ¿quiénes tienen nota menor de 4?")
+    assert data["herramientas"][0]["parametros"] == {"course_id": 2, "operador": "<", "umbral": 4.0}
+    assert "en Programación orientada a objetos, paralelo A" in data["respuesta"]
+
+
+def test_el_umbral_del_llm_no_prevalece_sobre_el_mensaje(sincronizado, monkeypatch):  # noqa: F811
+    from test_fase_a import _agente_responde
+    _agente_responde(monkeypatch, {"fuente": "ollama_slm", "llamadas": [
+        {"herramienta": "obtener_calificaciones", "parametros": {"operador": "<", "umbral": 7}}]})
+    data = _chat(sincronizado, "Dame las notas de POO")
+    assert "operador" not in data["herramientas"][0]["parametros"]
+
+
+# ------------------------------------------------------------------ Materias no son estudiantes
+def test_materia_pasada_como_estudiante_por_el_llm_consulta_el_curso(sincronizado, monkeypatch):  # noqa: F811
+    from test_fase_a import _agente_responde
+    _agente_responde(monkeypatch, {"fuente": "ollama_slm", "llamadas": [
+        {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "Programación orientada a objetos"}}]})
+    data = _chat(sincronizado, "Dame las notas de Programación orientada a objetos, paralelo A")
+    [llamada] = data["herramientas"]
+    assert llamada["parametros"] == {"course_id": 2}
+    assert "error" not in llamada["resultado"] and llamada["resultado"]["filas"] == 4
+    assert "No se encontró al estudiante" not in data["respuesta"]
+
+
+def test_palabras_de_materias_no_cuentan_como_nombre_de_estudiante():
+    cursos = [{"id": 2, "shortname": "SOF-ED-B", "fullname": "(SOF) ESTRUCTURA DE DATOS - B", "estudiantes": [
+        {"id_number": "U-50", "nombres": "Ana Lucía Datos Estructura", "cedula": None}]}]
+    texto = agente_herramientas._normalizar("¿Cómo va Estructura de datos?")
+    assert agente_herramientas._estudiante_mencionado(texto, cursos) is None
+    assert agente_herramientas._curso_mencionado(texto, cursos) == 2
+
+
+def test_paralelo_distingue_cursos_de_la_misma_materia():
+    cursos = [{"id": 7, "shortname": "SOF-ED-A", "fullname": "(SOF) ESTRUCTURA DE DATOS - A"},
+              {"id": 3, "shortname": "SOF-ED-B", "fullname": "(SOF) ESTRUCTURA DE DATOS - B"}]
+    texto = agente_herramientas._normalizar("Resumen de Estructura de datos, paralelo B")
+    assert agente_herramientas._curso_mencionado(texto, cursos) == 3

@@ -7,8 +7,8 @@ import { Markdown } from '../components/ui/Markdown';
 const RESPUESTA_ALERTAS = {
   respuesta:
     '**Resumen ejecutivo**\n- Hay **2 alerta(s) activa(s)**; 2 siguen abiertas.\n\n### Alertas tempranas\n' +
-    '- **Carlos Mendoza** (POO) · Nota crítica · nota **3.04/10**\n  - Incidencias: U2-T4 (sin entrega)\n' +
-    '- **Valeria Ortiz** (POO) · Nota crítica · nota **4.07/10**',
+    '- **Carlos Andrés Mendoza Paredes** (POO) · Nota crítica · nota **3.04/10**\n  - Incidencias: U2-T4 (sin entrega)\n' +
+    '- **Valeria Sofía Ortiz Zambrano** (POO) · Nota crítica · nota **4.07/10**',
   formato: 'markdown',
   herramientas: [
     { herramienta: 'listar_cursos_autorizados', parametros: {}, resultado: { filas: 4 }, duracion_ms: 3 },
@@ -20,25 +20,25 @@ const RESPUESTA_ALERTAS = {
 };
 
 const RESPUESTA_REFUERZO = {
-  respuesta: 'Preparé una propuesta de refuerzo para **Carlos Mendoza** en **SOF-POO-A**.\n\n**Título:** Refuerzo Unidad 2 — SOF-POO-A',
+  respuesta: 'Preparé una propuesta de refuerzo para **Carlos Andrés Mendoza Paredes** en **SOF-POO-A**.\n\n**Título:** Refuerzo Unidad 2 — SOF-POO-A',
   formato: 'markdown',
   herramientas: [
     {
       herramienta: 'proponer_refuerzo',
-      parametros: { student_query: 'Carlos Mendoza', course_id: 2 },
+      parametros: { student_query: 'Carlos Andrés Mendoza Paredes', course_id: 2 },
       duracion_ms: 4,
       resultado: {
         filas: 1,
-        estudiante: { id_number: 'U-04', nombres: 'Carlos Mendoza' },
+        estudiante: { id_number: 'U-04', nombres: 'Carlos Andrés Mendoza Paredes' },
         curso: 'SOF-POO-A',
         curso_id: 2,
         propuesta: {
           titulo: 'Refuerzo Unidad 2: Informe de laboratorio — SOF-POO-A',
-          objetivo: 'Que Carlos Mendoza consolide la Unidad 2',
+          objetivo: 'Que Carlos Andrés Mendoza Paredes consolide la Unidad 2',
           pasos: ['Revise U1-T2'],
           criterios: [{ criterio: 'Corrección técnica', peso: 100 }],
           plazo_dias: 7,
-          instrucciones: 'Objetivo: Que Carlos Mendoza consolide la Unidad 2\n\nDescripción de la tarea:\n1. Revise U1-T2',
+          instrucciones: 'Objetivo: Que Carlos Andrés Mendoza Paredes consolide la Unidad 2\n\nDescripción de la tarea:\n1. Revise U1-T2',
         },
         alerta: { id: 1, estado: 'ABIERTA', regla: 'R1_NOTA_CRITICA' },
       },
@@ -77,7 +77,7 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
 
     await u.click(screen.getByRole('button', { name: '¿Qué estudiantes de Programación orientada a objetos necesitan atención?' }));
     expect(await screen.findByRole('heading', { name: 'Alertas tempranas' })).toBeInTheDocument();
-    expect(screen.getByText('Carlos Mendoza', { selector: 'strong' })).toBeInTheDocument();
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByText('Incidencias: U2-T4 (sin entrega)')).toBeInTheDocument();
     const [, init] = fetch.mock.calls.find(([url]) => url === '/api/v1/agent/chat')!;
     expect(JSON.parse(String(init!.body))).toEqual({ mensaje: '¿Qué estudiantes de Programación orientada a objetos necesitan atención?', course_id: 2 });
@@ -123,11 +123,11 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     });
     const u = userEvent.setup();
     renderApp('/agente');
-    await u.type(await screen.findByLabelText('Mensaje para el agente'), 'Prepárame un refuerzo para Carlos Mendoza{enter}');
+    await u.type(await screen.findByLabelText('Mensaje para el agente'), 'Prepárame un refuerzo para Carlos Andrés Mendoza Paredes{enter}');
     await u.click(await screen.findByRole('button', { name: 'Aplicar en el Centro de alertas' }));
 
     expect(await screen.findByTestId('propuesta-agente')).toBeInTheDocument();
-    expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Carlos Mendoza');
+    expect(screen.getByTestId('panel-destinatario')).toHaveTextContent('Carlos Andrés Mendoza Paredes');
     expect(screen.getByDisplayValue('Refuerzo Unidad 2: Informe de laboratorio — SOF-POO-A')).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: 'Registrar atención' }));
@@ -168,7 +168,7 @@ describe('Agente conversacional e interfaz animada', () => {
     mockApi({
       'POST /api/v1/agent/chat': () =>
         json({
-          respuesta: '¡Hola, Ing. Roberto Gómez! ¿En qué le ayudo hoy?',
+          respuesta: '¡Hola, Roberto Patricio Gómez Salazar! ¿En qué le ayudo hoy?',
           formato: 'markdown',
           herramientas: [],
           plan_fuente: 'cortesia',
@@ -179,7 +179,7 @@ describe('Agente conversacional e interfaz animada', () => {
     const u = userEvent.setup();
     renderApp('/agente');
     await u.type(await screen.findByLabelText('Mensaje para el agente'), 'hola{enter}');
-    expect(await screen.findByText('¡Hola, Ing. Roberto Gómez! ¿En qué le ayudo hoy?')).toBeInTheDocument();
+    expect(await screen.findByText('¡Hola, Roberto Patricio Gómez Salazar! ¿En qué le ayudo hoy?')).toBeInTheDocument();
     expect(screen.queryByTestId('auditoria')).not.toBeInTheDocument();
   });
 

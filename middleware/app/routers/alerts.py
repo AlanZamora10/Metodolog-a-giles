@@ -18,6 +18,8 @@ exponen alertas de cursos donde el docente es profesor en Moodle (403 en otro ca
 ==============================================================================
 """
 
+import base64
+import logging
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -31,7 +33,11 @@ from app import repositories
 from app.config import settings
 from app.routers.auth import get_current_docente
 from app.routers.logs import append_log
+from app.services import sync_service
+from app.services.guia_pdf import generar_guia_pdf
 from app.services.moodle_client import MoodleClient, MoodleError
+
+logger = logging.getLogger("middleware.alertas")
 
 router = APIRouter(tags=["Centro de Alertas y Refuerzos"])
 
@@ -231,8 +237,12 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     """
     Publica el refuerzo aprobado como tarea REAL en Moodle (RN-17 / HU-05), vía el plugin local_edumonitor:
       - Exige req.confirmado == True (400 si es False).
+      - Genera la guía de estudio institucional en PDF (datos del estudiante, unidad con falencia, explicación,
+        ejemplo resuelto, ejercicios y rúbrica) y la adjunta a la tarea.
       - Crea la tarea en la sección «Refuerzos» del curso, visible sólo para el estudiante de la alerta.
       - Guarda el cmid real devuelto por Moodle; refuerzo y alerta pasan a PUBLICADO.
+      - Notifica al estudiante en la campana de Moodle (asunto, indicaciones y enlace a la tarea). Si el aviso
+        falla, la tarea sigue publicada: se informa `notificado: false` y queda en auditoría.
       - Si Moodle falla: 502, sin cambios de estado, y queda registrado en auditoría.
       - Idempotente: volver a publicar el mismo refuerzo devuelve la tarea ya creada.
     """
@@ -254,10 +264,17 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     titulo = (req.titulo or refuerzo["titulo"])[:200]
     instrucciones = req.instrucciones or refuerzo.get("instrucciones") or refuerzo.get("descripcion") or ""
     vence = _vencimiento(req.fecha_entrega)
+    guia = _guia_de_estudio(alerta, docente, titulo, instrucciones, vence)
+    texto_moodle = instrucciones + (
+        f"\n\nGuía de estudio: descargue el PDF adjunto «{guia['nombre']}» con la explicación de los temas, "
+        "ejemplos resueltos, ejercicios propuestos y la rúbrica de evaluación." if guia else "")
+    moodle = MoodleClient()
     try:
-        tarea = await MoodleClient().crear_tarea_refuerzo(
-            course_id=alerta["curso_id"], nombre=titulo, instrucciones=instrucciones,
+        tarea = await moodle.publicar_refuerzo(
+            course_id=alerta["curso_id"], nombre=titulo, instrucciones=texto_moodle,
             email_estudiante=alerta["email"], fecha_entrega=int(vence.timestamp()), codigo=f"REF-{refuerzo_id}",
+            pdf_base64=base64.b64encode(guia["pdf"]).decode("ascii") if guia else "",
+            pdf_nombre=guia["nombre"] if guia else "Guia_de_estudio.pdf",
         )
     except MoodleError as ex:
         append_log(
@@ -268,6 +285,7 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Moodle no creó la tarea: {ex}")
 
     enlace = f"{settings.MOODLE_EXTERNAL_URL}/mod/assign/view.php?id={int(tarea['cmid'])}"
+    notificacion = await _notificar_estudiante(moodle, int(tarea["cmid"]), alerta, instrucciones, docente)
     refuerzo = repositories.update_refuerzo(refuerzo_id, {
         "estado": "PUBLICADO", "cmid": int(tarea["cmid"]), "moodle_url": enlace,
         "titulo": titulo, "instrucciones": instrucciones,
@@ -283,17 +301,63 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
                  f"en {alerta['curso_codigo']}."),
         detalle={"refuerzo_id": refuerzo_id, "cmid": int(tarea["cmid"]), "curso": alerta["curso_codigo"],
                  "estudiante": alerta["nombres"], "ya_existia": bool(tarea.get("existente")),
-                 "fecha_entrega": vence.isoformat()},
+                 "fecha_entrega": vence.isoformat(), "notificado": notificacion["notificado"],
+                 "guia_pdf": tarea.get("archivo") or None, "guia_bytes": len(guia["pdf"]) if guia else 0},
     )
 
     return {
         "status": "success",
-        "mensaje": "Tarea de refuerzo publicada en Moodle, visible sólo para el estudiante.",
+        "mensaje": ("Tarea de refuerzo publicada en Moodle, visible sólo para el estudiante"
+                    + (", con aviso en su campana de notificaciones." if notificacion["notificado"] else ".")),
         "cmid": int(tarea["cmid"]),
+        "notificado": notificacion["notificado"],
+        "notificacion_id": notificacion["id"],
+        "guia_pdf": tarea.get("archivo") or None,
         "moodle_link": enlace,
         "fecha_entrega": vence.isoformat(),
         "refuerzo": refuerzo,
     }
+
+
+def _guia_de_estudio(alerta: dict, docente: dict, titulo: str, instrucciones: str,
+                     vence: datetime) -> Optional[Dict[str, Any]]:
+    """
+    Guía de estudio en PDF con los datos reales del estudiante en ese curso (sincronización con Moodle).
+    Si no se puede generar, la tarea se publica igual (sin adjunto) y queda registrado en auditoría.
+    """
+    try:
+        curso = next((c for c in sync_service.cursos_del_docente(docente["email"]) if c["id"] == alerta["curso_id"]),
+                     None) or {"shortname": alerta["curso_codigo"], "fullname": alerta.get("curso_nombre") or "",
+                               "estudiantes": []}
+        registro = next((e for e in curso.get("estudiantes", []) if e["id_number"] == alerta["id_number"]), None)
+        return generar_guia_pdf(
+            estudiante={"nombres": alerta["nombres"], "email": alerta["email"], "id_number": alerta["id_number"],
+                        "cedula": (registro or {}).get("cedula")},
+            curso=curso, unidad=alerta.get("unidad_critica"), docente=docente.get("nombres") or docente["email"],
+            titulo=titulo, instrucciones=instrucciones, fecha_entrega=vence.replace(tzinfo=None), registro=registro,
+        )
+    except Exception as ex:  # noqa: BLE001 - la guía es un complemento: no debe impedir la publicación
+        logger.exception("No se pudo generar la guía PDF del refuerzo")
+        append_log(tipo_proceso="GUIA_REFUERZO", estado="ERROR",
+                   mensaje=f"No se pudo generar la guía de estudio en PDF: {ex}",
+                   detalle={"alerta_id": alerta["id"], "curso": alerta["curso_codigo"]})
+        return None
+
+
+async def _notificar_estudiante(moodle: MoodleClient, cmid: int, alerta: dict, instrucciones: str,
+                                docente: dict) -> Dict[str, Any]:
+    """Aviso en la campana de Moodle al estudiante; un fallo no deshace la publicación de la tarea."""
+    try:
+        res = await moodle.notificar_refuerzo(cmid=cmid, email_estudiante=alerta["email"],
+                                              indicaciones=instrucciones, email_docente=docente.get("email") or "")
+        return {"notificado": True, "id": int(res.get("notificacionid") or 0) or None}
+    except Exception as ex:  # noqa: BLE001 - la tarea ya existe en Moodle; sólo se registra el problema
+        append_log(
+            tipo_proceso="NOTIFICAR_REFUERZO", estado="ERROR",
+            mensaje=f"La tarea (cmid {cmid}) se publicó, pero Moodle no envió el aviso al estudiante: {ex}",
+            detalle={"cmid": cmid, "curso": alerta["curso_codigo"], "estudiante": alerta["nombres"]},
+        )
+        return {"notificado": False, "id": None}
 
 
 async def consultar_agente_ia(

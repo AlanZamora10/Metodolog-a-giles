@@ -45,12 +45,23 @@ class crear_tarea extends external_api {
 
     public static function execute(int $courseid, string $nombre, string $instrucciones, string $emailestudiante,
                                    int $fechaentrega, string $codigo): array {
-        global $CFG, $DB;
-
         $p = self::validate_parameters(self::execute_parameters(), [
             'courseid' => $courseid, 'nombre' => $nombre, 'instrucciones' => $instrucciones,
             'emailestudiante' => $emailestudiante, 'fechaentrega' => $fechaentrega, 'codigo' => $codigo,
         ]);
+        [$cmid, $seccion, $existente] = self::crear_o_recuperar($p);
+        return self::respuesta($cmid, $seccion, $existente);
+    }
+
+    /**
+     * Crea la tarea restringida al estudiante o devuelve la existente con el mismo código.
+     * Lo reutiliza local_edumonitor_publicar_refuerzo (tarea + guía PDF adjunta).
+     *
+     * @param array $p Parámetros validados (courseid, nombre, instrucciones, emailestudiante, fechaentrega, codigo)
+     * @return array [cmid, número de sección, true si ya existía]
+     */
+    public static function crear_o_recuperar(array $p): array {
+        global $CFG, $DB;
 
         $course = get_course($p['courseid']);
         $context = \context_course::instance($course->id);
@@ -71,7 +82,7 @@ class crear_tarea extends external_api {
         $existente = $DB->get_record('course_modules', ['course' => $course->id, 'idnumber' => $p['codigo']]);
         if ($existente) {
             $seccion = $DB->get_field('course_sections', 'section', ['id' => $existente->section]);
-            return self::respuesta((int)$existente->id, (int)$seccion, true);
+            return [(int)$existente->id, (int)$seccion, true];
         }
 
         $seccion = self::seccion_refuerzos($course);
@@ -140,7 +151,7 @@ class crear_tarea extends external_api {
             $item->aggregationcoef = 0;
             $item->update('local_edumonitor');
         }
-        return self::respuesta((int)$moduleinfo->coursemodule, $seccion, false);
+        return [(int)$moduleinfo->coursemodule, $seccion, false];
     }
 
     /** Número de la sección «Refuerzos» del curso; la crea al final si no existe. */
@@ -159,7 +170,7 @@ class crear_tarea extends external_api {
         return (int)$nueva->section;
     }
 
-    private static function respuesta(int $cmid, int $seccion, bool $existente): array {
+    public static function respuesta(int $cmid, int $seccion, bool $existente): array {
         $url = new \moodle_url('/mod/assign/view.php', ['id' => $cmid]);
         return ['cmid' => $cmid, 'url' => $url->out(false), 'seccion' => $seccion, 'existente' => $existente];
     }

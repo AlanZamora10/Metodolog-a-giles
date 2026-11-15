@@ -138,11 +138,14 @@ def test_resincronizar_no_duplica_y_resuelve_al_recuperarse(fake, headers):
 
 
 class _MoodlePublica:
-    """Moodle simulado para local_edumonitor_crear_tarea (la publicación es real desde la Fase A)."""
+    """Moodle simulado para local_edumonitor_publicar_refuerzo (la publicación es real desde la Fase A)."""
 
-    async def crear_tarea_refuerzo(self, **kw):
+    async def publicar_refuerzo(self, **kw):
         return {"cmid": 900, "url": "http://localhost:8080/mod/assign/view.php?id=900", "seccion": 4,
                 "existente": False}
+
+    async def notificar_refuerzo(self, **kw):
+        return {"notificacionid": 1, "existente": False}
 
 
 def test_ciclo_de_vida_atender_publicar_cerrar(headers, monkeypatch):

@@ -41,12 +41,17 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
         "parametros": {},
     },
     "obtener_calificaciones": {
-        "descripcion": "Calificaciones ponderadas (ACD, Tareas, PAE, nota final, nivel, incidencias) de un curso o de "
-                       "todos; opcionalmente de un estudiante por nombre o ID (U-xx) en todos sus cursos.",
-        "parametros": {"course_id": "integer (opcional)", "estudiante": "string (opcional)"},
+        "descripcion": "Calificaciones ponderadas (Exámenes, Tareas, APE, nota final, nivel, incidencias) de un curso o "
+                       "de todos; opcionalmente de un estudiante por nombre, cédula o ID (U-xx) en todos sus cursos, "
+                       "o sólo las notas que cumplen un umbral (operador < <= > >= entre, umbral, umbral_max). "
+                       "Un nombre de materia es un curso (course_id), nunca un estudiante.",
+        "parametros": {"course_id": "integer (opcional)", "estudiante": "string (opcional)",
+                       "operador": "< | <= | > | >= | entre (opcional)", "umbral": "number (opcional)",
+                       "umbral_max": "number (opcional, sólo con entre)"},
     },
     "identificar_alertas": {
-        "descripcion": "Alertas tempranas activas (R1 nota < 5, R2 descenso entre unidades) de un curso o de todos.",
+        "descripcion": "Alertas tempranas activas (nota crítica o descenso sostenido entre unidades) de un curso o de "
+                       "todos.",
         "parametros": {"course_id": "integer (opcional)", "regla": "R1 | R2 (opcional)"},
     },
     "generar_resumen": {
@@ -137,8 +142,12 @@ def _cursos(docente: dict, course_id: Optional[int]) -> List[Dict[str, Any]]:
 
 
 def _coincide(e: Dict[str, Any], filtro: str) -> bool:
-    return (filtro == _normalizar(e["id_number"]) or filtro == (e.get("cedula") or "")
-            or filtro in _normalizar(e["nombres"] or ""))
+    """Código U-xx, cédula o nombre: basta con parte del nombre completo («Carlos Mendoza» encuentra a
+    «Carlos Andrés Mendoza Paredes») siempre que cada palabra buscada esté en el nombre."""
+    nombre = _normalizar(e["nombres"] or "")
+    buscadas, palabras = filtro.split(), nombre.split()
+    return (filtro == _normalizar(e["id_number"]) or filtro == (e.get("cedula") or "") or filtro in nombre
+            or (bool(buscadas) and all(p in palabras for p in buscadas)))
 
 
 def listar_cursos_autorizados(docente: dict) -> Dict[str, Any]:
@@ -154,13 +163,55 @@ def listar_cursos_autorizados(docente: dict) -> Dict[str, Any]:
     }
 
 
-def obtener_calificaciones(docente: dict, course_id: Optional[int] = None,
-                           estudiante: Optional[str] = None) -> Dict[str, Any]:
+OPERADORES_NOTA = {"<": "menor a", "<=": "menor o igual a", ">": "mayor a", ">=": "mayor o igual a",
+                   "entre": "entre"}
+
+
+def _criterio_valido(operador: Optional[str], umbral: Any, umbral_max: Any) -> Optional[Dict[str, Any]]:
+    """Normaliza el criterio numérico (escala 0-10); None si no hay criterio o es inválido."""
+    if operador not in OPERADORES_NOTA or umbral in (None, ""):
+        return None
+    try:
+        valor = float(str(umbral).replace(",", "."))
+        maximo = float(str(umbral_max).replace(",", ".")) if operador == "entre" else None
+    except (TypeError, ValueError):
+        return None
+    if operador == "entre":
+        if maximo is None:
+            return None
+        valor, maximo = min(valor, maximo), max(valor, maximo)
+    if not (0 <= valor <= 10) or (maximo is not None and not 0 <= maximo <= 10):
+        return None
+    return {"operador": operador, "umbral": valor, **({"umbral_max": maximo} if maximo is not None else {})}
+
+
+def _cumple(nota: Optional[float], criterio: Dict[str, Any]) -> bool:
+    if nota is None:
+        return False
+    nota, u = round(float(nota), 2), criterio["umbral"]
+    return {"<": nota < u, "<=": nota <= u, ">": nota > u, ">=": nota >= u,
+            "entre": criterio["operador"] == "entre" and u <= nota <= criterio.get("umbral_max", u)}[criterio["operador"]]
+
+
+def texto_criterio(criterio: Dict[str, Any]) -> str:
+    """'nota menor a 4.00' / 'nota entre 4.00 y 6.00'."""
+    if criterio["operador"] == "entre":
+        return f"nota entre {criterio['umbral']:.2f} y {criterio['umbral_max']:.2f}"
+    return f"nota {OPERADORES_NOTA[criterio['operador']]} {criterio['umbral']:.2f}"
+
+
+def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estudiante: Optional[str] = None,
+                           operador: Optional[str] = None, umbral: Any = None,
+                           umbral_max: Any = None) -> Dict[str, Any]:
     filtro = _normalizar(estudiante) if estudiante else None
+    criterio = _criterio_valido(operador, umbral, umbral_max)
+    cursos = _cursos(docente, course_id)
     resultado = []
-    for c in _cursos(docente, course_id):
+    for c in cursos:
         for e in c["estudiantes"]:
             if filtro and not _coincide(e, filtro):
+                continue
+            if criterio and not _cumple(e["nota_final"], criterio):
                 continue
             resultado.append({
                 "curso_id": c["id"], "curso": c["shortname"], "curso_nombre": c["fullname"],
@@ -170,9 +221,13 @@ def obtener_calificaciones(docente: dict, course_id: Optional[int] = None,
                 "promedios_unidad": e.get("promedios_unidad") or {},
                 "incidencias": [f"{a['id_number']} {_incidencia(a)}" for a in e["actividades"] if _incidencia(a)],
             })
-    if filtro and not resultado:
+    if filtro and not resultado and not criterio:
         raise HerramientaError(f"No se encontró al estudiante «{estudiante}» en los cursos consultados.")
-    return {"calificaciones": resultado, "filas": len(resultado), "estudiante": estudiante}
+    if criterio:
+        resultado.sort(key=lambda f: (f["nota_final"], f["nombres"]))
+    return {"calificaciones": resultado, "filas": len(resultado), "estudiante": estudiante, "criterio": criterio,
+            "cursos_consultados": [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"]}
+                                   for c in cursos]}
 
 
 def identificar_alertas(docente: dict, course_id: Optional[int] = None, regla: Optional[str] = None) -> Dict[str, Any]:
@@ -344,7 +399,7 @@ EJECUTORES: Dict[str, Callable[..., Dict[str, Any]]] = {
 }
 _PARAMETROS_VALIDOS = {
     "listar_cursos_autorizados": set(),
-    "obtener_calificaciones": {"course_id", "estudiante"},
+    "obtener_calificaciones": {"course_id", "estudiante", "operador", "umbral", "umbral_max"},
     "identificar_alertas": {"course_id", "regla"},
     "generar_resumen": {"course_id"},
     "analizar_actividades": {"course_id"},
@@ -362,6 +417,38 @@ _REFUERZO = re.compile(r"\b(refuerzo|reforzar|plan de mejora|plan de estudios?|p
                        r"prepar\w* (una |un )?(actividad|tarea|plan))\b")
 _ACTIVIDADES = re.compile(r"\b((actividad|actividades|tarea|tareas|evaluacion|evaluaciones)\b.*\b(menor|bajo|baja|"
                           r"peor|peores|dificil\w*|problema\w*|rendimiento|cuesta)|(menor|peor|bajo) rendimiento)")
+# Umbral numérico explícito sobre la nota («nota menor de 4 puntos», «promedio mayor a 8», «entre 4 y 6»)
+_NUMEROS_TEXTO = {"cero": "0", "uno": "1", "una": "1", "dos": "2", "tres": "3", "cuatro": "4", "cinco": "5",
+                  "seis": "6", "siete": "7", "ocho": "8", "nueve": "9", "diez": "10"}
+_NUM = r"(\d{1,2}(?:[.,]\d{1,2})?)"
+_CONTEXTO_NOTA = re.compile(r"\b(nota|notas|promedio|promedios|calificacion\w*|puntos?|puntaje|sobre 10)\b|/10")
+_PATRONES_UMBRAL = [
+    ("entre", re.compile(rf"\bentre\s+{_NUM}\s+(?:y|a)\s+{_NUM}")),
+    ("<=", re.compile(rf"(?:\b(?:menor|menores|inferior|inferiores)\s+o\s+igual(?:es)?\s+(?:a|que|de)|<=|\bcomo\s+maximo|"
+                      rf"\bmaximo\s+de)\s*{_NUM}")),
+    (">=", re.compile(rf"(?:\b(?:mayor|mayores|superior|superiores)\s+o\s+igual(?:es)?\s+(?:a|que|de)|>=|\bal\s+menos|"
+                      rf"\bcomo\s+minimo|\bminimo\s+de)\s*{_NUM}")),
+    ("<", re.compile(rf"(?:\b(?:menor|menores|inferior|inferiores)\s+(?:a|que|de)|\bmenos\s+de|\bpor\s+debajo\s+de|"
+                     rf"\bbajo|<)\s*{_NUM}")),
+    (">", re.compile(rf"(?:\b(?:mayor|mayores|superior|superiores)\s+(?:a|que|de)|\bmas\s+de|\bpor\s+encima\s+de|"
+                     rf"\bsobre|>)\s*{_NUM}(?!\s*/)")),
+]
+
+
+def criterio_nota(texto: str) -> Optional[Dict[str, Any]]:
+    """Criterio numérico explícito del mensaje (texto normalizado), o None."""
+    if not _CONTEXTO_NOTA.search(texto):
+        return None
+    texto = re.sub(r"\b(" + "|".join(_NUMEROS_TEXTO) + r")\b", lambda m: _NUMEROS_TEXTO[m.group(1)], texto)
+    for operador, patron in _PATRONES_UMBRAL:
+        m = patron.search(texto)
+        if m:
+            criterio = _criterio_valido(operador, m.group(1), m.group(2) if operador == "entre" else None)
+            if criterio:
+                return criterio
+    return None
+
+
 _CURSOS = re.compile(r"\b(mis cursos|que cursos|cuales cursos|cursos tengo|lista de cursos|listar cursos|"
                      r"cuantos cursos|cuantos estudiantes|cuantos alumnos|cuantas materias|materias tengo)\b")
 
@@ -402,17 +489,39 @@ AYUDA_SIN_INTENCION = (
 )
 
 
+def _paralelo(c: Dict[str, Any]) -> Optional[str]:
+    m = re.search(r"-\s*([a-z])$", _normalizar(c.get("fullname") or "")) or \
+        re.search(r"-([a-z])$", _normalizar(c.get("shortname") or ""))
+    return m.group(1) if m else None
+
+
 def _curso_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[int]:
+    """Curso nombrado por su código (SOF-POO-A), sigla (POO) o nombre de la materia, con su paralelo si se indica."""
+    candidatos = []
     for c in cursos:
         codigo = _normalizar(c["shortname"])
         partes = [p for p in codigo.split("-") if p and p != "sof"]
         abreviatura = partes[0] if partes else codigo
-        if codigo in texto or re.search(rf"\b{re.escape(abreviatura)}\b", texto):
+        if codigo in texto:
             return c["id"]
         palabras = [p for p in re.findall(r"[a-z]{5,}", _normalizar(c["fullname"] or ""))]
-        if palabras and sum(1 for p in palabras if p in texto) >= min(2, len(palabras)):
-            return c["id"]
-    return None
+        if (re.search(rf"\b{re.escape(abreviatura)}\b", texto)
+                or (palabras and sum(1 for p in palabras if p in texto) >= min(2, len(palabras)))):
+            candidatos.append(c)
+    if len(candidatos) > 1:
+        paralelo = re.search(r"\bparalelo\s+([a-z])\b", texto)
+        if paralelo:
+            candidatos = [c for c in candidatos if _paralelo(c) == paralelo.group(1)] or candidatos
+    return candidatos[0]["id"] if candidatos else None
+
+
+def _palabras_de_cursos(cursos: List[Dict[str, Any]]) -> set:
+    """Palabras de los nombres y siglas de las materias: nunca cuentan como parte del nombre de un estudiante."""
+    palabras = set()
+    for c in cursos:
+        palabras |= set(re.findall(r"[a-z]{4,}", _normalizar(c.get("fullname") or "")))
+        palabras |= {p for p in _normalizar(c.get("shortname") or "").split("-") if len(p) > 1}
+    return palabras | {"paralelo", "materia", "materias", "curso", "cursos", "asignatura"}
 
 
 def _estudiante_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[str]:
@@ -426,14 +535,26 @@ def _estudiante_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional
     if codigo:
         valor = codigo.group(0).upper()
         return valor if "-" in valor else f"U-{valor[1:]}"
+    # Nombre completo (dos nombres y dos apellidos) o parcial: gana el estudiante con más palabras mencionadas
+    # («Marco Paredes» es Marco Antonio Paredes Velasco, no Carlos Andrés Mendoza Paredes). Con una sola palabra
+    # sólo vale un apellido largo (> 5 letras) que no comparta otro estudiante.
+    def mencionada(p: str) -> bool:
+        return bool(re.search(rf"\b{re.escape(p)}\b", texto))
+
+    de_cursos = _palabras_de_cursos(cursos)
+    puntajes: Dict[str, int] = {}
     for c in cursos:
         for e in c["estudiantes"]:
-            partes = [p for p in _normalizar(e["nombres"] or "").split() if len(p) > 3]
-            if len(partes) >= 2 and sum(1 for p in partes if re.search(rf"\b{p}\b", texto)) >= 2:
-                return e["nombres"]
-            if partes and re.search(rf"\b{partes[-1]}\b", texto) and len(partes[-1]) > 5:
-                return e["nombres"]
-    return None
+            partes = [p for p in _normalizar(e["nombres"] or "").split() if len(p) > 3 and p not in de_cursos]
+            puntajes[e["nombres"]] = sum(1 for p in partes if mencionada(p))
+    mejor = max(puntajes.values(), default=0)
+    candidatos = [n for n, p in puntajes.items() if p == mejor]
+    if mejor == 0 or len(candidatos) != 1:
+        return None
+    if mejor >= 2:
+        return candidatos[0]
+    apellidos = [a for a in _normalizar(candidatos[0]).split()[-2:] if a not in de_cursos]
+    return candidatos[0] if any(len(a) > 5 and mencionada(a) for a in apellidos) else None
 
 
 def _contexto(mensaje: str, docente: dict, course_id: Optional[int]) -> Dict[str, Any]:
@@ -450,7 +571,7 @@ def _contexto(mensaje: str, docente: dict, course_id: Optional[int]) -> Dict[str
     else:
         curso = course_id
     return {"texto": texto, "curso": curso, "explicito": explicito, "estudiante": estudiante,
-            "global": global_, "contexto": course_id}
+            "global": global_, "contexto": course_id, "criterio": criterio_nota(texto)}
 
 
 def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] = None) -> List[Tuple[str, Dict]]:
@@ -460,6 +581,11 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
     base = {"course_id": curso} if curso else {}
     plan: List[Tuple[str, Dict]] = []
 
+    if ctx["criterio"] and not (_REFUERZO.search(texto) and estudiante):
+        # Umbral explícito: sólo las matrículas que lo cumplen (todas las materias salvo que se nombre una).
+        curso_umbral = ctx["explicito"] or (None if ctx["global"] else course_id)
+        return [("obtener_calificaciones", {**({"course_id": curso_umbral} if curso_umbral else {}),
+                                            **ctx["criterio"]})]
     if _REFUERZO.search(texto) and estudiante:
         # El curso activo se usa sólo si el estudiante está matriculado en él (lo resuelve la herramienta).
         curso_refuerzo = ctx["explicito"] or ctx["contexto"]
@@ -513,6 +639,7 @@ def _resolver_entidades(plan: List[Tuple[str, Dict]], mensaje: str, docente: dic
     «Estructura de Datos» termine consultando otro curso o que una pregunta transversal se limite a uno).
     """
     ctx = _contexto(mensaje, docente, course_id)
+    cursos = sync_service.cursos_del_docente(docente["email"])
     resuelto = []
     for nombre, params in plan:
         params = dict(params)
@@ -530,14 +657,34 @@ def _resolver_entidades(plan: List[Tuple[str, Dict]], mensaje: str, docente: dic
                 params["course_id"] = ctx["curso"]
             elif ctx["global"] or ctx["estudiante"]:
                 params.pop("course_id", None)
-            if nombre == "obtener_calificaciones" and ctx["estudiante"]:
-                params["estudiante"] = ctx["estudiante"]
+            if nombre == "obtener_calificaciones":
+                if ctx["estudiante"]:
+                    params["estudiante"] = ctx["estudiante"]
+                elif params.get("estudiante") and not _es_estudiante(str(params["estudiante"]), cursos):
+                    # El modelo pequeño a veces pasa la materia («Programación orientada a objetos») como estudiante
+                    params.pop("estudiante")
+                for clave in ("operador", "umbral", "umbral_max"):
+                    params.pop(clave, None)
+                if ctx["criterio"]:
+                    params.update(ctx["criterio"])
+        elif ctx["explicito"] and not _CURSOS.search(ctx["texto"]):
+            continue  # el docente preguntó por una materia concreta, no por el listado de sus cursos
         resuelto.append((nombre, params))
     return resuelto
 
 
+def _es_estudiante(valor: str, cursos: List[Dict[str, Any]]) -> bool:
+    """True si el valor nombra a un estudiante real del docente y no a una de sus materias."""
+    filtro = _normalizar(valor)
+    if not filtro or _curso_mencionado(filtro, cursos):
+        return False
+    return any(_coincide(e, filtro) for c in cursos for e in c["estudiantes"])
+
+
 async def planificar(mensaje: str, docente: dict, course_id: Optional[int]) -> Tuple[List[Tuple[str, Dict]], str]:
     """Plan del LLM (vía microservicio del agente) validado; si falla, planificador por reglas."""
+    if criterio_nota(_normalizar(mensaje)):
+        return planificar_por_reglas(mensaje, docente, course_id), "reglas_deterministas"
     cursos = [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"]}
               for c in sync_service.cursos_del_docente(docente["email"])]
     try:
@@ -587,8 +734,29 @@ def _seccion_cursos(r: Dict[str, Any]) -> Seccion:
     return "Cursos asignados", clave, lineas
 
 
+def _alcance(r: Dict[str, Any]) -> str:
+    cursos = r.get("cursos_consultados") or []
+    if len(cursos) == 1:
+        return f"en {_nombre_curso(cursos[0]['fullname'])}"
+    return f"en sus {len(cursos)} cursos"
+
+
+def _seccion_calificaciones_criterio(r: Dict[str, Any]) -> Seccion:
+    filas, criterio = r["calificaciones"], texto_criterio(r["criterio"])
+    if not filas:
+        return ("Calificaciones", f"Ninguna matrícula tiene **{criterio}** {_alcance(r)}.", [])
+    clave = f"Encontré **{len(filas)} matrícula(s)** con **{criterio}** {_alcance(r)}:"
+    una_materia = len(r.get("cursos_consultados") or []) == 1
+    lineas = [f"- **{f['nombres']}**" + ("" if una_materia else f" · {_nombre_curso(f['curso_nombre'])}")
+              + f": **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])})"
+              for f in filas]
+    return f"Calificaciones con {criterio}", clave, lineas
+
+
 def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
     filas = r["calificaciones"]
+    if r.get("criterio"):
+        return _seccion_calificaciones_criterio(r)
     if r.get("estudiante"):
         nombre = filas[0]["nombres"]
         criticos = sum(1 for f in filas if f["nivel_riesgo"] == "CRITICO")

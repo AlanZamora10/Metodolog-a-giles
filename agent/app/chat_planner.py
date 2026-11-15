@@ -12,6 +12,8 @@ middleware aplica su planificador determinista por reglas.
 import json
 import logging
 import os
+import re
+import unicodedata
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -23,10 +25,62 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 # Menor que el timeout del middleware (10 s) para que el agente siempre alcance a responder (aunque sea sin plan)
 INFERENCE_TIMEOUT = float(os.getenv("AGENT_PLAN_TIMEOUT_SECONDS", "8.0"))
 
+def _normalizar(texto: str) -> str:
+    texto = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
+    return re.sub(r"\s+", " ", texto.lower()).strip()
+
+
+def _nombre_materia(fullname: str) -> str:
+    """'(SOF) PROGRAMACION ORIENTADA A OBJETOS - A' -> 'Programacion orientada a objetos (paralelo A)'."""
+    nombre = re.sub(r"^\(\w+\)\s*", "", fullname or "").strip()
+    paralelo = re.search(r"\s+-\s+([A-Z])$", nombre)
+    if paralelo:
+        nombre = nombre[:paralelo.start()]
+    nombre = nombre.capitalize()
+    return f"{nombre} (paralelo {paralelo.group(1)})" if paralelo else nombre
+
+
+def _curso_de(valor: str, cursos: List[Dict[str, Any]]) -> Optional[int]:
+    """Id del curso si el valor nombra una materia (código, sigla o nombre); None si no."""
+    texto = _normalizar(valor)
+    if not texto:
+        return None
+    for c in cursos:
+        codigo = _normalizar(c.get("shortname", ""))
+        siglas = [p for p in codigo.split("-") if len(p) > 1 and p != "sof"]
+        palabras = re.findall(r"[a-z]{5,}", _normalizar(c.get("fullname", "")))
+        if codigo and codigo in texto or any(re.search(rf"\b{re.escape(x)}\b", texto) for x in siglas[:1]):
+            return c["id"]
+        if palabras and sum(1 for p in palabras if p in texto) >= min(2, len(palabras)):
+            return c["id"]
+    return None
+
+
+def limpiar_llamadas(llamadas: List[Dict[str, Any]], cursos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    El modelo 1B a veces pone el nombre de una materia como estudiante («Programación orientada a objetos»).
+    Ese parámetro se descarta y, si falta, se usa como course_id: una materia nunca es un estudiante.
+    """
+    limpias = []
+    for llamada in llamadas:
+        params = dict(llamada.get("parametros") or {})
+        for clave in ("estudiante", "student_query"):
+            valor = params.get(clave)
+            curso = _curso_de(str(valor), cursos) if isinstance(valor, str) else None
+            if curso:
+                params.pop(clave)
+                params.setdefault("course_id", curso)
+        if llamada.get("herramienta") == "proponer_refuerzo" and not params.get("student_query"):
+            continue  # sin estudiante real no hay refuerzo que proponer
+        limpias.append({**llamada, "parametros": params})
+    return limpias
+
+
 def _esquema_parametros(parametros: Dict[str, str]) -> Dict[str, Any]:
     props = {}
     for nombre, descripcion in parametros.items():
-        tipo = "integer" if descripcion.startswith("integer") else "string"
+        tipo = ("integer" if descripcion.startswith("integer")
+                else "number" if descripcion.startswith("number") else "string")
         props[nombre] = {"type": tipo}
     return {"type": "object", "properties": props, "required": []}
 
@@ -47,10 +101,12 @@ def _herramientas_ollama(herramientas: List[Dict[str, Any]]) -> List[Dict[str, A
 
 async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: List[Dict[str, Any]],
                      course_id: Optional[int] = None) -> Dict[str, Any]:
-    contexto = ", ".join(f"{c['id']}={c['shortname']}" for c in cursos)
+    contexto = "; ".join(f"{c['id']}={c['shortname']} {_nombre_materia(c.get('fullname', ''))}" for c in cursos)
     sistema = (
         "Asistente académico de EduMonitor AI. Elige herramientas y parámetros; no inventes datos. "
         "Todos los cursos o totales: sin course_id. Refuerzo: proponer_refuerzo(student_query). "
+        "Un nombre de materia es un curso (course_id), nunca un estudiante. "
+        "Nota con umbral (menor/mayor a X, entre X y Y): obtener_calificaciones(operador, umbral). "
         f"Cursos: {contexto or 'ninguno'}." + (f" Curso activo: {course_id}." if course_id else "")
     )
     try:
@@ -71,6 +127,7 @@ async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: L
                 if isinstance(argumentos, str):
                     argumentos = json.loads(argumentos or "{}")
                 llamadas.append({"herramienta": funcion.get("name"), "parametros": argumentos})
+            llamadas = limpiar_llamadas(llamadas, cursos)
             if llamadas:
                 return {"llamadas": llamadas, "fuente": "ollama_slm"}
     except Exception as ex:  # timeout, Ollama caído o respuesta inválida

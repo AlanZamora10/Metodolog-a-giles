@@ -1,7 +1,7 @@
 """
 Fase A — SQL Server, publicación real en Moodle, reporte del curso y chat del agente con herramientas.
 
-Moodle se simula (sincronización, login y local_edumonitor_crear_tarea); la base es SQLite en memoria
+Moodle se simula (sincronización, login, local_edumonitor_publicar_refuerzo y local_edumonitor_notificar_refuerzo); la base es SQLite en memoria
 salvo que se ejecute con TEST_DATABASE_URL (p. ej. SQL Server real en Docker).
 """
 
@@ -73,24 +73,34 @@ def sincronizado(monkeypatch):
 
 class FakeMoodlePublicacion:
     llamadas = []
+    avisos = []
     falla = False
+    falla_aviso = False
 
     def __init__(self):
         pass
 
-    async def crear_tarea_refuerzo(self, **kw):
+    async def publicar_refuerzo(self, **kw):
         if FakeMoodlePublicacion.falla:
-            raise MoodleError("local_edumonitor_crear_tarea: El estudiante no está matriculado (activo) en el curso.")
+            raise MoodleError("local_edumonitor_publicar_refuerzo: El estudiante no está matriculado (activo) en el curso.")
         existente = any(llamada["codigo"] == kw["codigo"] for llamada in FakeMoodlePublicacion.llamadas)
         FakeMoodlePublicacion.llamadas.append(kw)
         cmid = 700 + int(kw["codigo"].split("-")[1])
         return {"cmid": cmid, "url": f"http://localhost:8080/mod/assign/view.php?id={cmid}", "seccion": 4,
-                "existente": existente}
+                "existente": existente, "archivo": kw.get("pdf_nombre") if kw.get("pdf_base64") else ""}
+
+    async def notificar_refuerzo(self, **kw):
+        if FakeMoodlePublicacion.falla_aviso:
+            raise MoodleError("local_edumonitor_notificar_refuerzo: No se pudo enviar la notificación del refuerzo.")
+        existente = any(a["cmid"] == kw["cmid"] for a in FakeMoodlePublicacion.avisos)
+        FakeMoodlePublicacion.avisos.append(kw)
+        return {"notificacionid": 500 + kw["cmid"], "existente": existente}
 
 
 @pytest.fixture
 def moodle_publicacion(monkeypatch):
     FakeMoodlePublicacion.llamadas, FakeMoodlePublicacion.falla = [], False
+    FakeMoodlePublicacion.avisos, FakeMoodlePublicacion.falla_aviso = [], False
     monkeypatch.setattr(alerts_router, "MoodleClient", FakeMoodlePublicacion)
     yield FakeMoodlePublicacion
 
@@ -126,6 +136,70 @@ def test_publicar_crea_tarea_real_en_moodle(sincronizado, moodle_publicacion):
     assert _alerta(sincronizado, "U-04")["estado"] == "PUBLICADO"
     log = repositories.filas("logs_sistema")[-1]
     assert log["tipo_proceso"] == "PUBLICAR_REFUERZO" and log["estado"] == "EXITO" and log["detalle"]["cmid"] == data["cmid"]
+
+
+def test_publicar_adjunta_la_guia_de_estudio_en_pdf(sincronizado, moodle_publicacion):
+    import base64
+    alerta = _alerta(sincronizado, "U-04")
+    refuerzo = client.post(f"/api/v1/alertas/{alerta['id']}/atender", headers=sincronizado).json()["refuerzo"]
+    res = client.post(f"/api/v1/refuerzos/{refuerzo['id']}/publicar", headers=sincronizado,
+                      json={"confirmado": True, "instrucciones": "Resuelva la guía adjunta."})
+    assert res.status_code == 200, res.text
+    llamada = moodle_publicacion.llamadas[0]
+    pdf = base64.b64decode(llamada["pdf_base64"], validate=True)
+    assert pdf.startswith(b"%PDF-") and len(pdf) > 5000
+    assert llamada["pdf_nombre"].startswith("Guia_refuerzo_POO_U") and llamada["pdf_nombre"].endswith("_U-04.pdf")
+    assert llamada["instrucciones"].startswith("Resuelva la guía adjunta.")
+    assert f"descargue el PDF adjunto «{llamada['pdf_nombre']}»" in llamada["instrucciones"]
+    assert res.json()["guia_pdf"] == llamada["pdf_nombre"]
+    # En la base quedan las instrucciones del docente, sin la nota del adjunto
+    assert repositories.get_refuerzo(refuerzo_id=refuerzo["id"])["instrucciones"] == "Resuelva la guía adjunta."
+    assert repositories.filas("logs_sistema")[-1]["detalle"]["guia_pdf"] == llamada["pdf_nombre"]
+
+
+def test_si_falla_la_guia_la_tarea_se_publica_sin_adjunto(sincronizado, moodle_publicacion, monkeypatch):
+    def falla(**_):
+        raise RuntimeError("fuente no disponible")
+
+    monkeypatch.setattr(alerts_router, "generar_guia_pdf", falla)
+    alerta = _alerta(sincronizado, "U-04")
+    refuerzo = client.post(f"/api/v1/alertas/{alerta['id']}/atender", headers=sincronizado).json()["refuerzo"]
+    res = client.post(f"/api/v1/refuerzos/{refuerzo['id']}/publicar", headers=sincronizado, json={"confirmado": True})
+    assert res.status_code == 200, res.text
+    assert moodle_publicacion.llamadas[0]["pdf_base64"] == "" and res.json()["guia_pdf"] is None
+    assert any(log["tipo_proceso"] == "GUIA_REFUERZO" and log["estado"] == "ERROR"
+               for log in repositories.filas("logs_sistema"))
+
+
+def test_publicar_notifica_al_estudiante_en_la_campana_de_moodle(sincronizado, moodle_publicacion):
+    alerta = _alerta(sincronizado, "U-04")
+    refuerzo = client.post(f"/api/v1/alertas/{alerta['id']}/atender", headers=sincronizado).json()["refuerzo"]
+    res = client.post(f"/api/v1/refuerzos/{refuerzo['id']}/publicar", headers=sincronizado,
+                      json={"confirmado": True, "instrucciones": "Resuelva los ejercicios 1 a 5 de la Unidad 2."})
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["notificado"] is True and data["notificacion_id"] == 500 + data["cmid"]
+    assert "campana de notificaciones" in data["mensaje"]
+
+    [aviso] = moodle_publicacion.avisos
+    assert aviso == {"cmid": data["cmid"], "email_estudiante": "cmendoza3199@uta.edu.ec",
+                     "indicaciones": "Resuelva los ejercicios 1 a 5 de la Unidad 2.",
+                     "email_docente": "rgomez4824@uta.edu.ec"}
+    assert repositories.filas("logs_sistema")[-1]["detalle"]["notificado"] is True
+
+
+def test_si_falla_el_aviso_la_tarea_queda_publicada_y_se_audita(sincronizado, moodle_publicacion):
+    alerta = _alerta(sincronizado, "U-04")
+    refuerzo = client.post(f"/api/v1/alertas/{alerta['id']}/atender", headers=sincronizado).json()["refuerzo"]
+    moodle_publicacion.falla_aviso = True
+    res = client.post(f"/api/v1/refuerzos/{refuerzo['id']}/publicar", headers=sincronizado, json={"confirmado": True})
+    assert res.status_code == 200, res.text
+    assert res.json()["notificado"] is False
+    assert repositories.get_refuerzo(refuerzo_id=refuerzo["id"])["estado"] == "PUBLICADO"
+    logs = repositories.filas("logs_sistema")
+    error = next(log for log in logs if log["tipo_proceso"] == "NOTIFICAR_REFUERZO")
+    assert error["estado"] == "ERROR" and error["detalle"]["cmid"] == res.json()["cmid"]
+    assert logs[-1]["tipo_proceso"] == "PUBLICAR_REFUERZO" and logs[-1]["detalle"]["notificado"] is False
 
 
 def test_publicar_es_idempotente(sincronizado, moodle_publicacion):
@@ -178,8 +252,8 @@ def test_reporte_del_curso(sincronizado):
     }
     assert (r["alertas"]["r1_activas"], r["alertas"]["r2_activas"]) == (1, 1)
     assert [p["id_number"] for p in r["estudiantes_prioritarios"]] == ["U-04", "U-11"]
-    assert any("Carlos Mendoza (2.65)" in h for h in r["hallazgos"])
-    assert any("descenso sostenido" in h and "Sebastián Romero" in h for h in r["hallazgos"])
+    assert any("Carlos Andrés Mendoza Paredes (2.65)" in h for h in r["hallazgos"])
+    assert any("descenso sostenido" in h and "Sebastián Alejandro Romero Haro" in h for h in r["hallazgos"])
     assert not any("R1" in t or "R2" in t for t in r["hallazgos"] + r["recomendaciones"])
     assert any("pendientes" in x for x in r["recomendaciones"])
 
@@ -210,8 +284,8 @@ def test_chat_alertas_de_un_curso_con_herramienta_real(sincronizado):
     usadas = {h["herramienta"]: h for h in data["herramientas"]}
     assert usadas["identificar_alertas"]["parametros"] == {"course_id": 2}
     assert {a["nombres"] for a in usadas["identificar_alertas"]["resultado"]["alertas"]} == \
-           {"Carlos Mendoza", "Sebastián Romero"}
-    assert "Carlos Mendoza" in data["respuesta"] and "Sebastián Romero" in data["respuesta"]
+           {"Carlos Andrés Mendoza Paredes", "Sebastián Alejandro Romero Haro"}
+    assert "Carlos Andrés Mendoza Paredes" in data["respuesta"] and "Sebastián Alejandro Romero Haro" in data["respuesta"]
 
     logs = [log for log in repositories.filas("logs_sistema") if log["tipo_proceso"] == "AGENTE_HERRAMIENTA"]
     assert logs[-1]["detalle"]["herramienta"] == "identificar_alertas"
@@ -223,7 +297,7 @@ def test_chat_alertas_de_un_curso_con_herramienta_real(sincronizado):
 def test_chat_calificaciones_de_un_estudiante_sin_inventar_datos(sincronizado):
     data = _chat(sincronizado, "Dame las notas de Carlos Mendoza")
     llamada = next(h for h in data["herramientas"] if h["herramienta"] == "obtener_calificaciones")
-    assert llamada["parametros"]["estudiante"] == "Carlos Mendoza"
+    assert llamada["parametros"]["estudiante"] == "Carlos Andrés Mendoza Paredes"
     fila = llamada["resultado"]["calificaciones"][0]
     assert fila["nota_final"] == 2.65 and "U2-T4 SIN_ENTREGA" in fila["incidencias"]
     assert "2.65/10" in data["respuesta"] and "U2-T4 (sin entrega)" in data["respuesta"]
@@ -265,7 +339,7 @@ def test_chat_usa_el_plan_del_llm_cuando_es_valido(sincronizado, monkeypatch):
     assert data["herramientas"][0]["herramienta"] == "identificar_alertas"
     assert data["herramientas"][0]["parametros"] == {"course_id": 2, "regla": "R1"}
     alertas = data["herramientas"][0]["resultado"]["alertas"]
-    assert [a["nombres"] for a in alertas] == ["Carlos Mendoza"]
+    assert [a["nombres"] for a in alertas] == ["Carlos Andrés Mendoza Paredes"]
 
 
 def test_entidades_mencionadas_prevalecen_sobre_el_llm(sincronizado, monkeypatch):
@@ -274,7 +348,7 @@ def test_entidades_mencionadas_prevalecen_sobre_el_llm(sincronizado, monkeypatch
         {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "Camila Andrade"}}]})
     data = _chat(sincronizado, "Dame las notas de Carlos Mendoza en POO")
     llamada = data["herramientas"][0]
-    assert llamada["parametros"] == {"course_id": 2, "estudiante": "Carlos Mendoza"}
+    assert llamada["parametros"] == {"course_id": 2, "estudiante": "Carlos Andrés Mendoza Paredes"}
     assert llamada["resultado"]["calificaciones"][0]["id_number"] == "U-04"
 
 
@@ -282,9 +356,17 @@ def test_plan_del_llm_se_complementa_con_la_intencion_explicita(sincronizado, mo
     # El modelo sólo lista cursos, pero la pregunta pide alertas: se añade identificar_alertas
     _agente_responde(monkeypatch, {"fuente": "ollama_slm", "llamadas": [
         {"herramienta": "listar_cursos_autorizados", "parametros": {}}]})
-    data = _chat(sincronizado, "¿Qué estudiantes de POO necesitan atención?")
+    data = _chat(sincronizado, "¿Qué estudiantes necesitan atención en todas mis materias?")
     assert data["plan_fuente"] == "ollama_slm+reglas"
     assert [h["herramienta"] for h in data["herramientas"]] == ["listar_cursos_autorizados", "identificar_alertas"]
+
+
+def test_si_nombra_una_materia_no_se_anexa_el_listado_de_cursos(sincronizado, monkeypatch):
+    _agente_responde(monkeypatch, {"fuente": "ollama_slm", "llamadas": [
+        {"herramienta": "listar_cursos_autorizados", "parametros": {}},
+        {"herramienta": "generar_resumen", "parametros": {}}]})
+    data = _chat(sincronizado, "¿Cómo va Programación orientada a objetos, paralelo A?")
+    assert [(h["herramienta"], h["parametros"]) for h in data["herramientas"]] == [("generar_resumen", {"course_id": 2})]
 
 
 @pytest.mark.parametrize("llamadas", [

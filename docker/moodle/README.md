@@ -14,8 +14,8 @@ Es idempotente: crea lo que falta, actualiza lo existente y desmatricula a quien
 | Rol | Usuario | Contraseña | Notas |
 |---|---|---|---|
 | Administrador | `admin` | `MoodleAdmin2026!` | Gestión del sitio |
-| Docente titular | `rgomez4824@uta.edu.ec` (Ing. Roberto Gómez, C.I. 1803454824) | `Docente2026!` | Profesor con permiso de edición en los 4 cursos. Mismo correo para EduMonitor AI (`localhost:3000`) |
-| Estudiante | `cmendoza3199@uta.edu.ec` (Carlos Mendoza, caso crítico) | `Estudiante2026!` | Matriculado en los 4 cursos. Los 20 estudiantes comparten contraseña. Correo institucional = inicial del nombre + primer apellido + 4 últimos dígitos de la cédula (campo de perfil «Cédula»); se ingresa con el correo completo |
+| Docente titular | `rgomez4824@uta.edu.ec` (Roberto Patricio Gómez Salazar, C.I. 1803454824) | `Docente2026!` | Profesor con permiso de edición en los 4 cursos. Mismo correo para EduMonitor AI (`localhost:3000`) |
+| Estudiante | `cmendoza3199@uta.edu.ec` (Carlos Andrés Mendoza Paredes, caso crítico) | `Estudiante2026!` | Matriculado en los 4 cursos. Los 20 estudiantes comparten contraseña. Correo institucional = inicial del nombre + primer apellido + 4 últimos dígitos de la cédula (campo de perfil «Cédula»); se ingresa con el correo completo |
 
 ## Cursos y nóminas
 | Curso | Shortname | Estudiantes |

@@ -369,3 +369,7 @@ table.tabla { width: 100%; border-collapse: collapse; }
   .content-chat { overflow: visible; }
   .content-chat .chat-card { height: calc(100vh - 190px); }
 }
+
+/* Nombres completos (dos nombres y dos apellidos): se muestran íntegros, sin recortar */
+.sidebar-foot .who div { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.3; }
+.nombre-cell { min-width: 220px; }

@@ -155,6 +155,10 @@ export interface PublicarResponse {
   cmid: number;
   moodle_link: string;
   fecha_entrega: string;
+  /** true si el estudiante recibió el aviso en la campana de notificaciones de Moodle */
+  notificado?: boolean;
+  /** Nombre del PDF (guía de estudio) adjunto a la tarea en Moodle; null si no se generó */
+  guia_pdf?: string | null;
   refuerzo: Refuerzo;
 }
 
