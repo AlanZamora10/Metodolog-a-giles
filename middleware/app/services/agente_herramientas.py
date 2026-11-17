@@ -19,6 +19,7 @@ import os
 import re
 import time
 import unicodedata
+from difflib import SequenceMatcher
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import httpx
@@ -30,6 +31,10 @@ logger = logging.getLogger("edumonitor.agente")
 
 AGENT_HOST = os.getenv("AGENT_HOST") or os.getenv("AGENT_URL", "http://agent:8001")
 AGENT_TIMEOUT_SECONDS = float(os.getenv("AGENT_INFERENCE_TIMEOUT_SECONDS", "10.0"))
+# Presupuesto del plan del LLM en el chat: si Ollama no responde a tiempo se usan las reglas (respuesta en segundos)
+AGENT_CHAT_TIMEOUT_SECONDS = float(os.getenv("AGENT_CHAT_TIMEOUT_SECONDS", "6.0"))
+# Mensajes de hasta 5 palabras con intención clara se resuelven sin esperar al LLM
+MAX_PALABRAS_RAPIDAS = 5
 MAX_HERRAMIENTAS_POR_MENSAJE = 4
 UMBRAL_APROBACION = 7.0
 PLAZO_REFUERZO_DIAS = 7
@@ -222,7 +227,8 @@ def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estud
                 "incidencias": [f"{a['id_number']} {_incidencia(a)}" for a in e["actividades"] if _incidencia(a)],
             })
     if filtro and not resultado and not criterio:
-        raise HerramientaError(f"No se encontró al estudiante «{estudiante}» en los cursos consultados.")
+        raise HerramientaError(f"no encontré a «{estudiante}» entre sus estudiantes. Pruebe con su nombre "
+                               "completo o su cédula.")
     if criterio:
         resultado.sort(key=lambda f: (f["nota_final"], f["nombres"]))
     return {"calificaciones": resultado, "filas": len(resultado), "estudiante": estudiante, "criterio": criterio,
@@ -409,7 +415,7 @@ _PARAMETROS_VALIDOS = {
 
 # =============================================================================== Planificación
 _GLOBAL = re.compile(r"\b(mis (\d+|dos|tres|cuatro|cinco) (cursos|materias|asignaturas)|todas? (mis |las |los )?"
-                     r"(materias|cursos|asignaturas)|mis materias|mis asignaturas|en total|en general|global|"
+                     r"(materias|cursos|asignaturas)|mis cursos|mis materias|mis asignaturas|en total|en general|global|"
                      r"todos mis|cada (curso|materia)|entre (mis )?cursos|(resumen|panorama|informe|reporte) general)\b")
 _REFUERZO = re.compile(r"\b(refuerzo|reforzar|plan de mejora|plan de estudios?|plan de apoyo|plan de accion|"
                        r"recuperacion|nivelacion|actividad de apoyo|apoyo academico|tutoria|"
@@ -449,6 +455,33 @@ def criterio_nota(texto: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+# Frases cortas e informales con intención directa (se resuelven sin LLM)
+_PANORAMA = re.compile(r"\b(como (van|va|estan|esta|andan|anda) (mis |los |todos (mis |los )?)?(cursos|materias|"
+                       r"asignaturas|paralelos|estudiantes|alumnos|clases)|resumen general|panorama( general)?|"
+                       r"vista general|estado general)\b")
+_EN_PROBLEMAS = re.compile(r"\b(quien(es)? (esta|estan|va|van|anda|andan) (mal|en riesgo|bajo|bajos)|"
+                           r"quien(es)? (necesita|necesitan|requiere|requieren) (ayuda|atencion|apoyo)|"
+                           r"(estudiantes|alumnos) (en riesgo|criticos|con problemas|que van mal)|hay alertas?|"
+                           r"alertas? (activas|pendientes|abiertas)|peores (notas|estudiantes|alumnos)|van mal|esta mal|"
+                           r"(tienen|tiene|con|presentan|presenta) (problemas|dificultades|bajo rendimiento))\b")
+_REPROBADOS = re.compile(r"\b(reprob\w*|desaprob\w*|no aprueban|no aprobados|perdiendo|pierden|jalad\w*)\b")
+_APROBADOS = re.compile(r"\b(aprobados|aprueban|aprobando)\b")
+
+
+def _criterio_informal(texto: str) -> Optional[Dict[str, Any]]:
+    """«reprobados» = nota menor a 7.00; «aprobados» = nota mayor o igual a 7.00 (umbral de aprobación)."""
+    if _REPROBADOS.search(texto):
+        return {"operador": "<", "umbral": UMBRAL_APROBACION}
+    if _APROBADOS.search(texto):
+        return {"operador": ">=", "umbral": UMBRAL_APROBACION}
+    return None
+
+
+def _intencion_directa(texto: str) -> bool:
+    return bool(_PANORAMA.search(texto) or _EN_PROBLEMAS.search(texto) or _criterio_informal(texto)
+                or criterio_nota(texto))
+
+
 _CURSOS = re.compile(r"\b(mis cursos|que cursos|cuales cursos|cursos tengo|lista de cursos|listar cursos|"
                      r"cuantos cursos|cuantos estudiantes|cuantos alumnos|cuantas materias|materias tengo)\b")
 
@@ -459,34 +492,72 @@ _VOCABULARIO_CORTESIA = {
     "como", "estas", "esta", "gracias", "muchas", "mil", "muy", "amable", "ok", "okay", "oki", "vale", "listo",
     "perfecto", "genial", "excelente", "entendido", "de", "acuerdo", "chao", "adios", "hasta", "luego", "pronto",
     "manana", "nos", "vemos", "bien", "profe", "agente", "asistente", "edumonitor", "y", "tu", "usted",
+    "por", "favor", "porfa", "excelentes", "super", "gracias", "dale", "bueno", "muy", "si", "claro",
 }
+# Preguntas sobre el propio asistente: se responde con lo que puede hacer y ejemplos concretos
+_AYUDA = re.compile(r"^(hola |buenas |buenos dias |buenas tardes |buenas noches )?(que (puedes|podes|sabes|puede) "
+                    r"hacer|en que (me )?(puedes|podes|puede) ayudar|que haces|que hace|ayuda|ayudame|help|"
+                    r"quien eres|quien es usted|que eres|como funcionas|como funciona|como te uso|como lo uso|"
+                    r"opciones|menu|comandos|instrucciones|para que sirves|que preguntas puedo hacer)"
+                    r"( por favor)?$")
+
+
+def _trato(docente: dict) -> str:
+    """Nombre corto del docente para el trato cordial: primer nombre y primer apellido."""
+    partes = [p for p in (docente.get("nombres") or "").split() if not p.endswith(".")]
+    if len(partes) >= 4:
+        return f"{partes[0]} {partes[2]}"
+    return " ".join(partes[:2])
+
+
+def _ejemplos(docente: dict) -> List[str]:
+    """2-3 consultas de ejemplo con datos reales del docente (su primera materia y un estudiante crítico)."""
+    try:
+        cursos = sync_service.cursos_del_docente(docente["email"])
+    except Exception:  # noqa: BLE001 - sin sincronización: ejemplos genéricos
+        cursos = []
+    materia = re.sub(r",\s*paralelo \w$", "", _nombre_curso(cursos[0]["fullname"])) if cursos else "su curso"
+    critico = next((e["nombres"] for c in cursos for e in sorted(c["estudiantes"], key=lambda x: x["nota_final"])
+                    if e.get("nivel_riesgo") == "CRITICO"), None)
+    if critico:
+        partes = critico.split()
+        critico = f"{partes[0]} {partes[2]}" if len(partes) >= 4 else critico
+    return ["«¿Cómo van mis cursos?»", f"«¿Quién está en riesgo en {materia}?»",
+            f"«Prepárame un plan de apoyo para {critico}»" if critico else "«Dame los reprobados»"]
 
 
 def respuesta_cortesia(mensaje: str, docente: dict) -> Optional[str]:
-    """Respuesta corta a saludos/cortesías; None si el mensaje contiene una consulta."""
-    palabras = re.findall(r"[a-z]+", _normalizar(mensaje))
+    """
+    Respuesta inmediata (sin herramientas ni LLM) a saludos, cortesías y preguntas sobre el asistente.
+    None si el mensaje contiene una consulta real.
+    """
+    texto = " ".join(re.findall(r"[a-z0-9]+", _normalizar(mensaje)))
+    nombre = _trato(docente)
+    trato = f", {nombre}" if nombre else ""
+    if _AYUDA.match(texto):
+        ejemplos = "\n".join(f"- {e}" for e in _ejemplos(docente))
+        return (f"Soy su Asistente Académico de EduMonitor AI{trato}. Reviso sus cursos de Moodle UTA, detecto a los "
+                f"estudiantes en riesgo y preparo planes de apoyo. Puede preguntarme, por ejemplo:\n{ejemplos}")
+    palabras = texto.split()
     if not palabras or len(palabras) > 6 or any(p not in _VOCABULARIO_CORTESIA for p in palabras):
         return None
-    nombre = (docente.get("nombres") or "").strip()
-    trato = f", {nombre}" if nombre else ""
     if {"chao", "adios", "luego", "vemos", "pronto"} & set(palabras):
         return f"¡Hasta pronto{trato}! Aquí estaré cuando necesite revisar sus cursos."
     if "gracias" in palabras:
-        return "Con gusto. Si necesita algo más sobre sus cursos o estudiantes, solo pregúnteme."
-    if {"ok", "okay", "oki", "vale", "listo", "perfecto", "genial", "excelente", "entendido", "acuerdo"} & set(palabras):
+        return f"Con gusto{trato}. Si necesita algo más sobre sus cursos o estudiantes, solo pregúnteme."
+    if {"ok", "okay", "oki", "vale", "listo", "perfecto", "genial", "excelente", "entendido", "acuerdo", "dale",
+            "bueno", "claro", "si", "super"} & set(palabras):
         return "Perfecto. Cuando quiera, puedo revisar alertas, las notas de un estudiante o preparar un refuerzo."
-    return (f"¡Hola{trato}! ¿En qué le ayudo hoy? Puedo revisar sus cursos, los estudiantes que necesitan "
-            "atención, las actividades con menor rendimiento o preparar un refuerzo.")
+    ejemplos = "\n".join(f"- {e}" for e in _ejemplos(docente))
+    return f"¡Hola{trato}! ¿En qué le ayudo hoy? Puede preguntarme, por ejemplo:\n{ejemplos}"
 
 
-AYUDA_SIN_INTENCION = (
-    "No estoy seguro de qué necesita. Puedo ayudarle con:\n"
-    "- **Totales:** «¿Cuántos cursos y estudiantes tengo?»\n"
-    "- **Seguimiento:** «¿Qué estudiantes de POO necesitan atención?» o «¿Cómo va Carlos Mendoza?»\n"
-    "- **Actividades:** «¿Qué actividades tienen menor rendimiento?»\n"
-    "- **Intervención:** «Prepárame un refuerzo para Carlos Mendoza»\n"
-    "- **Informe completo:** «Dame un resumen general»"
-)
+def ayuda_sin_intencion(docente: dict) -> str:
+    """Aclaración en una frase, con opciones claras, cuando no se entiende la consulta."""
+    nombre = _trato(docente)
+    return (f"No estoy seguro de qué necesita{', ' + nombre if nombre else ''}. ¿Quiere ver el **resumen general** "
+            "de sus cursos, los **estudiantes en riesgo** o las **notas de un estudiante**? Escriba, por ejemplo, "
+            "«resumen general», «quién está mal» o el nombre del estudiante.")
 
 
 def _paralelo(c: Dict[str, Any]) -> Optional[str]:
@@ -537,24 +608,47 @@ def _estudiante_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional
         return valor if "-" in valor else f"U-{valor[1:]}"
     # Nombre completo (dos nombres y dos apellidos) o parcial: gana el estudiante con más palabras mencionadas
     # («Marco Paredes» es Marco Antonio Paredes Velasco, no Carlos Andrés Mendoza Paredes). Con una sola palabra
-    # sólo vale un apellido largo (> 5 letras) que no comparta otro estudiante.
-    def mencionada(p: str) -> bool:
-        return bool(re.search(rf"\b{re.escape(p)}\b", texto))
+    # basta si ningún otro estudiante la comparte («Valeria», «Mendoza»); si la comparten, no se adivina.
+    mejor, candidatos = _candidatos_por_nombre(texto, cursos)
+    return candidatos[0] if mejor >= 1 and len(candidatos) == 1 else None
 
+
+# Palabras frecuentes en las consultas que nunca se comparan (aproximadamente) con nombres de estudiantes
+_PALABRAS_CONSULTA = {
+    "nota", "notas", "curso", "cursos", "alumno", "alumnos", "estudiante", "estudiantes", "promedio", "dame",
+    "como", "esta", "estan", "quien", "quienes", "cual", "cuales", "tiene", "tienen", "plan", "apoyo", "refuerzo",
+    "materia", "materias", "alerta", "alertas", "riesgo", "resumen", "general", "unidad", "tarea", "tareas",
+    "parcial", "actividad", "actividades", "calificaciones", "prepara", "preparame", "necesito", "quiero", "sobre",
+    "todos", "todas", "favor", "para", "mis", "muestrame", "muestra", "revisa", "revisar", "ayuda", "ayudame",
+}
+
+
+def _palabra_mencionada(p: str, texto: str, palabras_texto: List[str]) -> bool:
+    """Coincidencia exacta o con un error menor de escritura (sin tildes, una letra cambiada u omitida)."""
+    if re.search(rf"\b{re.escape(p)}\b", texto):
+        return True
+    if len(p) < 5:
+        return False
+    return any(w[0] == p[0] and SequenceMatcher(None, p, w).ratio() >= 0.83 for w in palabras_texto)
+
+
+def _candidatos_por_nombre(texto: str, cursos: List[Dict[str, Any]]) -> Tuple[int, List[str]]:
+    """(mejor puntaje, estudiantes con ese puntaje) según las palabras de su nombre mencionadas en el texto."""
     de_cursos = _palabras_de_cursos(cursos)
+    palabras_texto = [w for w in re.findall(r"[a-z]{4,}", texto) if w not in de_cursos and w not in _PALABRAS_CONSULTA]
     puntajes: Dict[str, int] = {}
     for c in cursos:
         for e in c["estudiantes"]:
             partes = [p for p in _normalizar(e["nombres"] or "").split() if len(p) > 3 and p not in de_cursos]
-            puntajes[e["nombres"]] = sum(1 for p in partes if mencionada(p))
+            puntajes[e["nombres"]] = sum(1 for p in partes if _palabra_mencionada(p, texto, palabras_texto))
     mejor = max(puntajes.values(), default=0)
-    candidatos = [n for n, p in puntajes.items() if p == mejor]
-    if mejor == 0 or len(candidatos) != 1:
-        return None
-    if mejor >= 2:
-        return candidatos[0]
-    apellidos = [a for a in _normalizar(candidatos[0]).split()[-2:] if a not in de_cursos]
-    return candidatos[0] if any(len(a) > 5 and mencionada(a) for a in apellidos) else None
+    return mejor, ([n for n, p in puntajes.items() if p == mejor] if mejor else [])
+
+
+def estudiantes_ambiguos(texto: str, cursos: List[Dict[str, Any]]) -> List[str]:
+    """Estudiantes entre los que el mensaje no permite decidir («Carlos», «Paredes»); [] si no hay ambigüedad."""
+    mejor, candidatos = _candidatos_por_nombre(texto, cursos)
+    return candidatos if mejor >= 1 and len(candidatos) > 1 else []
 
 
 def _contexto(mensaje: str, docente: dict, course_id: Optional[int]) -> Dict[str, Any]:
@@ -571,7 +665,8 @@ def _contexto(mensaje: str, docente: dict, course_id: Optional[int]) -> Dict[str
     else:
         curso = course_id
     return {"texto": texto, "curso": curso, "explicito": explicito, "estudiante": estudiante,
-            "global": global_, "contexto": course_id, "criterio": criterio_nota(texto)}
+            "global": global_, "contexto": course_id,
+            "criterio": criterio_nota(texto) or (None if estudiante else _criterio_informal(texto))}
 
 
 def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] = None) -> List[Tuple[str, Dict]]:
@@ -586,6 +681,11 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
         curso_umbral = ctx["explicito"] or (None if ctx["global"] else course_id)
         return [("obtener_calificaciones", {**({"course_id": curso_umbral} if curso_umbral else {}),
                                             **ctx["criterio"]})]
+    if _PANORAMA.search(texto) and not estudiante:
+        # «¿Cómo van mis cursos?», «resumen general»: panorama de una materia nombrada o de todas
+        return [("generar_resumen", {"course_id": ctx["explicito"]} if ctx["explicito"] else {})]
+    if _EN_PROBLEMAS.search(texto) and not estudiante and not _REFUERZO.search(texto):
+        return [("identificar_alertas", base)]
     if _REFUERZO.search(texto) and estudiante:
         # El curso activo se usa sólo si el estudiante está matriculado en él (lo resuelve la herramienta).
         curso_refuerzo = ctx["explicito"] or ctx["contexto"]
@@ -597,7 +697,7 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
         plan.append(("analizar_actividades", base))
     if estudiante or re.search(r"\b(nota|notas|calificacion|calificaciones|promedio de|rendimiento de)\b", texto):
         plan.append(("obtener_calificaciones", {**base, **({"estudiante": estudiante} if estudiante else {})}))
-    if re.search(r"\b(alerta|alertas|riesgo|critic\w*|atencion|ayuda|reprob\w*|descenso|r1|r2|refuerzo)\b", texto):
+    if re.search(r"\b(alerta|alertas|riesgo|critic\w*|atencion|ayuda|reprob\w*|descenso|r1|r2|refuerzo|mal)\b", texto):
         regla = "R1" if re.search(r"\b(r1|critic\w*)\b", texto) and "r2" not in texto else (
             "R2" if re.search(r"\b(r2|descenso|baja)\b", texto) else None)
         plan.append(("identificar_alertas", {**base, **({"regla": regla} if regla else {})}))
@@ -683,12 +783,18 @@ def _es_estudiante(valor: str, cursos: List[Dict[str, Any]]) -> bool:
 
 async def planificar(mensaje: str, docente: dict, course_id: Optional[int]) -> Tuple[List[Tuple[str, Dict]], str]:
     """Plan del LLM (vía microservicio del agente) validado; si falla, planificador por reglas."""
-    if criterio_nota(_normalizar(mensaje)):
+    texto = _normalizar(mensaje)
+    if criterio_nota(texto):
         return planificar_por_reglas(mensaje, docente, course_id), "reglas_deterministas"
+    # Mensajes simples: respuesta inmediata sin esperar a Ollama (con intención clara se ejecutan las reglas; sin
+    # ella, conversar() pide precisar al instante). Las frases largas sin intención directa pasan por el LLM.
+    reglas = planificar_por_reglas(mensaje, docente, course_id)
+    if len(re.findall(r"[a-z0-9]+", texto)) <= MAX_PALABRAS_RAPIDAS or (reglas and _intencion_directa(texto)):
+        return reglas, "reglas_deterministas"
     cursos = [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"]}
               for c in sync_service.cursos_del_docente(docente["email"])]
     try:
-        async with httpx.AsyncClient(timeout=AGENT_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=AGENT_CHAT_TIMEOUT_SECONDS) as client:
             resp = await client.post(f"{AGENT_HOST}/api/v1/chat/plan", json={
                 "mensaje": mensaje, "cursos": cursos, "course_id": course_id,
                 "herramientas": [{"nombre": n, **d} for n, d in CATALOGO.items()],
@@ -938,9 +1044,16 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
         return _respuesta_sin_herramientas(
             "Con gusto preparo un plan de apoyo. ¿Para qué estudiante? Indíqueme su **nombre completo** o su "
             "**cédula** (por ejemplo, «plan de apoyo para Carlos Mendoza»).", "aclaracion", docente, inicio)
+    if not ctx["estudiante"] and not ctx["criterio"] and not _PANORAMA.search(ctx["texto"]):
+        ambiguos = estudiantes_ambiguos(ctx["texto"], sync_service.cursos_del_docente(docente["email"]))
+        if ambiguos:
+            opciones = " o ".join(f"**{n}**" for n in ambiguos[:4])
+            extra = " (o escriba su cédula)" if len(ambiguos) > 4 else ""
+            return _respuesta_sin_herramientas(
+                f"¿A qué estudiante se refiere: {opciones}{extra}?", "aclaracion", docente, inicio)
     plan, fuente = await planificar(mensaje, docente, course_id)
     if not plan:
-        return _respuesta_sin_herramientas(AYUDA_SIN_INTENCION, "aclaracion", docente, inicio)
+        return _respuesta_sin_herramientas(ayuda_sin_intencion(docente), "aclaracion", docente, inicio)
     usadas = []
     for nombre, params in plan:
         t0 = time.time()

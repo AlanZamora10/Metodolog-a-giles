@@ -154,6 +154,7 @@ describe('Login con correo institucional', () => {
     const fetch = mockApi();
     const u = userEvent.setup();
     renderApp('/login');
+    await u.click(await screen.findByRole('button', { name: 'Microsoft Office 365' }));
     await u.type(await screen.findByLabelText(/correo institucional/i), 'rgomez');
     await u.type(screen.getByLabelText(/contraseña/i), 'Docente2026!');
     await u.click(screen.getByRole('button', { name: 'Ingresar' }));

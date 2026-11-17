@@ -338,3 +338,93 @@ def test_paralelo_distingue_cursos_de_la_misma_materia():
               {"id": 3, "shortname": "SOF-ED-B", "fullname": "(SOF) ESTRUCTURA DE DATOS - B"}]
     texto = agente_herramientas._normalizar("Resumen de Estructura de datos, paralelo B")
     assert agente_herramientas._curso_mencionado(texto, cursos) == 3
+
+
+# ------------------------------------------------------------------ Respuestas rápidas y lenguaje natural
+def _sin_llm(monkeypatch):
+    def no_llamar(**kw):
+        raise AssertionError("esta consulta no debe esperar al LLM")
+
+    monkeypatch.setattr(agente_herramientas.httpx, "AsyncClient", no_llamar)
+
+
+@pytest.mark.parametrize("mensaje", ["¿Qué puedes hacer?", "ayuda", "¿Quién eres?", "Hola, ¿en qué me puedes ayudar?",
+                                     "¿Cómo funciona?"])
+def test_preguntas_sobre_el_asistente_responden_al_instante(sincronizado, monkeypatch, mensaje):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje)
+    assert data["herramientas"] == [] and data["plan_fuente"] == "cortesia"
+    assert data["respuesta"].startswith("Soy su Asistente Académico de EduMonitor AI, Roberto Gómez.")
+    ejemplos = [ln for ln in data["respuesta"].splitlines() if ln.startswith("- «")]
+    assert len(ejemplos) == 3 and "«¿Cómo van mis cursos?»" in ejemplos[0]
+    assert "Programación orientada a objetos" in data["respuesta"]           # ejemplo con su materia real
+
+
+def test_saludo_usa_el_nombre_del_docente_y_sugiere_ejemplos(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "Buenas tardes")
+    assert data["respuesta"].startswith("¡Hola, Roberto Gómez! ¿En qué le ayudo hoy?")
+    assert "«Prepárame un plan de apoyo para Carlos Mendoza»" in data["respuesta"]  # su estudiante más crítico
+
+
+@pytest.mark.parametrize("mensaje, herramienta, parametros", [
+    ("cómo van mis cursos", "generar_resumen", {}),
+    ("resumen general", "generar_resumen", {}),
+    ("quién está mal", "identificar_alertas", {"course_id": 2}),
+    ("hay alertas?", "identificar_alertas", {"course_id": 2}),
+    ("¿Qué estudiantes de POO tienen problemas con las tareas este parcial?", "identificar_alertas", {"course_id": 2}),
+    ("dame los reprobados", "obtener_calificaciones", {"course_id": 2, "operador": "<", "umbral": 7.0}),
+    ("¿Quiénes están aprobando en todas mis materias?", "obtener_calificaciones", {"operador": ">=", "umbral": 7.0}),
+])
+def test_frases_informales_se_resuelven_sin_esperar_al_llm(sincronizado, monkeypatch, mensaje, herramienta,
+                                                           parametros):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje, course_id=2)
+    assert [(h["herramienta"], h["parametros"]) for h in data["herramientas"]] == [(herramienta, parametros)]
+    assert data["plan_fuente"] == "reglas_deterministas"
+
+
+def test_reprobados_lista_solo_notas_bajo_siete(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "dame los reprobados", course_id=2)
+    filas = data["herramientas"][0]["resultado"]["calificaciones"]
+    assert filas and all(f["nota_final"] < 7 for f in filas)
+    assert data["respuesta"].startswith(f"Encontré **{len(filas)} matrícula(s)** con **nota menor a 7.00**")
+
+
+@pytest.mark.parametrize("mensaje, esperado", [
+    ("notas de carlos mendosa", "Carlos Andrés Mendoza Paredes"),            # z -> s
+    ("¿como va sebastian romro?", "Sebastián Alejandro Romero Haro"),        # sin tilde y una letra omitida
+    ("notas de camila", "Camila Alejandra Andrade Morales"),                 # nombre único: basta el primero
+])
+def test_nombres_parciales_sin_tildes_o_con_errores_menores(sincronizado, mensaje, esperado):  # noqa: F811
+    data = _chat(sincronizado, mensaje)
+    assert data["herramientas"][0]["parametros"]["estudiante"] == esperado
+
+
+def test_nombre_ambiguo_pide_aclaracion_con_opciones(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "¿Cómo va Andrés?")
+    assert data["herramientas"] == [] and data["plan_fuente"] == "aclaracion"
+    assert data["respuesta"].startswith("¿A qué estudiante se refiere:")
+    assert "**Carlos Andrés Mendoza Paredes**" in data["respuesta"] and "**Andrés Felipe Salazar Cueva**" in data["respuesta"]
+
+
+def test_mensaje_poco_claro_pide_precisar_en_una_frase_amable(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)                                   # mensaje corto: no se espera a Ollama
+    data = _chat(sincronizado, "necesito revisar algo")
+    assert data["respuesta"].startswith("No estoy seguro de qué necesita, Roberto Gómez.")
+    assert data["respuesta"].count("\n") == 0
+
+
+def test_si_ollama_no_responde_a_tiempo_responden_las_reglas(sincronizado, monkeypatch):  # noqa: F811
+    real = httpx.AsyncClient
+
+    def handler(request):
+        raise httpx.ReadTimeout("Ollama tardó demasiado", request=request)
+
+    monkeypatch.setattr(agente_herramientas.httpx, "AsyncClient",
+                        lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    data = _chat(sincronizado, "¿Qué estudiantes de POO necesitan atención esta semana?")
+    assert data["plan_fuente"] == "reglas_deterministas"
+    assert [h["herramienta"] for h in data["herramientas"]] == ["identificar_alertas"]
+    assert agente_herramientas.AGENT_CHAT_TIMEOUT_SECONDS <= 6

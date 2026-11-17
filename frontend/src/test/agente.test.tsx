@@ -143,6 +143,7 @@ describe('RF-01 · login minimalista', () => {
   it('campos vacíos sin placeholder, enlace de recuperación a Moodle y sin texto técnico', async () => {
     mockApi();
     renderApp('/login');
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Microsoft Office 365' }));
     const usuario = await screen.findByLabelText(/correo institucional/i);
     const clave = screen.getByLabelText(/contraseña/i);
     expect(usuario).toHaveValue('');
@@ -183,11 +184,27 @@ describe('Agente conversacional e interfaz animada', () => {
     expect(screen.queryByTestId('auditoria')).not.toBeInTheDocument();
   });
 
-  it('el login muestra el escudo oficial UTA y entra con animación escalonada', async () => {
+  it('el login muestra la tarjeta institucional y despliega las credenciales con Microsoft Office 365', async () => {
     mockApi();
+    const u = userEvent.setup();
     renderApp('/login');
     expect(await screen.findByRole('img', { name: 'Universidad Técnica de Ambato' })).toHaveAttribute('src', '/uta-logo-azul.png');
-    expect(screen.getByRole('button', { name: 'Ingresar' })).toHaveClass('stagger-4');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('EduMonitor AI · Sistema de Monitoreo Académico');
+    expect(screen.getByText('Identifíquese usando su cuenta en:')).toBeInTheDocument();
+    // Vista inicial limpia: sin campos de credenciales
+    expect(screen.queryByLabelText(/correo institucional/i)).not.toBeInTheDocument();
+    const o365 = screen.getByRole('button', { name: 'Microsoft Office 365' });
+    expect(o365).toHaveClass('btn-o365');
+
+    await u.click(o365);
+    const formulario = screen.getByRole('form', { name: 'Credenciales institucionales' });
+    expect(formulario).toHaveClass('fade-up');                      // se despliega con animación, sin recargar
+    expect(screen.getByLabelText(/correo institucional/i)).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeInTheDocument();
+
+    await u.click(screen.getByRole('button', { name: /volver a las opciones de acceso/i }));
+    expect(screen.queryByLabelText(/correo institucional/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Microsoft Office 365' })).toHaveFocus();
   });
 
   it('las tarjetas KPI aparecen escalonadas', async () => {

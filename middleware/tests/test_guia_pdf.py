@@ -1,19 +1,24 @@
-"""Guía de estudio institucional en PDF que se adjunta a cada tarea de refuerzo en Moodle."""
+"""Guía de estudio en PDF (material de apoyo breve) que se adjunta a cada tarea de refuerzo en Moodle."""
 
+import re
 from datetime import datetime
 
 import pytest
 
 from app.services import contenidos_academicos as ca
-from app.services.guia_pdf import RUBRICA, construir_guia, nombre_archivo, renderizar_pdf
+from app.services import guia_pdf
+from app.services.guia_pdf import construir_guia, nombre_archivo, renderizar_pdf
 
 ESTUDIANTE = {"nombres": "Carlos Andrés Mendoza Paredes", "cedula": "1804923199",
               "email": "cmendoza3199@uta.edu.ec", "id_number": "U-04"}
-REGISTRO = {"nota_final": 3.04, "nivel_riesgo": "CRITICO", "acd": 3.0, "tareas": 2.0, "pae": 3.5, "actividades": [
-    {"id_number": "U2-T4", "nombre": "Tarea 4", "unidad": "U2", "nota": None, "estado": "SIN_ENTREGA"},
-    {"id_number": "U2-T3", "nombre": "Tarea 3", "unidad": "U2", "nota": 2.0, "estado": "CALIFICADO"},
-    {"id_number": "U2-A2", "nombre": "Evaluación", "unidad": "U2", "nota": 9.0, "estado": "CALIFICADO"},
-    {"id_number": "U1-T1", "nombre": "Tarea 1", "unidad": "U1", "nota": 1.0, "estado": "CALIFICADO"}]}
+REGISTRO = {"nota_final": 3.04, "nivel_riesgo": "CRITICO", "acd": 3.0, "tareas": 2.0, "pae": 3.5,
+            "promedios_unidad": {"U1": 4.1, "U2": 2.75}, "actividades": [
+                {"id_number": "U2-T4", "nombre": "Tarea 4", "unidad": 2, "nota": None, "estado": "SIN_ENTREGA"},
+                {"id_number": "U2-T3", "nombre": "Tarea 3", "unidad": 2, "nota": 2.0, "estado": "CALIFICADO"},
+                {"id_number": "U2-P3", "nombre": "Práctica 3", "unidad": 2, "nota": 4.5, "estado": "CALIFICADO"},
+                {"id_number": "U2-A2", "nombre": "Evaluación", "unidad": 2, "nota": 5.0, "estado": "CALIFICADO"},
+                {"id_number": "U2-T5", "nombre": "Tarea 5", "unidad": 2, "nota": 9.0, "estado": "CALIFICADO"},
+                {"id_number": "U1-T1", "nombre": "Tarea 1", "unidad": 1, "nota": 1.0, "estado": "CALIFICADO"}]}
 CURSO = {"shortname": "SOF-POO-A", "fullname": "(SOF) PROGRAMACION ORIENTADA A OBJETOS - A"}
 
 
@@ -24,37 +29,59 @@ def _guia(**cambios):
     return construir_guia(**{**datos, **cambios})
 
 
-def test_la_rubrica_suma_100():
-    assert sum(peso for _, peso, *_ in RUBRICA) == 100
-    assert all(len(descriptores) == 4 for _, _, *descriptores in RUBRICA)
+def _paginas(pdf: bytes) -> int:
+    return len(re.findall(rb"/Type /Page\b(?!s)", pdf))
 
 
-def test_guia_con_datos_reales_del_estudiante_y_la_unidad_con_falencia():
+def test_es_una_guia_de_estudio_sin_rubrica_ni_criterios_de_calificacion():
     guia = _guia()
-    assert guia["estudiante"]["nombres"] == "Carlos Andrés Mendoza Paredes"
-    assert guia["estudiante"]["cedula"] == "1804923199"
+    assert "rubrica" not in guia and not hasattr(guia_pdf, "RUBRICA")
+    assert set(guia) >= {"estudiante", "materia", "unidad_titulo", "docente", "diagnostico", "instrucciones",
+                         "temas", "ejemplo", "ejercicios"}
+
+
+def test_datos_esenciales_del_estudiante_y_la_unidad():
+    guia = _guia()
+    assert guia["estudiante"] == ESTUDIANTE
     assert guia["materia"] == "Programación orientada a objetos — Paralelo A"
     assert guia["unidad_titulo"] == "Unidad 2: Herencia y polimorfismo"
-    assert [t for t, _ in guia["temas"]] == ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"]
-    assert len(guia["ejemplo"]["pasos"]) >= 3 and guia["ejercicios"]
-    # Diagnóstico: sólo las actividades débiles de la unidad, primero las que no tienen entrega
-    assert [a[0] for a in guia["diagnostico"]["actividades"]] == ["U2-T4", "U2-T3"]
-    assert guia["diagnostico"]["componentes"][0] == ("Exámenes", 40, 3.0)
+    assert guia["docente"] == "Roberto Patricio Gómez Salazar" and guia["instrucciones"] == "Resuelva la guía."
     assert nombre_archivo(guia) == "Guia_refuerzo_POO_U2_U-04.pdf"
 
 
+def test_diagnostico_puntual_en_tres_lineas():
+    diagnostico = _guia()["diagnostico"]
+    assert diagnostico == [
+        "Nota actual en la Unidad 2: 2.75/10 (nota ponderada de la materia: 3.04/10, nivel crítico).",
+        "Componente que más necesita reforzar: Tareas (2.00/10).",
+        "Actividades a repasar: U2-T4 (sin entrega), U2-T3 (2.00), U2-P3 (4.50).",   # sólo de la unidad, máx. 3
+    ]
+
+
+def test_material_al_grano_un_ejemplo_y_hasta_tres_ejercicios():
+    guia = _guia()
+    assert [t for t, _ in guia["temas"]] == ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"]
+    assert all(len(explicacion) <= 260 for _, explicacion in guia["temas"])        # explicaciones breves
+    assert guia["ejemplo"]["enunciado"] and 3 <= len(guia["ejemplo"]["pasos"]) <= 5
+    assert 2 <= len(guia["ejercicios"]) <= 3
+
+
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
-def test_catalogo_completo_y_cada_guia_se_renderiza(sigla):
+def test_cada_guia_del_catalogo_ocupa_como_maximo_dos_paginas(sigla):
     assert sorted(ca.CONTENIDOS[sigla]) == [1, 2, 3, 4]
-    for unidad, contenido in ca.CONTENIDOS[sigla].items():
-        assert len(contenido["temas"]) >= 3 and len(contenido["ejercicios"]) >= 4
-        assert contenido["ejemplo"]["pasos"] and contenido["ejemplo"]["resultado"]
+    for unidad in ca.CONTENIDOS[sigla]:
         pdf = renderizar_pdf(_guia(curso={"shortname": f"SOF-{sigla}-A", "fullname": f"(SOF) {sigla} - A"},
-                                   unidad=f"Unidad {unidad}"))
+                                   unidad=f"Unidad {unidad}",
+                                   instrucciones="Revise el material de la unidad y resuelva la guía. " * 3))
         assert pdf.startswith(b"%PDF-") and pdf.rstrip().endswith(b"%%EOF")
+        assert 1 <= _paginas(pdf) <= 2, (sigla, unidad)
 
 
-def test_materia_fuera_del_catalogo_usa_una_guia_generica():
+def test_la_guia_tipica_cabe_en_una_pagina():
+    assert _paginas(renderizar_pdf(_guia())) == 1
+
+
+def test_materia_fuera_del_catalogo_usa_una_guia_breve():
     guia = _guia(curso={"shortname": "SOF-XYZ-A", "fullname": "(SOF) OTRA MATERIA - A"})
     assert guia["ejemplo"] is None
     assert guia["temas"][0][0] == "Tarea 4" and guia["ejercicios"][0].startswith("Rehaga la actividad U2-T4")
@@ -63,5 +90,5 @@ def test_materia_fuera_del_catalogo_usa_una_guia_generica():
 
 def test_sin_registro_omite_el_diagnostico_y_tolera_texto_fuera_de_latin1():
     guia = _guia(registro=None, titulo="Refuerzo — «U2» → ≥ 7")
-    assert guia["diagnostico"] is None
+    assert guia["diagnostico"] == []
     assert renderizar_pdf(guia).startswith(b"%PDF-")

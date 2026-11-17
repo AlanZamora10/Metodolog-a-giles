@@ -128,14 +128,15 @@ body#page-login-index {
   color: #6A737B;
 }
 #page-login-index .loginform::before {
-  content: "Plataforma Educativa Institucional";
+  content: "PLATAFORMA EDUCATIVA INSTITUCIONAL";
   display: block;
   text-align: center;
   color: var(--uta-navy);
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1.25;
-  margin-bottom: .3rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  line-height: 1.3;
+  margin-bottom: .6rem;
 }
 #page-login-index .login-heading {
   text-align: center;
@@ -162,3 +163,32 @@ body#page-login-index {
 #page-login-index .login-identityproviders h2,
 #page-login-index .login-signup h2 { color: var(--uta-navy); }
 #page-login-index #page-footer { background: transparent; color: #6A737B; }
+
+/* ---------- Acceso con el flujo «Microsoft Office 365» (tema_uta_login.js) ---------- */
+@keyframes utaFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+/* Paso 1: sólo el título, el subtítulo y el botón Microsoft Office 365 */
+#page-login-index .uta-paso-inicio .loginform > :not(.uta-portada) { display: none !important; }
+#page-login-index .uta-paso-credenciales .uta-portada { display: none; }
+#page-login-index .uta-paso-inicio .uta-portada,
+#page-login-index .uta-paso-credenciales .loginform > :not(.uta-portada) { animation: utaFadeUp .35s ease-out both; }
+#page-login-index .uta-portada { display: flex; flex-direction: column; gap: 1rem; padding: .4rem 0 .6rem; }
+#page-login-index .uta-portada-sub { text-align: center; color: #6A737B; font-size: .95rem; margin: 0; }
+#page-login-index .uta-o365-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .75rem;
+  width: 100%; min-height: 52px; border-radius: 10px;
+  border: 1.5px solid #D8C07A; background: #FFFFFF; color: #1D2125;
+  font-size: 1.02rem; font-weight: 600; cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease, transform .15s ease;
+}
+#page-login-index .uta-o365-btn:hover { border-color: #C59B27; background: #FFFCF3; box-shadow: 0 4px 14px rgba(197, 155, 39, .18); }
+#page-login-index .uta-o365-btn:active { transform: translateY(1px); }
+#page-login-index .uta-o365-btn:focus-visible { outline: 3px solid rgba(11, 42, 91, .35); outline-offset: 2px; }
+#page-login-index .uta-volver {
+  display: block; margin: .25rem auto 0; padding: .25rem .5rem; border: 0; border-radius: 6px;
+  background: none; color: #6A737B; font-size: .85rem; cursor: pointer;
+}
+#page-login-index .uta-volver:hover { color: var(--uta-blue); text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) {
+  #page-login-index .uta-portada,
+  #page-login-index .loginform > * { animation: none !important; }
+}

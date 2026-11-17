@@ -22,8 +22,14 @@ logger = logging.getLogger("agent_service.planner")
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
-# Menor que el timeout del middleware (10 s) para que el agente siempre alcance a responder (aunque sea sin plan)
-INFERENCE_TIMEOUT = float(os.getenv("AGENT_PLAN_TIMEOUT_SECONDS", "8.0"))
+# Menor que el presupuesto del middleware para el chat (6 s): el agente siempre alcanza a responder (aunque sea sin
+# plan) y el middleware cae a sus reglas sin que el docente espere de más.
+INFERENCE_TIMEOUT = float(os.getenv("AGENT_PLAN_TIMEOUT_SECONDS", "5.0"))
+
+# Saludos, cortesías y preguntas sobre el asistente: no requieren herramientas ni esperar a Ollama
+_TRIVIAL = re.compile(r"^(hola|holi|hey|buenas|buenos dias|buenas tardes|buenas noches|saludos|gracias|muchas gracias|"
+                      r"ok|okay|vale|listo|perfecto|chao|adios|hasta luego|ayuda|help|menu|opciones|quien eres|"
+                      r"que eres|que puedes hacer|que sabes hacer|como funcionas|como funciona)$")
 
 def _normalizar(texto: str) -> str:
     texto = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
@@ -99,8 +105,14 @@ def _herramientas_ollama(herramientas: List[Dict[str, Any]]) -> List[Dict[str, A
     } for h in herramientas]
 
 
+def es_trivial(mensaje: str) -> bool:
+    return bool(_TRIVIAL.match(" ".join(re.findall(r"[a-z0-9]+", _normalizar(mensaje)))))
+
+
 async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: List[Dict[str, Any]],
                      course_id: Optional[int] = None) -> Dict[str, Any]:
+    if es_trivial(mensaje):
+        return {"llamadas": [], "fuente": "sin_plan_trivial"}
     contexto = "; ".join(f"{c['id']}={c['shortname']} {_nombre_materia(c.get('fullname', ''))}" for c in cursos)
     sistema = (
         "Asistente académico de EduMonitor AI. Elige herramientas y parámetros; no inventes datos. "

@@ -238,7 +238,7 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     Publica el refuerzo aprobado como tarea REAL en Moodle (RN-17 / HU-05), vía el plugin local_edumonitor:
       - Exige req.confirmado == True (400 si es False).
       - Genera la guía de estudio institucional en PDF (datos del estudiante, unidad con falencia, explicación,
-        ejemplo resuelto, ejercicios y rúbrica) y la adjunta a la tarea.
+        un ejemplo resuelto y ejercicios de práctica) y la adjunta a la tarea.
       - Crea la tarea en la sección «Refuerzos» del curso, visible sólo para el estudiante de la alerta.
       - Guarda el cmid real devuelto por Moodle; refuerzo y alerta pasan a PUBLICADO.
       - Notifica al estudiante en la campana de Moodle (asunto, indicaciones y enlace a la tarea). Si el aviso
@@ -266,8 +266,8 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     vence = _vencimiento(req.fecha_entrega)
     guia = _guia_de_estudio(alerta, docente, titulo, instrucciones, vence)
     texto_moodle = instrucciones + (
-        f"\n\nGuía de estudio: descargue el PDF adjunto «{guia['nombre']}» con la explicación de los temas, "
-        "ejemplos resueltos, ejercicios propuestos y la rúbrica de evaluación." if guia else "")
+        f"\n\nGuía de estudio: descargue el PDF adjunto «{guia['nombre']}» con los conceptos clave, "
+        "un ejemplo resuelto y ejercicios de práctica." if guia else "")
     moodle = MoodleClient()
     try:
         tarea = await moodle.publicar_refuerzo(

@@ -74,3 +74,22 @@ def test_el_prompt_incluye_el_nombre_de_la_materia_y_la_regla(monkeypatch):
     assert "Programacion orientada a objetos (paralelo A)" in capturado["json"]
     assert "nunca un estudiante" in capturado["json"]
     assert '"umbral":{"type":"number"}' in capturado["json"].replace(" ", "")
+
+
+def test_mensajes_triviales_no_esperan_a_ollama(monkeypatch):
+    def no_llamar(**kw):
+        raise AssertionError("un saludo no debe consultar a Ollama")
+
+    monkeypatch.setattr(chat_planner.httpx, "AsyncClient", no_llamar)
+    for mensaje in ("Hola", "¡Buenos días!", "gracias", "¿Qué puedes hacer?", "ayuda", "¿Quién eres?"):
+        assert asyncio.run(chat_planner.planificar(mensaje, HERRAMIENTAS, CURSOS)) == {
+            "llamadas": [], "fuente": "sin_plan_trivial"}
+    assert chat_planner.INFERENCE_TIMEOUT <= 5
+
+
+def test_respuesta_sin_llamadas_estructuradas_devuelve_plan_vacio(monkeypatch):
+    real = httpx.AsyncClient
+    monkeypatch.setattr(chat_planner.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={"message": {"role": "assistant", "content": "No sé qué hacer"}})), **kw))
+    plan = asyncio.run(chat_planner.planificar("cómo van mis cursos", HERRAMIENTAS, CURSOS))
+    assert plan == {"llamadas": [], "fuente": "sin_plan_llm"}

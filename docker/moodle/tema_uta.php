@@ -3,6 +3,8 @@
  * Aplica (o reaplica) la identidad visual UTA · FISEI a Moodle UTA SIN re-sembrar datos:
  *   - CSS institucional (tema_uta.css) en $CFG->additionalhtmlhead: login con tarjeta institucional y
  *     fondo geométrico, barra superior azul UTA y estilos de curso.
+ *   - Script del acceso con el flujo «Microsoft Office 365» (tema_uta_login.js): mejora progresiva del
+ *     formulario nativo de Moodle (no cambia #login, #username, #password ni #loginbtn).
  *   - Purga de cachés para que el cambio se vea de inmediato.
  * No toca cursos, usuarios, calificaciones ni las tareas de refuerzo publicadas.
  *
@@ -12,13 +14,15 @@
  */
 
 if (!function_exists('edumonitor_css_tema_uta')) {
-    /** Bloque <style> listo para additionalhtmlhead. */
+    /** Bloques <style> y <script> listos para additionalhtmlhead. */
     function edumonitor_css_tema_uta(): string {
         $css = file_get_contents(__DIR__ . '/tema_uta.css');
-        if ($css === false) {
-            throw new RuntimeException('No se pudo leer tema_uta.css');
+        $js = file_get_contents(__DIR__ . '/tema_uta_login.js');
+        if ($css === false || $js === false) {
+            throw new RuntimeException('No se pudo leer tema_uta.css o tema_uta_login.js');
         }
-        return "<style id=\"uta-theme\">\n" . trim($css) . "\n</style>";
+        return "<style id=\"uta-theme\">\n" . trim($css) . "\n</style>\n"
+            . "<script id=\"uta-login-o365\">\n" . trim($js) . "\n</script>";
     }
 }
 
@@ -37,5 +41,5 @@ if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === realpath(__FILE__)) {
     }
     set_config('additionalhtmlhead', edumonitor_css_tema_uta());
     purge_all_caches();
-    echo "[EduMonitor AI] Identidad visual UTA · FISEI aplicada (login, barra superior y cursos).\n";
+    echo "[EduMonitor AI] Identidad visual UTA · FISEI aplicada (login Microsoft Office 365, barra superior y cursos).\n";
 }
