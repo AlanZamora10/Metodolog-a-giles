@@ -7,8 +7,6 @@ volumes:
     driver: local
   moodle_db_data:
     driver: local
-  analytics_pgdata:
-    driver: local
   sqlserver_data:
     driver: local
   ollama_data:
@@ -66,32 +64,7 @@ services:
     networks:
       - moodle-net
   # ----------------------------------------------------------------------------
-  # 2. POSTGRESQL (Sprint 3) - SIN USO desde la Fase A: se conserva como vuelta atrás
-  #    temporal. El middleware ya no depende de este servicio (usa SQL Server).
-  # ----------------------------------------------------------------------------
-  analytics-db:
-    image: postgres:15-alpine
-    container_name: moodle_analytics_db
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=${DB_NAME:-moodle_analytics}
-      - POSTGRES_USER=${DB_USER:-analytics_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:?Defina DB_PASSWORD en .env}
-    volumes:
-      - analytics_pgdata:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    networks:
-      - moodle-net
-
-  # ----------------------------------------------------------------------------
-  # 2.B SQL SERVER 2022 (MoodleUTADB) - BASE DE DATOS ACTIVA DEL SISTEMA (Fase A)
+  # 2. SQL SERVER 2022 (MoodleUTADB) - BASE DE DATOS ACTIVA DEL SISTEMA (Fase A)
   # El middleware crea la base MoodleUTADB y su esquema al arrancar (idempotente).
   # ----------------------------------------------------------------------------
   sqlserver:

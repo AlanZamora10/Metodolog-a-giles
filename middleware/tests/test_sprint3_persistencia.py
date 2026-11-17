@@ -145,7 +145,7 @@ def test_login_moodle_guarda_perfil_sin_contrasena_local(motor):
     assert fila["cedula"] == "1803454824"
 
     # Un segundo login (correo en mayúsculas) actualiza el mismo perfil, no lo duplica
-    assert client.post("/api/v1/auth/login", json={"email": "RGOMEZ4824@uta.edu.ec", "password": "Docente2026!"}).status_code == 200
+    assert client.post("/api/v1/auth/login", json={"email": "RGOMEZ4824@uta.edu.ec", "password": "RobertoGomez1!"}).status_code == 200
     assert repositories.contar("usuarios", motor) == 1
     assert repositories.user_by_email("rgomez4824@uta.edu.ec", motor)["ultimo_acceso"] >= primer_acceso
     logs = [log for log in repositories.filas("logs_sistema", motor) if log["tipo_proceso"] == "LOGIN"]

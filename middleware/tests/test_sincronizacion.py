@@ -21,7 +21,7 @@ from moodle_fake import token_con_rol
 
 client = TestClient(app)
 
-DOCENTE = {"email": "rgomez4824@uta.edu.ec", "password": "Docente2026!"}
+DOCENTE = {"email": "rgomez4824@uta.edu.ec", "password": "RobertoGomez1!"}
 
 
 def _gi(idnumber: str, raw=None, feedback="", grademax=10):

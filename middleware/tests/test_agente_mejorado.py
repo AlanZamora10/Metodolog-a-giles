@@ -153,8 +153,8 @@ import pytest  # noqa: E402
 
 
 @pytest.mark.parametrize("mensaje,esperado", [
-    ("Hola", "¡Hola"), ("buenos días", "¡Hola"), ("¡Gracias!", "Con gusto"), ("ok", "Perfecto"),
-    ("muchas gracias, muy amable", "Con gusto"), ("chao", "¡Hasta pronto"),
+    ("Hola", "¡Hola, Roberto!"), ("buenos días", "¡Buenos días, Ing. Gómez!"), ("¡Gracias!", "Con gusto"),
+    ("ok", "Perfecto"), ("muchas gracias, muy amable", "Con gusto"), ("chao", "¡Hasta pronto"),
 ])
 def test_saludos_y_cortesias_sin_herramientas(sincronizado, monkeypatch, mensaje, esperado):  # noqa: F811
     def no_llamar(**kw):
@@ -163,7 +163,7 @@ def test_saludos_y_cortesias_sin_herramientas(sincronizado, monkeypatch, mensaje
     monkeypatch.setattr(agente_herramientas.httpx, "AsyncClient", no_llamar)
     data = _chat(sincronizado, mensaje, course_id=2)
     assert data["herramientas"] == [] and data["plan_fuente"] == "cortesia"
-    assert data["respuesta"].startswith(esperado) and len(data["respuesta"]) < 220
+    assert data["respuesta"].startswith(esperado) and len(data["respuesta"]) < 400
     logs = [x for x in repositories.filas("logs_sistema") if x["tipo_proceso"] == "AGENTE_HERRAMIENTA"]
     chat = repositories.filas("logs_sistema")[-1]
     assert chat["tipo_proceso"] == "AGENTE_CHAT" and chat["detalle"]["herramientas"] == []
@@ -354,7 +354,7 @@ def test_preguntas_sobre_el_asistente_responden_al_instante(sincronizado, monkey
     _sin_llm(monkeypatch)
     data = _chat(sincronizado, mensaje)
     assert data["herramientas"] == [] and data["plan_fuente"] == "cortesia"
-    assert data["respuesta"].startswith("Soy su Asistente Académico de EduMonitor AI, Roberto Gómez.")
+    assert data["respuesta"].startswith("Soy su Asistente Académico de EduMonitor AI, Ing. Gómez.")
     ejemplos = [ln for ln in data["respuesta"].splitlines() if ln.startswith("- «")]
     assert len(ejemplos) == 3 and "«¿Cómo van mis cursos?»" in ejemplos[0]
     assert "Programación orientada a objetos" in data["respuesta"]           # ejemplo con su materia real
@@ -362,8 +362,8 @@ def test_preguntas_sobre_el_asistente_responden_al_instante(sincronizado, monkey
 
 def test_saludo_usa_el_nombre_del_docente_y_sugiere_ejemplos(sincronizado, monkeypatch):  # noqa: F811
     _sin_llm(monkeypatch)
-    data = _chat(sincronizado, "Buenas tardes")
-    assert data["respuesta"].startswith("¡Hola, Roberto Gómez! ¿En qué le ayudo hoy?")
+    data = _chat(sincronizado, "Hola")
+    assert data["respuesta"].startswith("¡Hola, Roberto! Soy el Asistente Académico EduMonitor AI.")
     assert "«Prepárame un plan de apoyo para Carlos Mendoza»" in data["respuesta"]  # su estudiante más crítico
 
 
@@ -428,3 +428,44 @@ def test_si_ollama_no_responde_a_tiempo_responden_las_reglas(sincronizado, monke
     assert data["plan_fuente"] == "reglas_deterministas"
     assert [h["herramienta"] for h in data["herramientas"]] == ["identificar_alertas"]
     assert agente_herramientas.AGENT_CHAT_TIMEOUT_SECONDS <= 6
+
+
+# ------------------------------------------------------------------ Saludos variados (sin repetir la bienvenida)
+@pytest.mark.parametrize("mensaje, esperado, sin_ejemplos", [
+    ("buenos días", "¡Buenos días, Ing. Gómez! ¿En qué puedo apoyarle hoy con sus cursos?", True),
+    ("Buenas tardes", "¡Buenas tardes, Ing. Gómez!", True),
+    ("buenas noches", "¡Buenas noches, Ing. Gómez!", True),
+    ("¿Cómo estás?", "Muy bien, gracias por preguntar, Ing. Gómez. Listo para ayudarle a revisar el rendimiento de "
+                     "sus cursos o preparar algún plan de apoyo. ¿Qué necesita consultar hoy?", True),
+    ("¿cómo te va?", "Muy bien, gracias por preguntar, Ing. Gómez.", True),
+    ("Hola, ¿cómo estás?", "¡Hola, Roberto! Muy bien, gracias por preguntar.", True),
+    ("Buenos días, ¿cómo está?", "¡Buenos días, Ing. Gómez! Muy bien, gracias por preguntar.", True),
+    ("qué tal", "¡Hola, Roberto! Soy el Asistente Académico EduMonitor AI.", False),
+    ("perfecto", "Perfecto.", True), ("listo", "Perfecto.", True),
+])
+def test_cada_tipo_de_saludo_tiene_su_propia_respuesta(sincronizado, monkeypatch, mensaje, esperado,
+                                                       sin_ejemplos):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje)
+    assert data["plan_fuente"] == "cortesia" and data["respuesta"].startswith(esperado)
+    assert ("- «" not in data["respuesta"]) is sin_ejemplos
+
+
+def test_no_repite_la_bienvenida_ni_la_misma_frase(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    primera = _chat(sincronizado, "hola")["respuesta"]
+    assert "- «" in primera                                        # la primera vez, con ejemplos
+    segunda = _chat(sincronizado, "hola")["respuesta"]
+    assert segunda.startswith("¡Hola de nuevo, Roberto!") and "- «" not in segunda
+    como = _chat(sincronizado, "¿cómo estás?")["respuesta"]
+    assert "Soy el Asistente" not in como and "- «" not in como
+    gracias = [_chat(sincronizado, "gracias")["respuesta"] for _ in range(3)]
+    assert len(set(gracias)) == 3                                  # tres frases distintas
+    assert all(len(g) < 120 for g in gracias)
+
+
+def test_la_segunda_docente_recibe_su_propio_trato(sincronizado):  # noqa: F811
+    from app.services.agente_herramientas import respuesta_cortesia
+    patricia = {"email": "pvillacis7138@uta.edu.ec", "nombres": "Patricia Elena Villacís Paredes"}
+    assert respuesta_cortesia("buenas tardes", patricia).startswith("¡Buenas tardes, Ing. Villacís!")
+    assert respuesta_cortesia("hola", patricia).startswith("¡Hola, Patricia!")

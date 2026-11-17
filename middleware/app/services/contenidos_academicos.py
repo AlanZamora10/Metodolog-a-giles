@@ -5,7 +5,7 @@ Alimentan la guía de estudio en PDF que se adjunta a cada tarea de refuerzo: ex
 temas, un ejemplo resuelto paso a paso y ejercicios propuestos. Es contenido determinista y revisable por el
 docente (no lo genera el modelo de lenguaje), por lo que no puede inventar datos del estudiante.
 
-Claves: la sigla del curso en Moodle (SOF-POO-A -> "POO") y el número de unidad (1 a 4).
+Claves: la sigla del curso en Moodle (SOF-POO-A => "POO") y el número de unidad (1 a 4).
 """
 
 from typing import Any, Dict, Optional
@@ -161,9 +161,9 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "Busque el valor 25 en el arreglo ordenado [3, 8, 12, 19, 25, 31, 40] con búsqueda binaria.",
                 "pasos": [
-                    "inicio = 0, fin = 6 -> medio = 3, arreglo[3] = 19 < 25: se descarta la mitad izquierda, inicio = 4.",
-                    "inicio = 4, fin = 6 -> medio = 5, arreglo[5] = 31 > 25: se descarta la mitad derecha, fin = 4.",
-                    "inicio = 4, fin = 4 -> medio = 4, arreglo[4] = 25: valor encontrado.",
+                    "inicio = 0, fin = 6 => medio = 3, arreglo[3] = 19 < 25: se descarta la mitad izquierda, inicio = 4.",
+                    "inicio = 4, fin = 6 => medio = 5, arreglo[5] = 31 > 25: se descarta la mitad derecha, fin = 4.",
+                    "inicio = 4, fin = 4 => medio = 4, arreglo[4] = 25: valor encontrado.",
                 ],
                 "resultado": "El valor está en la posición 4 y se encontró en 3 comparaciones (lineal necesitaría 5).",
             },
@@ -188,19 +188,19 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                  "Modelan turnos de atención, impresión y planificación de procesos."),
             ],
             "ejemplo": {
-                "enunciado": "Evalúe la expresión en notación postfija «5 3 + 2 *» usando una pila.",
+                "enunciado": "Evalúe la expresión en notación postfija '5 3 + 2 *' usando una pila.",
                 "pasos": [
-                    "Leer 5 -> push(5). Pila: [5].",
-                    "Leer 3 -> push(3). Pila: [5, 3].",
-                    "Leer + -> pop() = 3, pop() = 5, push(5 + 3 = 8). Pila: [8].",
-                    "Leer 2 -> push(2). Pila: [8, 2].",
-                    "Leer * -> pop() = 2, pop() = 8, push(8 * 2 = 16). Pila: [16].",
+                    "Leer 5 => push(5). Pila: [5].",
+                    "Leer 3 => push(3). Pila: [5, 3].",
+                    "Leer + => pop() = 3, pop() = 5, push(5 + 3 = 8). Pila: [8].",
+                    "Leer 2 => push(2). Pila: [8, 2].",
+                    "Leer * => pop() = 2, pop() = 8, push(8 * 2 = 16). Pila: [16].",
                 ],
                 "resultado": "Al terminar la expresión la pila contiene un solo valor: 16.",
             },
             "ejercicios": [
                 "Implemente una pila con lista enlazada y los métodos push, pop, peek y estaVacia.",
-                "Verifique con una pila si los paréntesis de «(a + [b * c]) - {d}» están balanceados.",
+                "Verifique con una pila si los paréntesis de '(a + [b * c]) - {d}' están balanceados.",
                 "Simule una cola de atención con 5 clientes y muestre el orden en que son atendidos.",
                 "Compare el costo de eliminar el primer elemento en un arreglo y en una lista enlazada.",
             ],
@@ -319,9 +319,9 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                              "Login (8), Registro (5), Reportes (13), Perfil (3), Notificaciones (5).",
                 "pasos": [
                     "Respetar el orden de prioridad que define el Product Owner.",
-                    "Login (8) -> acumulado 8. Registro (5) -> acumulado 13.",
+                    "Login (8) => acumulado 8. Registro (5) => acumulado 13.",
                     "Reportes (13) superaría la capacidad (26 > 20): no se incluye en este sprint.",
-                    "Perfil (3) -> acumulado 16. Notificaciones (5) -> 21 supera la capacidad: queda para el siguiente.",
+                    "Perfil (3) => acumulado 16. Notificaciones (5) => 21 supera la capacidad: queda para el siguiente.",
                     "Redactar el objetivo del sprint: «Permitir que el usuario se registre, ingrese y edite su perfil».",
                 ],
                 "resultado": "Sprint Backlog: Login, Registro y Perfil (16 puntos), con margen para imprevistos.",
@@ -337,7 +337,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "titulo": "Historias de usuario y estimación",
             "temas": [
                 ("Historias de usuario",
-                 "Formato: «Como <rol>, quiero <funcionalidad>, para <beneficio>». Deben cumplir INVEST: "
+                 "Formato: 'Como <rol>, quiero <funcionalidad>, para <beneficio>'. Deben cumplir INVEST: "
                  "independientes, negociables, valiosas, estimables, pequeñas y comprobables."),
                 ("Criterios de aceptación",
                  "Condiciones verificables para dar por cumplida la historia, por ejemplo en formato Dado / Cuando / "
@@ -356,7 +356,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                     "Criterio 2: Dado un correo no registrado, cuando solicito recuperar, entonces veo un mensaje "
                     "genérico sin revelar si existe.",
                     "Verificar INVEST: es pequeña, valiosa y comprobable por sus criterios.",
-                    "Estimar en Planning Poker: votos 3, 5, 5, 8 -> se discute el 8 y se acuerda 5 puntos.",
+                    "Estimar en Planning Poker: votos 3, 5, 5, 8 => se discute el 8 y se acuerda 5 puntos.",
                 ],
                 "resultado": "Historia lista para el sprint: redactada, con 2 criterios verificables y estimada en 5 puntos.",
             },
@@ -417,11 +417,11 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "Cree un repositorio para un proyecto nuevo y registre dos versiones de un archivo.",
                 "pasos": [
-                    "git init -> crea el repositorio local (carpeta .git).",
-                    "Crear README.md y ejecutar git add README.md -> el archivo pasa al área de preparación.",
-                    "git commit -m \"docs: crea README inicial\" -> primera versión confirmada.",
+                    "git init => crea el repositorio local (carpeta .git).",
+                    "Crear README.md y ejecutar git add README.md => el archivo pasa al área de preparación.",
+                    "git commit -m \"docs: crea README inicial\" => primera versión confirmada.",
                     "Editar README.md, revisar con git diff y confirmar con git commit -am \"docs: agrega instalación\".",
-                    "git log --oneline -> muestra los dos commits con su identificador abreviado.",
+                    "git log --oneline => muestra los dos commits con su identificador abreviado.",
                 ],
                 "resultado": "El historial conserva ambas versiones y permite volver a cualquiera con git checkout.",
             },
@@ -449,7 +449,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                 "enunciado": "Dos desarrolladores cambiaron la misma línea de config.py. Resuelva el conflicto al fusionar "
                              "feature/puerto en develop.",
                 "pasos": [
-                    "git switch develop y git merge feature/puerto -> Git informa CONFLICT en config.py.",
+                    "git switch develop y git merge feature/puerto => Git informa CONFLICT en config.py.",
                     "Abrir config.py: entre <<<<<<< y ======= está la versión de develop; entre ======= y >>>>>>> la "
                     "de la rama.",
                     "Acordar con el equipo el valor correcto (PUERTO = 8080) y borrar las marcas de conflicto.",
@@ -481,11 +481,11 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "La versión actual es 2.4.1. Determine la nueva versión tras cada cambio publicado por separado.",
                 "pasos": [
-                    "Se corrige un error de cálculo sin cambiar la interfaz -> PARCHE: 2.4.2.",
-                    "Se agrega un reporte nuevo compatible con lo existente -> MENOR: 2.5.0 (el parche vuelve a 0).",
-                    "Se elimina un endpoint que usaban los clientes -> MAYOR: 3.0.0 (menor y parche vuelven a 0).",
+                    "Se corrige un error de cálculo sin cambiar la interfaz => PARCHE: 2.4.2.",
+                    "Se agrega un reporte nuevo compatible con lo existente => MENOR: 2.5.0 (el parche vuelve a 0).",
+                    "Se elimina un endpoint que usaban los clientes => MAYOR: 3.0.0 (menor y parche vuelven a 0).",
                 ],
-                "resultado": "Secuencia de publicación: 2.4.2 -> 2.5.0 -> 3.0.0.",
+                "resultado": "Secuencia de publicación: 2.4.2 => 2.5.0 => 3.0.0.",
             },
             "ejercicios": [
                 "Diseñe las etapas de un pipeline de CI para un proyecto Python o JavaScript.",
@@ -527,11 +527,372 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             ],
         },
     },
+    # ------------------------------------------------------------------ Ingeniería de Software I
+    "IS1": {
+        1: {
+            "titulo": "Procesos de software y ciclo de vida",
+            "temas": [
+                ("Proceso de software",
+                 "Conjunto de actividades para producir software: especificación, diseño e implementación, validación "
+                 "y evolución. Cada organización lo adapta a su contexto."),
+                ("Modelos de ciclo de vida",
+                 "Cascada (fases secuenciales), incremental (entregas parciales que suman funcionalidad) y espiral "
+                 "(iteraciones guiadas por el análisis de riesgos)."),
+                ("Elección del modelo",
+                 "Depende de la estabilidad de los requisitos, el tamaño del equipo, el riesgo técnico y la necesidad "
+                 "de entregar valor pronto."),
+            ],
+            "ejemplo": {
+                "enunciado": "Elija el modelo de ciclo de vida para un sistema de matrícula cuyos requisitos legales "
+                             "están definidos, pero cuya interfaz se validará con estudiantes.",
+                "pasos": [
+                    "Identificar lo estable: reglas de matrícula y normativa (bien definidas).",
+                    "Identificar lo incierto: la interfaz y la experiencia del estudiante.",
+                    "Descartar cascada pura: no permite validar la interfaz antes del final.",
+                    "Proponer un modelo incremental: incremento 1 con reglas y registro; incremento 2 con la interfaz "
+                    "validada con usuarios.",
+                ],
+                "resultado": "Modelo incremental: entrega temprana de lo estable y validación progresiva de lo incierto.",
+            },
+            "ejercicios": [
+                "Compare cascada, incremental y espiral en una tabla (planificación, riesgo, entregas).",
+                "Proponga el modelo para una app de turnos médicos con requisitos cambiantes y justifíquelo.",
+                "Describa las 4 actividades del proceso de software aplicadas a su proyecto de aula.",
+            ],
+        },
+        2: {
+            "titulo": "Ingeniería de requisitos",
+            "temas": [
+                ("Requisitos funcionales y no funcionales",
+                 "Los funcionales describen lo que el sistema hace (registrar una nota); los no funcionales, cómo lo "
+                 "hace (tiempo de respuesta, seguridad, disponibilidad)."),
+                ("Técnicas de obtención",
+                 "Entrevistas, cuestionarios, observación, talleres y prototipos permiten descubrir necesidades reales "
+                 "de los usuarios."),
+                ("Especificación verificable",
+                 "Un buen requisito es claro, medible y comprobable: evita palabras ambiguas como «rápido» o «fácil»."),
+            ],
+            "ejemplo": {
+                "enunciado": "Reescriba de forma verificable el requisito: 'El sistema debe ser rápido al buscar "
+                             "estudiantes'.",
+                "pasos": [
+                    "Detectar la ambigüedad: «rápido» no se puede medir.",
+                    "Clasificarlo: es un requisito no funcional de rendimiento.",
+                    "Definir la métrica: tiempo de respuesta de la búsqueda.",
+                    "Fijar condiciones: con 5 000 estudiantes registrados y 50 usuarios simultáneos.",
+                ],
+                "resultado": "RNF-01: la búsqueda de un estudiante por cédula responde en menos de 2 segundos con 5 000 "
+                             "registros y 50 usuarios simultáneos.",
+            },
+            "ejercicios": [
+                "Escriba 3 requisitos funcionales y 2 no funcionales para un sistema de biblioteca.",
+                "Reescriba de forma verificable: 'La aplicación debe ser segura y fácil de usar'.",
+                "Prepare 5 preguntas de entrevista para obtener requisitos de un docente.",
+            ],
+        },
+        3: {
+            "titulo": "Modelado del sistema con UML",
+            "temas": [
+                ("Casos de uso",
+                 "Representan cómo los actores interactúan con el sistema para lograr un objetivo; se relacionan con "
+                 "«include» (obligatorio) y «extend» (opcional)."),
+                ("Diagrama de clases",
+                 "Muestra las clases, sus atributos, métodos y relaciones (asociación, agregación, composición y "
+                 "herencia) con su multiplicidad."),
+                ("Diagrama de secuencia",
+                 "Describe el orden de los mensajes entre objetos para un escenario concreto de un caso de uso."),
+            ],
+            "ejemplo": {
+                "enunciado": "Modele las clases principales de 'Un docente dicta varios cursos y cada curso tiene "
+                             "muchos estudiantes matriculados'.",
+                "pasos": [
+                    "Identificar sustantivos: Docente, Curso, Estudiante, Matrícula.",
+                    "Docente 1 - 0..* Curso: un docente dicta varios cursos.",
+                    "Curso 1 - 0..* Matrícula y Estudiante 1 - 0..* Matrícula (clase asociativa).",
+                    "Agregar atributos clave: cédula, nombres (Estudiante); código, paralelo (Curso); fecha (Matrícula).",
+                ],
+                "resultado": "Cuatro clases con multiplicidades que permiten consultar los cursos de un docente y la "
+                             "nómina de cada curso.",
+            },
+            "ejercicios": [
+                "Dibuje el diagrama de casos de uso de un cajero automático con 3 actores.",
+                "Agregue la clase Calificación al modelo del ejemplo e indique sus relaciones.",
+                "Elabore el diagrama de secuencia del caso «Registrar matrícula».",
+            ],
+        },
+        4: {
+            "titulo": "Diseño arquitectónico y pruebas",
+            "temas": [
+                ("Arquitectura en capas",
+                 "Separa presentación, lógica de negocio y datos; cada capa usa sólo la inferior, lo que facilita el "
+                 "mantenimiento y las pruebas."),
+                ("Cliente-servidor y microservicios",
+                 "En cliente-servidor varios clientes consumen un servidor central; en microservicios, servicios "
+                 "pequeños e independientes se comunican por API."),
+                ("Pruebas de software",
+                 "Unitarias (una función), de integración (componentes juntos) y de aceptación (el usuario valida "
+                 "que el sistema cumple sus requisitos)."),
+            ],
+            "ejemplo": {
+                "enunciado": "Diseñe casos de prueba para la función calcularPromedio(notas) que debe rechazar notas "
+                             "fuera de 0 a 10.",
+                "pasos": [
+                    "Caso válido: [8, 6, 10] => 8.00.",
+                    "Valores límite: [0, 10] => 5.00.",
+                    "Caso inválido: [11, 7] => error 'nota fuera de rango'.",
+                    "Lista vacía: [] => error 'sin notas'.",
+                ],
+                "resultado": "Cuatro casos cubren el escenario normal, los límites y los errores esperados.",
+            },
+            "ejercicios": [
+                "Represente en capas un sistema de matrícula indicando qué hace cada capa.",
+                "Escriba 4 casos de prueba para una función que valida cédulas de 10 dígitos.",
+                "Explique cuándo conviene microservicios en lugar de una aplicación monolítica.",
+            ],
+        },
+    },
+    # ------------------------------------------------------------------ Bases de Datos Avanzadas
+    "BDA": {
+        1: {
+            "titulo": "Modelo relacional y normalización",
+            "temas": [
+                ("Modelo relacional",
+                 "Organiza los datos en tablas con claves primarias que identifican cada fila y claves foráneas que "
+                 "relacionan tablas entre sí."),
+                ("Dependencias funcionales",
+                 "A determina a B cuando cada valor de A corresponde a un único valor de B (la cédula determina el "
+                 "nombre del estudiante)."),
+                ("Formas normales",
+                 "1FN: valores atómicos; 2FN: sin dependencias parciales de la clave; 3FN: sin dependencias "
+                 "transitivas entre atributos no clave."),
+            ],
+            "ejemplo": {
+                "enunciado": "Normalice a 3FN la tabla Matricula(cedula, nombre, codigo_curso, nombre_curso, docente).",
+                "pasos": [
+                    "Clave primaria: (cedula, codigo_curso).",
+                    "Dependencia parcial: cedula => nombre. Se crea Estudiante(cedula, nombre).",
+                    "Dependencia parcial: codigo_curso => nombre_curso, docente. Se crea Curso(codigo_curso, "
+                    "nombre_curso, docente).",
+                    "Queda Matricula(cedula, codigo_curso) con claves foráneas a Estudiante y Curso.",
+                ],
+                "resultado": "Tres tablas en 3FN sin redundancia: cambiar el docente de un curso afecta a una sola fila.",
+            },
+            "ejercicios": [
+                "Indique las dependencias funcionales de Factura(numero, fecha, cedula_cliente, nombre_cliente, total).",
+                "Normalice a 3FN la tabla del ejercicio anterior.",
+                "Explique con un ejemplo qué anomalía de actualización evita la normalización.",
+            ],
+        },
+        2: {
+            "titulo": "SQL avanzado: consultas, vistas y procedimientos",
+            "temas": [
+                ("Combinaciones (JOIN)",
+                 "INNER JOIN devuelve sólo las filas que coinciden en ambas tablas; LEFT JOIN conserva todas las filas "
+                 "de la tabla izquierda aunque no tengan pareja."),
+                ("Agrupación y subconsultas",
+                 "GROUP BY con funciones de agregado (AVG, COUNT) resume datos; HAVING filtra los grupos; una "
+                 "subconsulta usa el resultado de otra consulta."),
+                ("Vistas y procedimientos almacenados",
+                 "Una vista guarda una consulta reutilizable; un procedimiento almacenado encapsula lógica con "
+                 "parámetros dentro del motor de base de datos."),
+            ],
+            "ejemplo": {
+                "enunciado": "Obtenga los cursos cuyo promedio de notas es menor a 7.",
+                "pasos": [
+                    "Unir notas con cursos: 'FROM nota n JOIN curso c ON c.id = n.curso_id'.",
+                    "Agrupar por curso: 'GROUP BY c.codigo'.",
+                    "Calcular el promedio: 'SELECT c.codigo, AVG(n.valor) AS promedio'.",
+                    "Filtrar los grupos: 'HAVING AVG(n.valor) < 7'.",
+                ],
+                "resultado": "La consulta devuelve sólo los cursos con promedio inferior a 7, con su promedio calculado.",
+            },
+            "ejercicios": [
+                "Liste los estudiantes sin ninguna nota registrada usando LEFT JOIN.",
+                "Cree una vista con el promedio de cada estudiante por curso.",
+                "Escriba un procedimiento almacenado que reciba una cédula y devuelva sus notas.",
+            ],
+        },
+        3: {
+            "titulo": "Transacciones y control de concurrencia",
+            "temas": [
+                ("Propiedades ACID",
+                 "Atomicidad (todo o nada), consistencia (reglas válidas), aislamiento (transacciones independientes) "
+                 "y durabilidad (lo confirmado persiste)."),
+                ("COMMIT y ROLLBACK",
+                 "COMMIT confirma los cambios de la transacción; ROLLBACK los deshace si ocurre un error."),
+                ("Niveles de aislamiento",
+                 "READ COMMITTED evita lecturas sucias; REPEATABLE READ evita lecturas no repetibles; SERIALIZABLE "
+                 "evita también los registros fantasma, con más bloqueos."),
+            ],
+            "ejemplo": {
+                "enunciado": "Transfiera 100 dólares de la cuenta A a la cuenta B sin dejar datos inconsistentes.",
+                "pasos": [
+                    "Iniciar: 'BEGIN TRANSACTION'.",
+                    "Debitar la cuenta A (id 1): 'UPDATE cuenta SET saldo = saldo - 100 WHERE id = 1'.",
+                    "Acreditar la cuenta B (id 2): 'UPDATE cuenta SET saldo = saldo + 100 WHERE id = 2'.",
+                    "Si ambas operaciones tienen éxito: 'COMMIT'; si alguna falla: 'ROLLBACK'.",
+                ],
+                "resultado": "El dinero nunca desaparece: o se aplican ambos cambios o ninguno (atomicidad).",
+            },
+            "ejercicios": [
+                "Explique con un ejemplo de matrícula qué es una lectura sucia.",
+                "Escriba la transacción que registra una matrícula y descuenta un cupo del curso.",
+                "Compare READ COMMITTED y SERIALIZABLE en seguridad y rendimiento.",
+            ],
+        },
+        4: {
+            "titulo": "Índices y optimización de consultas",
+            "temas": [
+                ("Índices",
+                 "Estructuras (normalmente árboles B) que aceleran las búsquedas por una columna, a cambio de espacio "
+                 "y de escrituras algo más lentas."),
+                ("Plan de ejecución",
+                 "Muestra cómo el motor resuelve la consulta: un recorrido completo de la tabla (scan) o una búsqueda "
+                 "en un índice (seek)."),
+                ("Buenas prácticas",
+                 "Indexar columnas de filtros y JOIN, evitar funciones sobre columnas indexadas y seleccionar sólo las "
+                 "columnas necesarias."),
+            ],
+            "ejemplo": {
+                "enunciado": "La consulta 'SELECT * FROM estudiante WHERE cedula = :cedula' tarda varios segundos.",
+                "pasos": [
+                    "Revisar el plan de ejecución: aparece un recorrido completo de la tabla (table scan).",
+                    "Crear el índice: 'CREATE INDEX ix_estudiante_cedula ON estudiante(cedula)'.",
+                    "Seleccionar sólo lo necesario: 'SELECT cedula, nombres FROM estudiante WHERE cedula = ...'.",
+                    "Volver a revisar el plan: ahora usa una búsqueda en el índice (index seek).",
+                ],
+                "resultado": "La búsqueda pasa de recorrer toda la tabla a localizar la fila directamente en el índice.",
+            },
+            "ejercicios": [
+                "Indique qué columnas indexaría en una tabla de notas consultada por estudiante y curso.",
+                "Explique por qué 'WHERE YEAR(fecha) = 2026' puede no usar un índice sobre fecha.",
+                "Compare un table scan y un index seek con un ejemplo de 100 000 filas.",
+            ],
+        },
+    },
+    # ------------------------------------------------------------------ Desarrollo Web
+    "DW": {
+        1: {
+            "titulo": "Fundamentos de la web: HTML y CSS",
+            "temas": [
+                ("Estructura semántica con HTML",
+                 "Etiquetas como header, nav, main, section y footer describen el significado del contenido y mejoran "
+                 "la accesibilidad y el posicionamiento."),
+                ("Estilos con CSS",
+                 "Los selectores aplican reglas de estilo; la especificidad decide qué regla gana cuando varias "
+                 "afectan al mismo elemento."),
+                ("Diseño adaptable",
+                 "Flexbox y Grid organizan el contenido; las media queries adaptan el diseño al ancho de la pantalla."),
+            ],
+            "ejemplo": {
+                "enunciado": "Construya una tarjeta de curso que muestre dos columnas en escritorio y una en el celular.",
+                "pasos": [
+                    "HTML: un contenedor 'div class=\"cursos\"' con varios 'article class=\"tarjeta\"'.",
+                    "CSS base: '.cursos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }'.",
+                    "Media query: '@media (max-width: 600px) { .cursos { grid-template-columns: 1fr; } }'.",
+                    "Probar reduciendo el ancho del navegador por debajo de 600 px.",
+                ],
+                "resultado": "Las tarjetas se muestran en 2 columnas en escritorio y en 1 columna en pantallas pequeñas.",
+            },
+            "ejercicios": [
+                "Maquete con etiquetas semánticas la página principal de una biblioteca virtual.",
+                "Calcule qué regla gana entre '#menu a' y '.nav a' y explique por qué.",
+                "Cree con Flexbox una barra de navegación que se apile en pantallas pequeñas.",
+            ],
+        },
+        2: {
+            "titulo": "JavaScript y manipulación del DOM",
+            "temas": [
+                ("Variables y funciones",
+                 "let y const declaran variables con alcance de bloque; las funciones flecha simplifican la escritura "
+                 "de funciones cortas."),
+                ("El DOM",
+                 "Es la representación del documento como árbol de nodos: con querySelector se seleccionan elementos "
+                 "y se modifican su texto, clases o atributos."),
+                ("Eventos",
+                 "addEventListener ejecuta una función cuando ocurre una acción del usuario (click, input, submit)."),
+            ],
+            "ejemplo": {
+                "enunciado": "Muestre en pantalla el promedio de tres notas al pulsar un botón 'Calcular'.",
+                "pasos": [
+                    "Seleccionar el botón: 'const boton = document.querySelector('#calcular')'.",
+                    "Escuchar el clic: 'boton.addEventListener('click', calcular)'.",
+                    "Leer las notas: '[...document.querySelectorAll('.nota')].map(n => Number(n.value))'.",
+                    "Mostrar el resultado: 'salida.textContent = (suma / 3).toFixed(2)'.",
+                ],
+                "resultado": "Con notas 8, 6 y 10 la página muestra 8.00 sin recargarse.",
+            },
+            "ejercicios": [
+                "Valide que un campo de correo termine en '@uta.edu.ec' antes de enviar el formulario.",
+                "Agregue y elimine elementos de una lista de tareas usando el DOM.",
+                "Explique la diferencia entre let, const y var con un ejemplo.",
+            ],
+        },
+        3: {
+            "titulo": "Backend y API REST",
+            "temas": [
+                ("Arquitectura cliente-servidor en la web",
+                 "El navegador (cliente) envía peticiones HTTP; el servidor procesa la lógica, consulta la base de "
+                 "datos y responde, normalmente en JSON."),
+                ("Diseño de API REST",
+                 "Los recursos se identifican con URL (/estudiantes/15) y los verbos HTTP indican la acción: GET "
+                 "consulta, POST crea, PUT actualiza y DELETE elimina."),
+                ("Códigos de estado",
+                 "200 éxito, 201 creado, 400 petición inválida, 401 no autenticado, 404 no encontrado y 500 error del "
+                 "servidor."),
+            ],
+            "ejemplo": {
+                "enunciado": "Diseñe los endpoints para gestionar las notas de un curso.",
+                "pasos": [
+                    "Listar las notas del curso: 'GET /cursos/{id}/notas' => 200 con la lista.",
+                    "Registrar una nota: 'POST /cursos/{id}/notas' con el JSON de la nota => 201.",
+                    "Corregir una nota: 'PUT /notas/{id}' => 200; si no existe => 404.",
+                    "Validar el rango: una nota fuera de 0 a 10 responde 400 con el mensaje de error.",
+                ],
+                "resultado": "Cuatro endpoints coherentes con los verbos HTTP y códigos de estado claros.",
+            },
+            "ejercicios": [
+                "Diseñe los endpoints REST para gestionar estudiantes (listar, crear, editar, eliminar).",
+                "Indique el código de estado correcto cuando se pide una nota que no existe.",
+                "Escriba el JSON de respuesta de 'GET /estudiantes/15'.",
+            ],
+        },
+        4: {
+            "titulo": "Frameworks, seguridad y despliegue",
+            "temas": [
+                ("Frameworks de interfaz",
+                 "React, Angular o Vue organizan la interfaz en componentes reutilizables que se actualizan "
+                 "automáticamente cuando cambia su estado."),
+                ("Seguridad web",
+                 "Validar siempre en el servidor, usar consultas parametrizadas contra la inyección SQL, escapar la "
+                 "salida contra XSS y servir el sitio con HTTPS."),
+                ("Despliegue",
+                 "Se compila la aplicación, se configuran variables de entorno (nunca contraseñas en el código) y se "
+                 "publica en un servidor o contenedor."),
+            ],
+            "ejemplo": {
+                "enunciado": "Corrija una consulta vulnerable que concatena el correo escrito por el usuario dentro "
+                             "del texto SQL.",
+                "pasos": [
+                    "Identificar el riesgo: un texto como 'x OR 1 = 1' cambia el sentido de la consulta (inyección SQL).",
+                    "Usar un parámetro: 'SELECT * FROM usuario WHERE correo = ?'.",
+                    "Enviar el valor por separado: 'cursor.execute(sql, (correo,))'.",
+                    "Validar además el formato del correo en el servidor antes de consultar.",
+                ],
+                "resultado": "El motor trata el correo sólo como dato, por lo que el ataque deja de funcionar.",
+            },
+            "ejercicios": [
+                "Divida en componentes la pantalla de un listado de cursos con buscador.",
+                "Explique cómo evitar XSS al mostrar comentarios de usuarios en una página.",
+                "Liste los pasos para desplegar una aplicación web usando variables de entorno.",
+            ],
+        },
+    },
 }
 
 
 def sigla_curso(shortname: str) -> str:
-    """'SOF-POO-A' -> 'POO'."""
+    """'SOF-POO-A' => 'POO'."""
     partes = [p for p in (shortname or "").upper().split("-") if p and p != "SOF"]
     return partes[0] if partes else (shortname or "").upper()
 

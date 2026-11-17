@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DOCENTE, iniciarSesionFalsa, json, mockApi, renderApp, tokenFalso } from './helpers';
 
-async function intentarLogin(usuario = 'rgomez4824@uta.edu.ec', clave = 'Docente2026!') {
+async function intentarLogin(usuario = 'rgomez4824@uta.edu.ec', clave = 'RobertoGomez1!') {
   const u = userEvent.setup();
   await u.click(await screen.findByRole('button', { name: 'Microsoft Office 365' }));
   await u.type(screen.getByLabelText(/correo institucional/i), usuario);
@@ -32,7 +32,7 @@ describe('RF-01 · Login con Moodle UTA', () => {
     expect(await screen.findByRole('heading', { name: 'Programación orientada a objetos — Paralelo A' })).toBeInTheDocument();
 
     const [, init] = fetch.mock.calls.find(([u]) => String(u).endsWith('/auth/login'))!;
-    expect(JSON.parse(String(init!.body))).toEqual({ email: 'rgomez4824@uta.edu.ec', password: 'Docente2026!' });
+    expect(JSON.parse(String(init!.body))).toEqual({ email: 'rgomez4824@uta.edu.ec', password: 'RobertoGomez1!' });
     const sesion = JSON.parse(sessionStorage.getItem('edumonitor.sesion')!);
     expect(sesion.token).toBe(token);
     expect(sesion.expira).toBeGreaterThan(Date.now() + 119 * 60_000);

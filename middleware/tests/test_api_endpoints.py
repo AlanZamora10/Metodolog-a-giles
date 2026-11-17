@@ -10,7 +10,7 @@ client = TestClient(app)
 
 
 def _auth_docente():
-    res = client.post("/api/v1/auth/login", json={"email": "rgomez4824@uta.edu.ec", "password": "Docente2026!"})
+    res = client.post("/api/v1/auth/login", json={"email": "rgomez4824@uta.edu.ec", "password": "RobertoGomez1!"})
     assert res.status_code == 200, res.text
     return {"Authorization": f"Bearer {res.json()['access_token']}"}
 

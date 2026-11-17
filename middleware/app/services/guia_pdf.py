@@ -2,14 +2,16 @@
 Guía de estudio en PDF para un refuerzo académico (UTA · FISEI): material de apoyo breve y práctico.
 
 Se genera al aprobar y publicar un refuerzo y se adjunta a la tarea de Moodle (plugin local_edumonitor).
-Contenido (1 a 2 páginas): datos del estudiante, diagnóstico puntual, indicaciones del docente, conceptos clave
-de la unidad, un ejemplo resuelto y 2-3 ejercicios cortos. No es una hoja de calificación (sin rúbrica).
+Contenido (1 a 2 páginas): datos del estudiante, diagnóstico en 4 tarjetas métricas, indicaciones dirigidas al
+estudiante (con los subtemas de la unidad), conceptos clave, un ejemplo resuelto y 2-3 ejercicios cortos.
+No es una hoja de calificación (sin rúbrica).
 `construir_guia` arma el contenido sólo con datos reales y el catálogo de la materia; `renderizar_pdf` lo dibuja.
 """
 
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fpdf import FPDF, FontFace
 
@@ -23,12 +25,13 @@ TEXTO = (30, 34, 40)
 FONDO = (241, 244, 249)
 
 COMPONENTES = [("acd", "Exámenes"), ("tareas", "Tareas"), ("pae", "APE")]
-NIVELES = {"CRITICO": "crítico", "EN_RIESGO": "en riesgo", "ACEPTABLE": "aceptable"}
+NIVELES = {"CRITICO": "Crítico", "EN_RIESGO": "En riesgo", "ACEPTABLE": "Aceptable"}
+BORDE = (214, 222, 234)
 MAX_TEMAS, MAX_PASOS, MAX_EJERCICIOS, MAX_ACTIVIDADES = 3, 5, 3, 3
 
 # fpdf2 con fuentes estándar usa Latin-1: se sustituyen los pocos signos tipográficos que no lo admiten
 _SUSTITUTOS = {"—": "-", "–": "-", "“": '"', "”": '"', "‘": "'", "’": "'", "…": "...", "•": "-", "≥": ">=",
-               "≤": "<=", "→": "->", "←": "<-", "²": "^2", " ": " "}
+               "≤": "<=", "→": "=>", "->": "=>", "←": "<=", "²": "^2", " ": " "}
 
 
 def _texto(valor: Any) -> str:
@@ -49,26 +52,60 @@ def _materia(fullname: str, shortname: str) -> str:
     return _nombre_curso(fullname or shortname).replace(", paralelo", " — Paralelo")
 
 
-def _diagnostico(registro: Dict[str, Any], numero: int, debiles: List[Dict[str, Any]]) -> List[str]:
-    """2-3 líneas: nota actual de la unidad, componente a reforzar y actividades puntuales."""
-    lineas = []
+def _detalle_actividad(a: Dict[str, Any]) -> str:
+    if a.get("estado") == "SIN_ENTREGA":
+        return f"{a.get('id_number')} (sin entrega)"
+    if a.get("estado") == "PENDIENTE" or a.get("nota") is None:
+        return f"{a.get('id_number')} (pendiente)"
+    return f"{a.get('id_number')} ({a['nota']:.2f})"
+
+
+def _diagnostico(registro: Dict[str, Any], numero: int, debiles: List[Dict[str, Any]]) -> List[Tuple[str, str]]:
+    """4 tarjetas métricas (etiqueta, valor): nota de la unidad, nota ponderada y estado, componente y actividades."""
     nota_unidad = (registro.get("promedios_unidad") or {}).get(f"U{numero}")
-    nota = nota_unidad if nota_unidad is not None else registro.get("nota_final")
-    if nota is not None:
-        nivel = NIVELES.get(registro.get("nivel_riesgo"), registro.get("nivel_riesgo"))
-        lineas.append(f"Nota actual en la Unidad {numero}: {nota:.2f}/10"
-                      + (f" (nota ponderada de la materia: {registro['nota_final']:.2f}/10, nivel {nivel})."
-                         if nota_unidad is not None and registro.get("nota_final") is not None else "."))
+    final = registro.get("nota_final")
+    nivel = NIVELES.get(registro.get("nivel_riesgo"), registro.get("nivel_riesgo") or "-")
     componentes = [(nombre, registro.get(clave)) for clave, nombre in COMPONENTES if registro.get(clave) is not None]
-    if componentes:
-        nombre, valor = min(componentes, key=lambda c: c[1])
-        lineas.append(f"Componente que más necesita reforzar: {nombre} ({valor:.2f}/10).")
-    if debiles:
-        detalle = ", ".join(
-            f"{a.get('id_number')} ({'sin entrega' if a.get('estado') == 'SIN_ENTREGA' else 'pendiente' if a.get('estado') == 'PENDIENTE' else format(a['nota'], '.2f')})"
-            for a in debiles)
-        lineas.append(f"Actividades a repasar: {detalle}.")
-    return lineas
+    componente = min(componentes, key=lambda c: c[1]) if componentes else None
+    return [
+        (f"Nota de la Unidad {numero}", f"{nota_unidad:.2f} / 10" if nota_unidad is not None else "Sin notas aún"),
+        ("Nota ponderada y estado", f"{final:.2f} / 10 (Nivel: {nivel})" if final is not None else "-"),
+        ("Componente a reforzar", f"{componente[0]} ({componente[1]:.2f} / 10)" if componente else "-"),
+        ("Actividades a repasar", ", ".join(_detalle_actividad(a) for a in debiles) if debiles else "Ninguna pendiente"),
+    ]
+
+
+def _lista(items: List[str]) -> str:
+    """['a', 'b', 'c'] -> 'a, b y c'."""
+    items = [i for i in items if i]
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " y " + items[-1] if items else ""
+
+
+def indicaciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
+                            fecha_entrega: Optional[datetime] = None) -> str:
+    """Mensaje directo y motivador al estudiante (segunda persona) que nombra los subtemas de la unidad."""
+    nombre = (nombres or "").split()[0] if nombres else ""
+    plazo = f" antes del {fecha_entrega.strftime('%d/%m/%Y')}" if fecha_entrega else ""
+    # Subtemas a mitad de frase en minúscula, salvo siglas («SQL avanzado», «HTML y CSS»)
+    temas = _lista([t if len(t) > 1 and t[1].isupper() else t[:1].lower() + t[1:] for t in subtemas])
+    return (f"Estimado/a {nombre}, se ha identificado que necesitas reforzar los temas de {temas} de la Unidad "
+            f"{numero} ({titulo_unidad}). Repasa los conceptos clave y el ejemplo resuelto de esta guía, resuelve los "
+            f"ejercicios de práctica y sube tu desarrollo en la tarea de Moodle UTA{plazo}. "
+            "¡Con constancia lo vas a lograr!")
+
+
+# Borradores antiguos redactados en tercera persona para el docente («El estudiante X presenta dificultades...»)
+_TERCERA_PERSONA = re.compile(r"^\s*(el|la) (estudiante|alumn[oa])\b", re.IGNORECASE)
+
+
+def _indicaciones(instrucciones: str, generadas: str) -> str:
+    """Indicaciones al estudiante: las del docente si ya le hablan a él; si no, el mensaje con los subtemas."""
+    texto = (instrucciones or "").strip()
+    if not texto or _TERCERA_PERSONA.match(texto):
+        return generadas
+    if texto.lower().startswith(("estimado", "estimada", "hola")):
+        return texto
+    return f"{generadas}\n\nNota de tu docente: {texto}"
 
 
 def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad: Optional[str],
@@ -100,6 +137,9 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
         }
 
     ejemplo = contenido.get("ejemplo")
+    temas = contenido["temas"][:MAX_TEMAS]
+    generadas = indicaciones_estudiante(estudiante.get("nombres") or "", numero, contenido["titulo"],
+                                        [t for t, _ in temas], fecha_entrega)
     return {
         "titulo": titulo,
         "estudiante": {"nombres": estudiante.get("nombres"), "cedula": estudiante.get("cedula"),
@@ -111,8 +151,9 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
         "docente": docente,
         "fecha_entrega": fecha_entrega,
         "instrucciones": (instrucciones or "").strip(),
+        "indicaciones": _indicaciones(instrucciones, generadas),
         "diagnostico": _diagnostico(registro, numero, debiles) if registro else [],
-        "temas": contenido["temas"][:MAX_TEMAS],
+        "temas": temas,
         "ejemplo": {**ejemplo, "pasos": ejemplo["pasos"][:MAX_PASOS]} if ejemplo else None,
         "ejercicios": contenido["ejercicios"][:MAX_EJERCICIOS],
     }
@@ -161,6 +202,33 @@ def _titulo_seccion(pdf: FPDF, texto: str) -> None:
 def _parrafo(pdf: FPDF, texto: str, tam: float = 9.5, estilo: str = "", alto: float = 4.8) -> None:
     pdf.set_font("helvetica", estilo, tam)
     pdf.multi_cell(0, alto, _texto(texto), new_x="LMARGIN", new_y="NEXT")
+
+
+def _tarjetas(pdf: FPDF, tarjetas: List[Tuple[str, str]]) -> None:
+    """Cuadrícula 2x2 de tarjetas métricas con borde suave: etiqueta pequeña y valor destacado."""
+    ancho, alto, sep = 88.5, 15.5, 3
+    x0 = pdf.l_margin
+    for i, (etiqueta, valor) in enumerate(tarjetas):
+        if i % 2 == 0:
+            if i:
+                pdf.set_y(y + alto + sep)
+            y = pdf.get_y()
+        x = x0 + (i % 2) * (ancho + sep)
+        pdf.set_fill_color(*FONDO)
+        pdf.set_draw_color(*BORDE)
+        pdf.set_line_width(0.3)
+        pdf.rect(x, y, ancho, alto, style="DF", round_corners=True, corner_radius=2)
+        pdf.set_xy(x + 3.5, y + 2)
+        pdf.set_font("helvetica", "", 7.5)
+        pdf.set_text_color(*GRIS)
+        pdf.cell(ancho - 7, 4, _texto(etiqueta.upper()))
+        pdf.set_xy(x + 3.5, y + 6.8)
+        largo = len(valor) > 34
+        pdf.set_font("helvetica", "B", 8.8 if largo else 11)
+        pdf.set_text_color(*AZUL)
+        pdf.multi_cell(ancho - 7, 3.9 if largo else 6, _texto(valor), max_line_height=4)
+    pdf.set_y(y + alto + 1.5)
+    pdf.set_text_color(*TEXTO)
 
 
 def _vinieta(pdf: FPDF, marca: str, texto: str) -> None:
@@ -212,12 +280,11 @@ def renderizar_pdf(guia: Dict[str, Any]) -> bytes:
 
     if guia.get("diagnostico"):
         _titulo_seccion(pdf, "Diagnóstico")
-        for linea in guia["diagnostico"]:
-            _vinieta(pdf, "-", linea)
+        pdf.ln(0.5)
+        _tarjetas(pdf, guia["diagnostico"])
 
-    if guia.get("instrucciones"):
-        _titulo_seccion(pdf, "Indicaciones del docente")
-        _parrafo(pdf, guia["instrucciones"])
+    _titulo_seccion(pdf, "Indicaciones del docente")
+    _parrafo(pdf, guia["indicaciones"])
 
     _titulo_seccion(pdf, "Conceptos clave")
     for tema, explicacion in guia["temas"]:

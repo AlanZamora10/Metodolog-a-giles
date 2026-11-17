@@ -2,7 +2,7 @@
 
 ![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC2927?logo=microsoftsqlserver)
 ![HTML5/JS](https://img.shields.io/badge/Frontend-HTML5%20%2F%20JS%20%2B%20Nginx-E34F26?logo=html5)
 ![Ollama](https://img.shields.io/badge/Ollama-llama3.2:1b-black?logo=ollama)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -58,14 +58,13 @@ El sistema funciona de forma independiente sin alterar la base de datos nativa d
   <img src="docs/diagrama_despliegue.png" alt="Arquitectura del Sistema EduMonitor AI" width="850"/>
 </p>
 
-La solución está completamente orquestada en Docker Compose mediante 8 servicios interconectados en la red `moodle-net`:
+La solución está completamente orquestada en Docker Compose mediante 7 servicios interconectados en la red `moodle-net`:
 
 | Servicio | Tecnología | Puerto Host | Descripción / Responsabilidad |
 | :--- | :--- | :--- | :--- |
 | **`frontend`** | HTML5 / CSS3 / JS + Nginx | `:3000` | Interfaz SPA liviana (Panel General, Ficha Individual, Centro de Alertas) y proxy `/api/`. |
 | **`middleware`** | FastAPI (Python 3.11) | `:8000` | API REST (`/api/v1`), autenticación JWT, sincronización REST Moodle y cálculos 40/30/30. |
-| **`analytics-db`** | PostgreSQL 15 | `:5432` | Base de datos analítica (`moodle_analytics`), 11 tablas y vista `vista_panel_curso`. |
-| **`sqlserver`** | SQL Server 2022 | `:1433` | Contenedor de compatibilidad institucional levantado en el stack Docker. |
+| **`sqlserver`** | SQL Server 2022 | `:1433` | Base de datos activa del sistema (`MoodleUTADB`): estudiantes, calificaciones, alertas, refuerzos y auditoría. |
 | **`agent`** | Python + FastAPI | `:8001` / `:8100` | Servicio de diagnóstico pedagógico con Ollama y motor heurístico de respaldo (`HeuristicRulesEngine`). |
 | **`ollama`** | Ollama (`llama3.2:1b`) | `:11434` | Servidor LLM local sin comunicación con servicios externos cloud. |
 | **`moodle`** | Moodle 4.3.2 (Bitnami) | `:8080` | Réplica funcional Moodle UTA sembrada automáticamente (`seed.php`) con servicio `EduMonitor_WS`. |

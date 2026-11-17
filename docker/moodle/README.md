@@ -11,19 +11,35 @@ Es idempotente: crea lo que falta, actualiza lo existente y desmatricula a quien
   ```
 
 ## Credenciales
+Contraseña de **todos** los docentes y estudiantes: `PrimerNombrePrimerApellido1!` (primera letra en mayúscula, sin
+tildes ni espacios). Correo institucional = inicial del primer nombre + primer apellido + 4 últimos dígitos de la cédula
+(campo de perfil «Cédula»); se ingresa con el correo completo.
+
 | Rol | Usuario | Contraseña | Notas |
 |---|---|---|---|
 | Administrador | `admin` | `MoodleAdmin2026!` | Gestión del sitio |
-| Docente titular | `rgomez4824@uta.edu.ec` (Roberto Patricio Gómez Salazar, C.I. 1803454824) | `Docente2026!` | Profesor con permiso de edición en los 4 cursos. Mismo correo para EduMonitor AI (`localhost:3000`) |
-| Estudiante | `cmendoza3199@uta.edu.ec` (Carlos Andrés Mendoza Paredes, caso crítico) | `Estudiante2026!` | Matriculado en los 4 cursos. Los 20 estudiantes comparten contraseña. Correo institucional = inicial del nombre + primer apellido + 4 últimos dígitos de la cédula (campo de perfil «Cédula»); se ingresa con el correo completo |
+| Docente | `rgomez4824@uta.edu.ec` (Ing. Roberto Patricio Gómez Salazar, C.I. 1803454824) | `RobertoGomez1!` | Titular de POO, ED, MA y MCS. Mismo correo para EduMonitor AI (`localhost:3000`) |
+| Docente | `pvillacis7138@uta.edu.ec` (Ing. Patricia Elena Villacís Paredes, C.I. 1802657138) | `PatriciaVillacis1!` | Titular de IS1, BDA y DW. Mismo correo para EduMonitor AI |
+| Estudiante | `cmendoza3199@uta.edu.ec` (Carlos Andrés Mendoza Paredes, caso crítico) | `CarlosMendoza1!` | Matriculado en los 4 cursos de Roberto Gómez |
+| Estudiante | `dherrera9463@uta.edu.ec` (Diana Carolina Herrera Medina) | `DianaHerrera1!` | Cursa IS1 y DW con Patricia Villacís |
+
+Cada docente sólo ve en EduMonitor AI sus propios cursos, estudiantes, métricas y alertas.
 
 ## Cursos y nóminas
-| Curso | Shortname | Estudiantes |
-|---|---|---|
-| (SOF) PROGRAMACION ORIENTADA A OBJETOS - A | `SOF-POO-A` | 7 |
-| (SOF) ESTRUCTURA DE DATOS - B | `SOF-ED-B` | 10 |
-| (SOF) METODOLOGIAS AGILES - B | `SOF-MA-B` | 12 |
-| (SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A | `SOF-MCS-A` | 15 |
+| Curso | Shortname | Docente | Estudiantes |
+|---|---|---|---|
+| (SOF) PROGRAMACION ORIENTADA A OBJETOS - A | `SOF-POO-A` | Roberto Gómez | 7 |
+| (SOF) ESTRUCTURA DE DATOS - B | `SOF-ED-B` | Roberto Gómez | 10 |
+| (SOF) METODOLOGIAS AGILES - B | `SOF-MA-B` | Roberto Gómez | 12 |
+| (SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A | `SOF-MCS-A` | Roberto Gómez | 15 |
+| (SOF) INGENIERIA DE SOFTWARE I - A | `SOF-IS1-A` | Patricia Villacís | 8 |
+| (SOF) BASES DE DATOS AVANZADAS - B | `SOF-BDA-B` | Patricia Villacís | 7 |
+| (SOF) DESARROLLO WEB - A | `SOF-DW-A` | Patricia Villacís | 9 |
+
+Siembra parcial (sólo algunos cursos; no toca aulas, fechas ni notas de los demás, pero sí usuarios y contraseñas):
+```bash
+docker exec moodle_lms php /opt/edumonitor_seed/seed.php --cursos=SOF-IS1-A,SOF-BDA-B,SOF-DW-A
+```
 
 Categorías: `FISEI` → `SOFTWARE` → `Julio a Diciembre 2026`.
 

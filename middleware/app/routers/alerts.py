@@ -34,7 +34,8 @@ from app.config import settings
 from app.routers.auth import get_current_docente
 from app.routers.logs import append_log
 from app.services import sync_service
-from app.services.guia_pdf import generar_guia_pdf
+from app.services.contenidos_academicos import contenido_unidad
+from app.services.guia_pdf import generar_guia_pdf, indicaciones_estudiante
 from app.services.moodle_client import MoodleClient, MoodleError
 
 logger = logging.getLogger("middleware.alertas")
@@ -176,8 +177,8 @@ async def atender_alerta(alerta_id: int, docente: dict = Depends(get_current_doc
     refuerzo = repositories.upsert_refuerzo(alerta_id, {
         "titulo": f"Refuerzo: {accion} — {alerta['curso_codigo']}"[:200],
         "descripcion": diagnostico,
-        "instrucciones": (f"{diagnostico} Revise el material de {unidad}, resuelva la guía de ejercicios y "
-                          f"entregue su desarrollo en Moodle UTA dentro de los próximos 7 días."),
+        # Indicaciones dirigidas al estudiante (segunda persona) con los subtemas de la unidad a reforzar
+        "instrucciones": _indicaciones_borrador(alerta, unidad),
         "actividades": [f"Revisión del material de {unidad}", "Resolución de ejercicios guiados",
                         "Entrega del desarrollo en Moodle UTA"],
         "origen": origen.upper(),
@@ -317,6 +318,19 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
         "fecha_entrega": vence.isoformat(),
         "refuerzo": refuerzo,
     }
+
+
+def _indicaciones_borrador(alerta: dict, unidad: str) -> str:
+    """Borrador de indicaciones para el estudiante; el docente puede editarlo antes de publicar."""
+    digitos = "".join(ch for ch in str(unidad or "") if ch.isdigit())
+    numero = int(digitos) if digitos else 1
+    contenido = contenido_unidad(alerta.get("curso_codigo") or "", numero)
+    if contenido:
+        return indicaciones_estudiante(alerta["nombres"], numero, contenido["titulo"],
+                                       [t for t, _ in contenido["temas"][:3]], _vencimiento(None))
+    nombre = (alerta.get("nombres") or "").split()[0] if alerta.get("nombres") else ""
+    return (f"Estimado/a {nombre}, se ha identificado que necesitas reforzar la {unidad}. Repasa el material de "
+            "clase, resuelve la guía de ejercicios y sube tu desarrollo en Moodle UTA dentro de los próximos 7 días.")
 
 
 def _guia_de_estudio(alerta: dict, docente: dict, titulo: str, instrucciones: str,

@@ -81,7 +81,8 @@ def test_mensajes_triviales_no_esperan_a_ollama(monkeypatch):
         raise AssertionError("un saludo no debe consultar a Ollama")
 
     monkeypatch.setattr(chat_planner.httpx, "AsyncClient", no_llamar)
-    for mensaje in ("Hola", "¡Buenos días!", "gracias", "¿Qué puedes hacer?", "ayuda", "¿Quién eres?"):
+    for mensaje in ("Hola", "¡Buenos días!", "gracias", "¿Qué puedes hacer?", "ayuda", "¿Quién eres?",
+                    "¿Cómo estás?", "Hola, ¿cómo te va?", "Buenas tardes, ¿cómo está usted?", "¿Qué tal?"):
         assert asyncio.run(chat_planner.planificar(mensaje, HERRAMIENTAS, CURSOS)) == {
             "llamadas": [], "fuente": "sin_plan_trivial"}
     assert chat_planner.INFERENCE_TIMEOUT <= 5
@@ -93,3 +94,8 @@ def test_respuesta_sin_llamadas_estructuradas_devuelve_plan_vacio(monkeypatch):
         lambda r: httpx.Response(200, json={"message": {"role": "assistant", "content": "No sé qué hacer"}})), **kw))
     plan = asyncio.run(chat_planner.planificar("cómo van mis cursos", HERRAMIENTAS, CURSOS))
     assert plan == {"llamadas": [], "fuente": "sin_plan_llm"}
+
+
+def test_una_consulta_real_no_es_trivial():
+    for mensaje in ("hola, ¿cómo van mis cursos?", "notas de Carlos", "", "¿qué tal va POO?"):
+        assert not chat_planner.es_trivial(mensaje), mensaje

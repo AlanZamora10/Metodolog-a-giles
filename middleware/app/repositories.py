@@ -6,7 +6,7 @@ activo de `app.database` (PostgreSQL en Docker, SQLite en memoria en pruebas), p
 routers y servicios no dependen del motor concreto.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, delete, func, insert, select, update
@@ -103,6 +103,19 @@ def list_logs(limit: int = 500, engine: Optional[Engine] = None) -> List[Dict[st
     with _engine(engine).connect() as conn:
         rows = conn.execute(select(logs_sistema).order_by(logs_sistema.c.id.desc()).limit(limit)).all()
     return [_dict(r) for r in reversed(rows)]
+
+
+def chats_recientes(docente_email: str, minutos: int = 30, limite: int = 40,
+                    engine: Optional[Engine] = None) -> List[Dict[str, Any]]:
+    """Últimas respuestas del agente al docente (más reciente primero), para no repetir la misma cortesía."""
+    desde = _ahora() - timedelta(minutes=minutos)
+    with _engine(engine).connect() as conn:
+        rows = conn.execute(
+            select(logs_sistema)
+            .where(and_(logs_sistema.c.tipo_proceso == "AGENTE_CHAT", logs_sistema.c.timestamp >= desde))
+            .order_by(logs_sistema.c.id.desc()).limit(limite)
+        ).all()
+    return [d for d in (_dict(r) for r in rows) if (d.get("detalle") or {}).get("docente") == docente_email]
 
 
 def last_log(tipo_proceso: str, estado: str, engine: Optional[Engine] = None) -> Optional[Dict[str, Any]]:

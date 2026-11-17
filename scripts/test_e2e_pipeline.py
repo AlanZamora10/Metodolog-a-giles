@@ -62,7 +62,7 @@ def main():
     # 1. Autenticación Docente (HU-01)
     status_code, auth_data = make_request("/auth/login", method="POST", payload={
         "email": "rgomez4824@uta.edu.ec",
-        "password": "Docente2026!"
+        "password": "RobertoGomez1!"
     })
     if status_code != 200 or "access_token" not in auth_data:
         print_step("Paso 1: Autenticación JWT (POST /auth/login)", "FAIL", str(auth_data))

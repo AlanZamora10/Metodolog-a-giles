@@ -4,9 +4,11 @@
  *
  *  1. Sitio "Moodle UTA" en español, inicio en "Mis cursos" e identidad visual UTA (CSS en additionalhtmlhead).
  *  2. Categorías FISEI -> SOFTWARE -> Julio a Diciembre 2026.
- *  3. Usuarios: admin, docente titular (rgomez) y 20 estudiantes con nombres ficticios
+ *  3. Usuarios: admin, 2 docentes (rgomez y pvillacis) y 26 estudiantes con nombres ficticios
  *     (dos nombres y dos apellidos; el correo usa el primer nombre y el primer apellido).
- *  4. 4 cursos con nóminas distintas (7 / 10 / 12 / 15 estudiantes); el docente es editingteacher en todos.
+ *     Contraseña de docentes y estudiantes: PrimerNombrePrimerApellido1! (sin tildes), p. ej. RobertoGomez1!
+ *  4. 7 cursos: 4 de Roberto Gómez y 3 de Patricia Villacís (cada docente es editingteacher sólo en los suyos);
+ *     un estudiante puede cursar materias con ambos docentes.
  *  5. Estructura del aula virtual UTA: Informativo | Primer Parcial | Segundo Parcial | Supletorio, con
  *     Zona de información, Exámenes (40%), Tareas (30%) y APE (30%) por parcial.
  *     Cada usuario tiene cédula ecuatoriana válida (campo de perfil «cedula») y correo institucional
@@ -19,6 +21,9 @@
  *
  * Re-ejecutable en cualquier momento: crea lo que falta, actualiza lo existente y
  * desmatricula a los estudiantes que ya no pertenecen a la nómina de un curso.
+ *
+ * Siembra parcial (no toca las aulas, fechas ni notas de los demás cursos; usuarios y contraseñas sí):
+ *   php seed.php --cursos=SOF-IS1-A,SOF-BDA-B,SOF-DW-A
  */
 
 define('CLI_SCRIPT', true);
@@ -122,7 +127,7 @@ $cat_period = get_or_create_category('Julio a Diciembre 2026', 'CAT_2026_JD', $c
 // =============================================================================
 // 3. USUARIOS
 // =============================================================================
-out("[3/7] Usuarios (docente titular y 20 estudiantes)...");
+out("[3/7] Usuarios (docentes titulares y estudiantes)...");
 
 /** Busca por idnumber, username o email y sincroniza todos los campos (incluida la contraseña). */
 function upsert_user($username, $firstname, $lastname, $email, $idnumber, $password) {
@@ -188,13 +193,26 @@ function correo_uta($nombres, $apellidos, $cedula) {
         . '@uta.edu.ec';
 }
 
-const DOCENTE_NOMBRE = 'Ing. Roberto Patricio Gómez Salazar';
-const DOCENTE_CEDULA = '1803454824';
-$docente = upsert_user('rgomez', 'Roberto Patricio', 'Gómez Salazar',
-    correo_uta('Roberto Patricio', 'Gómez Salazar', DOCENTE_CEDULA), 'U-01',
-    'Docente2026!');
-set_cedula($docente->id, DOCENTE_CEDULA);
-out("  = Docente titular: rgomez (" . DOCENTE_NOMBRE . ")");
+/** Contraseña de prueba: PrimerNombrePrimerApellido1! sin tildes (p. ej. «RobertoGomez1!», «MariaLozada1!»). */
+function clave_uta($nombres, $apellidos) {
+    $palabra = fn($t) => ucfirst(strtolower(preg_replace('/[^A-Za-z]/', '',
+        iconv('UTF-8', 'ASCII//TRANSLIT', explode(' ', $t)[0]))));
+    return $palabra($nombres) . $palabra($apellidos) . '1!';
+}
+
+// Docentes titulares: idnumber => [username, dos nombres, dos apellidos, cédula, título]
+$docentes_def = [
+    'U-01' => ['rgomez',    'Roberto Patricio', 'Gómez Salazar',    '1803454824', 'Ing.'],
+    'U-02' => ['pvillacis', 'Patricia Elena',   'Villacís Paredes', '1802657138', 'Ing.'],
+];
+$docentes = [];
+foreach ($docentes_def as $idn => [$uname, $fn, $ln, $cedula, $titulo]) {
+    $docentes[$idn] = upsert_user($uname, $fn, $ln, correo_uta($fn, $ln, $cedula), $idn, clave_uta($fn, $ln));
+    set_cedula($docentes[$idn]->id, $cedula);
+    $docentes[$idn]->titulo_completo = "$titulo $fn $ln";
+    out("  = Docente: {$docentes[$idn]->email} ($titulo $fn $ln)");
+}
+$docente = $docentes['U-01'];   // docente titular de los cursos originales
 
 // idnumber => [username, dos nombres, dos apellidos, cédula]
 $students_def = [
@@ -218,46 +236,101 @@ $students_def = [
     'U-20' => ['faltamirano',   'Fernanda Lucía', 'Altamirano Proaño', '0202873642'],
     'U-21' => ['bjacome',       'Bryan Mauricio', 'Jácome Villavicencio', '1807456320'],
     'U-22' => ['acevallos',     'Alejandra Paola', 'Cevallos Ruiz', '0103984522'],
+    // Estudiantes que cursan materias con la Ing. Patricia Villacís
+    'U-23' => ['dherrera',      'Diana Carolina', 'Herrera Medina', '1805719463'],
+    'U-24' => ['etamayo',       'Esteban Javier', 'Tamayo Arias', '0503982167'],
+    'U-25' => ['mquishpe',      'Mishel Alejandra', 'Quishpe Llerena', '1720845930'],
+    'U-26' => ['lcarrasco',     'Luis Alberto', 'Carrasco Benítez', '0605173244'],
+    'U-27' => ['abustamante',   'Adriana Lisbeth', 'Bustamante Cajas', '1807342611'],
+    'U-28' => ['ovasquez',      'Óscar Danilo', 'Vásquez Ortega', '1005924780'],
 ];
 $students = [];
 foreach ($students_def as $idn => [$uname, $fn, $ln, $cedula]) {
-    $students[$idn] = upsert_user($uname, $fn, $ln, correo_uta($fn, $ln, $cedula), $idn, 'Estudiante2026!');
+    $students[$idn] = upsert_user($uname, $fn, $ln, correo_uta($fn, $ln, $cedula), $idn, clave_uta($fn, $ln));
     set_cedula($students[$idn]->id, $cedula);
 }
-out("  = " . count($students) . " estudiantes sincronizados (contraseña Estudiante2026!)");
+out("  = " . count($students) . " estudiantes sincronizados (contraseña PrimerNombrePrimerApellido1!)");
 
 // =============================================================================
 // 4. CURSOS Y NÓMINAS
 // =============================================================================
 out("[4/7] Cursos y nóminas por asignatura...");
 
-// Nómina por curso: idnumber => nota base del Primer Parcial (perfil académico del estudiante en esa materia)
+// Nómina por curso: idnumber => nota base del Primer Parcial (perfil académico del estudiante en esa materia).
+// Opcionales: 'nota_cero' / 'sin_entrega' => [[idnumber, actividad]], 'descenso' => [idnumber => puntos menos en U2].
 $courses_def = [
     'SOF-POO-A' => [
+        'docente'  => 'U-01',
         'fullname' => '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A',
         'summary'  => 'Programación Orientada a Objetos - Paralelo A',
         'roster'   => ['U-03' => 8.6, 'U-04' => 3.4, 'U-05' => 7.2, 'U-06' => 6.0, 'U-07' => 9.1, 'U-08' => 4.5, 'U-09' => 7.8],
     ],
     'SOF-ED-B' => [
+        'docente'  => 'U-01',
         'fullname' => '(SOF) ESTRUCTURA DE DATOS - B',
         'summary'  => 'Estructura de Datos - Paralelo B',
         'roster'   => ['U-03' => 7.9, 'U-04' => 4.2, 'U-08' => 5.6, 'U-10' => 8.8, 'U-11' => 6.4,
                        'U-12' => 9.3, 'U-13' => 3.1, 'U-14' => 7.1, 'U-15' => 5.2, 'U-16' => 8.2],
     ],
     'SOF-MA-B' => [
+        'docente'  => 'U-01',
         'fullname' => '(SOF) METODOLOGIAS AGILES - B',
         'summary'  => 'Metodologías Ágiles de Desarrollo de Software - Paralelo B',
         'roster'   => ['U-04' => 4.8, 'U-05' => 6.6, 'U-06' => 8.4, 'U-09' => 7.5, 'U-11' => 5.9, 'U-13' => 4.1,
                        'U-15' => 7.0, 'U-17' => 9.0, 'U-18' => 6.3, 'U-19' => 8.1, 'U-20' => 2.9, 'U-21' => 7.7],
     ],
     'SOF-MCS-A' => [
+        'docente'  => 'U-01',
         'fullname' => '(SOF) MANEJO Y CONFIGURACION DEL SOFTWARE - A',
         'summary'  => 'Manejo y Configuración del Software - Paralelo A',
         'roster'   => ['U-03' => 8.0, 'U-04' => 3.8, 'U-05' => 7.3, 'U-07' => 8.9, 'U-08' => 5.4,
                        'U-10' => 9.2, 'U-12' => 7.6, 'U-14' => 6.8, 'U-16' => 4.4, 'U-17' => 8.5,
                        'U-18' => 5.8, 'U-19' => 7.9, 'U-20' => 6.1, 'U-21' => 3.5, 'U-22' => 9.4],
     ],
+    // ---- Cursos de la Ing. Patricia Elena Villacís Paredes
+    'SOF-IS1-A' => [
+        'docente'  => 'U-02',
+        'fullname' => '(SOF) INGENIERIA DE SOFTWARE I - A',
+        'summary'  => 'Ingeniería de Software I - Paralelo A',
+        'roster'   => ['U-03' => 7.6, 'U-10' => 8.9, 'U-13' => 3.6, 'U-17' => 7.4, 'U-22' => 9.0,
+                       'U-23' => 8.7, 'U-24' => 4.3, 'U-25' => 6.6],
+        'nota_cero' => [['U-13', 'U1-T2']],
+        'descenso'  => ['U-25' => 2.5],
+    ],
+    'SOF-BDA-B' => [
+        'docente'  => 'U-02',
+        'fullname' => '(SOF) BASES DE DATOS AVANZADAS - B',
+        'summary'  => 'Bases de Datos Avanzadas - Paralelo B',
+        'roster'   => ['U-12' => 8.4, 'U-14' => 6.5, 'U-19' => 7.2, 'U-21' => 4.6,
+                       'U-26' => 5.5, 'U-27' => 9.2, 'U-28' => 3.9],
+        'sin_entrega' => [['U-28', 'U2-T4']],
+    ],
+    'SOF-DW-A' => [
+        'docente'  => 'U-02',
+        'fullname' => '(SOF) DESARROLLO WEB - A',
+        'summary'  => 'Desarrollo Web - Paralelo A',
+        'roster'   => ['U-05' => 7.0, 'U-09' => 5.8, 'U-15' => 6.1, 'U-23' => 7.8, 'U-24' => 5.1,
+                       'U-25' => 8.3, 'U-26' => 6.9, 'U-27' => 8.8, 'U-28' => 4.4],
+    ],
 ];
+
+// Siembra parcial: --cursos=SOF-IS1-A,SOF-BDA-B (las aulas, fechas y notas de los demás cursos no se tocan)
+$solo = [];
+foreach (array_slice($argv ?? [], 1) as $arg) {
+    if (str_starts_with($arg, '--cursos=')) {
+        $solo = array_filter(array_map('trim', explode(',', substr($arg, 9))));
+    }
+}
+if ($solo) {
+    $desconocidos = array_diff($solo, array_keys($courses_def));
+    if ($desconocidos) {
+        echo "[ERROR] Cursos desconocidos: " . implode(', ', $desconocidos) . "\n";
+        exit(1);
+    }
+    $courses_def = array_intersect_key($courses_def, array_flip($solo));
+    out("  (siembra parcial: " . implode(', ', array_keys($courses_def)) . ")");
+}
+$ids_docentes = array_map(fn($d) => (int)$d->id, $docentes);
 
 $role_teacher = $DB->get_record('role', ['shortname' => 'editingteacher'], '*', MUST_EXIST);
 $role_student = $DB->get_record('role', ['shortname' => 'student'], '*', MUST_EXIST);
@@ -275,8 +348,9 @@ foreach ($courses_def as $short => $def) {
         out("  + Curso creado: {$def['fullname']}");
     }
     $courses[$short] = $course;
+    $titular = $docentes[$def['docente']];
 
-    enrol_try_internal_enrol($course->id, $docente->id, $role_teacher->id);
+    enrol_try_internal_enrol($course->id, $titular->id, $role_teacher->id);
     foreach (array_keys($def['roster']) as $idn) {
         enrol_try_internal_enrol($course->id, $students[$idn]->id, $role_student->id);
     }
@@ -285,7 +359,8 @@ foreach ($courses_def as $short => $def) {
     $instance = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'manual'], '*', MUST_EXIST);
     $sql = "SELECT u.id, u.idnumber FROM {user_enrolments} ue JOIN {user} u ON u.id = ue.userid WHERE ue.enrolid = ?";
     foreach ($DB->get_records_sql($sql, [$instance->id]) as $u) {
-        if ($u->id != $docente->id && preg_match('/^U-\d+$/', (string)$u->idnumber) && !isset($def['roster'][$u->idnumber])) {
+        if (!in_array((int)$u->id, $ids_docentes, true) && preg_match('/^U-\d+$/', (string)$u->idnumber)
+                && !isset($def['roster'][$u->idnumber])) {
             $manual->unenrol_user($instance, $u->id);
         }
     }
@@ -295,7 +370,7 @@ foreach ($courses_def as $short => $def) {
     foreach ($DB->get_records_sql($sql, [$instance->id, 'estudiante\_%']) as $u) {
         $manual->unenrol_user($instance, $u->id);
     }
-    out("  = $short: docente + " . count($def['roster']) . " estudiantes");
+    out("  = $short: {$titular->username} + " . count($def['roster']) . " estudiantes");
 }
 
 // =============================================================================
@@ -430,6 +505,7 @@ $parciales = [
 $section_names = [0 => 'Informativo', 1 => 'Primer Parcial', 2 => 'Segundo Parcial', 3 => 'Supletorio'];
 
 foreach ($courses as $short => $course) {
+    $titular = $docentes[$courses_def[$short]['docente']];
     // 4 secciones académicas (0..3). Se eliminan las sobrantes, salvo «Refuerzos», donde EduMonitor AI
     // publica las tareas personalizadas (plugin local_edumonitor): ésas nunca se borran.
     course_create_sections_if_missing($course, array_keys($section_names));
@@ -449,7 +525,7 @@ foreach ($courses as $short => $course) {
     $news = forum_get_course_forum($course->id, 'news');
     if (!$DB->record_exists('forum_discussions', ['forum' => $news->id, 'name' => 'Bienvenida al curso'])) {
         $gen->get_plugin_generator('mod_forum')->create_discussion([
-            'course' => $course->id, 'forum' => $news->id, 'userid' => $docente->id, 'name' => 'Bienvenida al curso',
+            'course' => $course->id, 'forum' => $news->id, 'userid' => $titular->id, 'name' => 'Bienvenida al curso',
             'message' => '<p>Estimados estudiantes, bienvenidos a ' . s($course->fullname) .
                          '. Revisen el sílabo y el programa analítico en la sección Informativo.</p>',
         ]);
@@ -458,7 +534,7 @@ foreach ($courses as $short => $course) {
         'Horario de tutorías: martes y jueves de 14:00 a 15:00. Revise el foro de novedades semanalmente.');
     $silabo = [
         'name' => 'Sílabo de la asignatura', 'filename' => 'Silabo_' . $short . '.pdf',
-        'lines' => [$course->fullname, 'Período académico: Julio - Diciembre 2026', 'Docente: ' . DOCENTE_NOMBRE,
+        'lines' => [$course->fullname, 'Período académico: Julio - Diciembre 2026', 'Docente: ' . $titular->titulo_completo,
                     'Ponderación: Exámenes 40% | Tareas 30% | APE 30%'],
     ];
     $cm_silabo = ensure_module($course, 0, 'resource', 'INFO-SILABO', $silabo);
@@ -617,6 +693,11 @@ foreach ($courses as $short => $course) {
     }
 
     // Notas del Primer Parcial
+    $def = $courses_def[$short];
+    $titular = $docentes[$def['docente']];
+    $marcas = [];
+    foreach ($def['nota_cero'] ?? [] as [$i, $a]) { $marcas["$i|$a"] = 'CERO'; }
+    foreach ($def['sin_entrega'] ?? [] as [$i, $a]) { $marcas["$i|$a"] = 'SIN ENTREGA'; }
     $roster = array_keys($courses_def[$short]['roster']);
     $pendiente_idn = end($roster);
     $graded = 0;
@@ -627,8 +708,14 @@ foreach ($courses as $short => $course) {
                 continue; // Segundo Parcial y Supletorio aún no evaluados
             }
             $feedback = null;
-            $value = seed_grade($base, "$short|$idn|$itemidn");
-            if ($idn === 'U-04' && $itemidn === 'U1-T2') {
+            // Descenso entre unidades (regla R2): la Unidad 2 queda por debajo de la Unidad 1
+            $baseitem = str_starts_with($itemidn, 'U2-') ? $base - ($def['descenso'][$idn] ?? 0) : $base;
+            $value = seed_grade($baseitem, "$short|$idn|$itemidn");
+            if (($marcas["$idn|$itemidn"] ?? '') === 'CERO') {
+                $value = 0.0;
+            } else if (($marcas["$idn|$itemidn"] ?? '') === 'SIN ENTREGA') {
+                $value = 0.0; $feedback = 'SIN ENTREGA';
+            } else if ($idn === 'U-04' && $itemidn === 'U1-T2') {
                 $value = 0.0;                                   // Nota 0
             } else if ($idn === 'U-04' && $itemidn === 'U2-T4') {
                 $value = 0.0; $feedback = 'SIN ENTREGA';        // No subió la tarea: se califica con 0
@@ -646,7 +733,7 @@ foreach ($courses as $short => $course) {
             seed_submission($assign, $user->id, $feedback !== 'SIN ENTREGA', "$short|$idn|$itemidn");
             $grade = $assign->get_user_grade($user->id, true);
             $grade->grade = $value === null ? -1 : $value;
-            $grade->grader = $docente->id;
+            $grade->grader = $titular->id;
             // Comentario de retroalimentación (se publica en el libro de calificaciones)
             $assign->get_feedback_plugin_by_type('comments')->save($grade, (object)[
                 'assignfeedbackcomments_editor' => ['text' => $feedback ?? '', 'format' => FORMAT_PLAIN],
@@ -656,7 +743,7 @@ foreach ($courses as $short => $course) {
             // lee EduMonitor vía gradereport_user_get_grade_items para distinguir SIN ENTREGA / PENDIENTE.
             // Se envía como fuente mod/assign (igual que la propia tarea), sin bloquear la nota como sobrescrita.
             grade_update('mod/assign', $course->id, 'mod', 'assign', $cm->instance, 0, [
-                'userid' => $user->id, 'rawgrade' => $value, 'usermodified' => $docente->id,
+                'userid' => $user->id, 'rawgrade' => $value, 'usermodified' => $titular->id,
                 'feedback' => $feedback, 'feedbackformat' => FORMAT_PLAIN,
             ]);
             $graded++;
@@ -713,9 +800,11 @@ purge_all_caches();
 echo "====================================================================\n";
 echo " SIEMBRA COMPLETADA\n";
 foreach ($courses_def as $short => $def) {
-    printf("  %-10s %2d estudiantes\n", $short, count($def['roster']));
+    printf("  %-10s %2d estudiantes  (%s)\n", $short, count($def['roster']), $docentes[$def['docente']]->username);
 }
 echo "  Admin: admin / MoodleAdmin2026!\n";
-echo "  Docente: rgomez4824@uta.edu.ec / Docente2026!  <- también es el login de EduMonitor AI\n";
-echo "  Estudiante (caso crítico): cmendoza3199@uta.edu.ec / Estudiante2026!\n";
+foreach ($docentes_def as $idn => [$uname, $fn, $ln]) {
+    printf("  Docente: %s / %s  <- también es el login de EduMonitor AI\n", $docentes[$idn]->email, clave_uta($fn, $ln));
+}
+echo "  Estudiantes: correo institucional / PrimerNombrePrimerApellido1! (p. ej. CarlosMendoza1!)\n";
 echo "====================================================================\n";

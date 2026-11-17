@@ -96,13 +96,16 @@ _TILDES = {"programacion": "programación", "metodologias": "metodologías", "ag
            "analisis": "análisis", "logica": "lógica", "matematica": "matemática", "computacion": "computación"}
 
 
+_ROMANOS = {"i", "ii", "iii", "iv", "v", "vi"}  # materias seriadas: «Ingeniería de software I»
+
+
 def _nombre_curso(fullname: str) -> str:
     """'(SOF) PROGRAMACION ORIENTADA A OBJETOS - A' -> 'Programación orientada a objetos, paralelo A'."""
     nombre = re.sub(r"^\(\w+\)\s*", "", fullname or "").strip()
     paralelo = re.search(r"\s+-\s+([A-Z])$", nombre)
     if paralelo:
         nombre = nombre[:paralelo.start()]
-    nombre = " ".join(_TILDES.get(p, p) for p in nombre.lower().split())
+    nombre = " ".join(p.upper() if p in _ROMANOS else _TILDES.get(p, p) for p in nombre.lower().split())
     nombre = nombre[:1].upper() + nombre[1:]
     return f"{nombre}, paralelo {paralelo.group(1)}" if paralelo else nombre
 
@@ -493,13 +496,33 @@ _VOCABULARIO_CORTESIA = {
     "perfecto", "genial", "excelente", "entendido", "de", "acuerdo", "chao", "adios", "hasta", "luego", "pronto",
     "manana", "nos", "vemos", "bien", "profe", "agente", "asistente", "edumonitor", "y", "tu", "usted",
     "por", "favor", "porfa", "excelentes", "super", "gracias", "dale", "bueno", "muy", "si", "claro",
+    "te", "le", "va", "vas", "anda", "andas", "estoy", "todo", "noche", "tarde",
 }
+# Tipos de cortesía: cada uno tiene su propia respuesta (no se repite la bienvenida larga)
+_COMO_ESTAS = re.compile(r"\b(como (estas|esta|esta usted|te va|le va|andas|anda|vas|va todo)|que tal (estas|esta|todo))\b")
+_MOMENTO = re.compile(r"\b(buenos dias|buen dia|buenas tardes|buenas noches)\b")
+_DESPEDIDA = {"chao", "adios", "luego", "vemos", "pronto"}
+_CONFIRMACION = {"ok", "okay", "oki", "vale", "listo", "perfecto", "genial", "excelente", "entendido", "acuerdo", "dale",
+                 "bueno", "claro", "si", "super"}
 # Preguntas sobre el propio asistente: se responde con lo que puede hacer y ejemplos concretos
 _AYUDA = re.compile(r"^(hola |buenas |buenos dias |buenas tardes |buenas noches )?(que (puedes|podes|sabes|puede) "
                     r"hacer|en que (me )?(puedes|podes|puede) ayudar|que haces|que hace|ayuda|ayudame|help|"
                     r"quien eres|quien es usted|que eres|como funcionas|como funciona|como te uso|como lo uso|"
                     r"opciones|menu|comandos|instrucciones|para que sirves|que preguntas puedo hacer)"
                     r"( por favor)?$")
+
+
+def _nombre_pila(docente: dict) -> str:
+    """Primer nombre del docente («Roberto»)."""
+    partes = [p for p in (docente.get("nombres") or "").split() if not p.endswith(".")]
+    return partes[0] if partes else ""
+
+
+def _trato_formal(docente: dict) -> str:
+    """Trato respetuoso con título y primer apellido («Ing. Gómez»)."""
+    partes = [p for p in (docente.get("nombres") or "").split() if not p.endswith(".")]
+    apellido = partes[2] if len(partes) >= 4 else partes[-1] if len(partes) >= 2 else ""
+    return f"Ing. {apellido}" if apellido else ""
 
 
 def _trato(docente: dict) -> str:
@@ -526,30 +549,83 @@ def _ejemplos(docente: dict) -> List[str]:
             f"«Prepárame un plan de apoyo para {critico}»" if critico else "«Dame los reprobados»"]
 
 
-def respuesta_cortesia(mensaje: str, docente: dict) -> Optional[str]:
-    """
-    Respuesta inmediata (sin herramientas ni LLM) a saludos, cortesías y preguntas sobre el asistente.
-    None si el mensaje contiene una consulta real.
-    """
+def _variante(opciones: List[str], previas: int) -> str:
+    """Rota las respuestas breves para no repetir la misma frase en la conversación."""
+    return opciones[previas % len(opciones)]
+
+
+def clasificar_cortesia(mensaje: str) -> Optional[str]:
+    """ayuda | como_estas | momento | despedida | gracias | confirmacion | saludo, o None si es una consulta."""
     texto = " ".join(re.findall(r"[a-z0-9]+", _normalizar(mensaje)))
-    nombre = _trato(docente)
-    trato = f", {nombre}" if nombre else ""
     if _AYUDA.match(texto):
-        ejemplos = "\n".join(f"- {e}" for e in _ejemplos(docente))
-        return (f"Soy su Asistente Académico de EduMonitor AI{trato}. Reviso sus cursos de Moodle UTA, detecto a los "
-                f"estudiantes en riesgo y preparo planes de apoyo. Puede preguntarme, por ejemplo:\n{ejemplos}")
+        return "ayuda"
     palabras = texto.split()
-    if not palabras or len(palabras) > 6 or any(p not in _VOCABULARIO_CORTESIA for p in palabras):
+    if not palabras or len(palabras) > 7 or any(p not in _VOCABULARIO_CORTESIA for p in palabras):
         return None
-    if {"chao", "adios", "luego", "vemos", "pronto"} & set(palabras):
-        return f"¡Hasta pronto{trato}! Aquí estaré cuando necesite revisar sus cursos."
+    if _COMO_ESTAS.search(texto):
+        return "como_estas"
+    if _DESPEDIDA & set(palabras):
+        return "despedida"
     if "gracias" in palabras:
-        return f"Con gusto{trato}. Si necesita algo más sobre sus cursos o estudiantes, solo pregúnteme."
-    if {"ok", "okay", "oki", "vale", "listo", "perfecto", "genial", "excelente", "entendido", "acuerdo", "dale",
-            "bueno", "claro", "si", "super"} & set(palabras):
-        return "Perfecto. Cuando quiera, puedo revisar alertas, las notas de un estudiante o preparar un refuerzo."
+        return "gracias"
+    if _MOMENTO.search(texto):
+        return "momento"
+    if _CONFIRMACION & set(palabras):
+        return "confirmacion"
+    return "saludo"
+
+
+def respuesta_cortesia(mensaje: str, docente: dict, previas: Optional[Dict[str, int]] = None) -> Optional[str]:
+    """
+    Respuesta inmediata (sin herramientas ni LLM) a saludos, cortesías y preguntas sobre el asistente; cada tipo
+    tiene su propia respuesta. `previas` cuenta las cortesías de ese tipo ya respondidas en la conversación
+    (para no repetir la bienvenida larga ni la misma frase). None si el mensaje contiene una consulta real.
+    """
+    tipo = clasificar_cortesia(mensaje)
+    if not tipo:
+        return None
+    previas = previas or {}
+    n = previas.get(tipo, 0)
+    pila, formal = _nombre_pila(docente), _trato_formal(docente)
+    texto = " ".join(re.findall(r"[a-z0-9]+", _normalizar(mensaje)))
     ejemplos = "\n".join(f"- {e}" for e in _ejemplos(docente))
-    return f"¡Hola{trato}! ¿En qué le ayudo hoy? Puede preguntarme, por ejemplo:\n{ejemplos}"
+
+    if tipo == "ayuda":
+        return (f"Soy su Asistente Académico de EduMonitor AI{', ' + formal if formal else ''}. Reviso sus cursos de "
+                "Moodle UTA, detecto a los estudiantes en riesgo y preparo planes de apoyo. Puede preguntarme, por "
+                f"ejemplo:\n{ejemplos}")
+    if tipo == "como_estas":
+        momento = _MOMENTO.search(texto)
+        inicio = (f"¡{momento.group(1).capitalize().replace('dias', 'días')}, {formal}! " if momento
+                  else f"¡Hola, {pila}! " if re.search(r"\b(hola|holi|hey|saludos)\b", texto) else "")
+        cuerpo = _variante([
+            f"Muy bien, gracias por preguntar{'' if inicio else ', ' + formal}. Listo para ayudarle a revisar el "
+            "rendimiento de sus cursos o preparar algún plan de apoyo. ¿Qué necesita consultar hoy?",
+            "Todo en orden por aquí, gracias. ¿Revisamos cómo van sus cursos o algún estudiante en particular?",
+        ], n)
+        return inicio + cuerpo
+    if tipo == "momento":
+        saludo = _MOMENTO.search(texto).group(1).replace("dias", "días").replace("buen dia", "buen día").capitalize()
+        return _variante([
+            f"¡{saludo}, {formal}! ¿En qué puedo apoyarle hoy con sus cursos?",
+            f"¡{saludo}, {formal}! Aquí estoy; dígame qué curso o estudiante desea revisar.",
+        ], n)
+    if tipo == "despedida":
+        return _variante([f"¡Hasta pronto, {formal}! Que tenga una excelente jornada.",
+                          "¡Hasta luego! Aquí estaré cuando necesite revisar sus cursos."], n)
+    if tipo == "gracias":
+        return _variante([f"Con gusto, {formal}. Si necesita algo más, solo pregúnteme.",
+                          "¡A la orden! Cuando quiera revisamos otro curso o estudiante.",
+                          f"Para eso estoy, {formal}. ¿Algo más en lo que pueda apoyarle?"], n)
+    if tipo == "confirmacion":
+        return _variante(["Perfecto. Cuando quiera, puedo revisar alertas, las notas de un estudiante o preparar un "
+                          "refuerzo.", "Listo. Quedo atento a su próxima consulta."], n)
+    # «hola», «qué tal»: presentación con ejemplos sólo la primera vez en la conversación
+    if n:
+        return _variante([f"¡Hola de nuevo, {pila}! ¿Qué desea revisar ahora?",
+                          f"¡Aquí sigo, {pila}! ¿Con qué curso o estudiante continuamos?"], n - 1)
+    return (f"¡Hola, {pila}! Soy el Asistente Académico EduMonitor AI. Puedo revisar sus cursos, detectar a los "
+            f"estudiantes en riesgo y preparar planes de apoyo. Por ejemplo:\n{ejemplos}")
 
 
 def ayuda_sin_intencion(docente: dict) -> str:
@@ -1024,10 +1100,11 @@ def redactar(usadas: List[Dict[str, Any]]) -> str:
     return "\n".join(partes).strip()
 
 
-def _respuesta_sin_herramientas(texto: str, fuente: str, docente: dict, inicio: float) -> Dict[str, Any]:
+def _respuesta_sin_herramientas(texto: str, fuente: str, docente: dict, inicio: float,
+                                extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     repositories.insert_log(
         "AGENTE_CHAT", "EXITO", f"Mensaje del docente respondido sin herramientas ({fuente}).",
-        {"docente": docente["email"], "herramientas": [], "plan": fuente},
+        {"docente": docente["email"], "herramientas": [], "plan": fuente, **(extra or {})},
         int((time.time() - inicio) * 1000),
     )
     return {"respuesta": texto, "formato": "markdown", "herramientas": [], "plan_fuente": fuente,
@@ -1036,9 +1113,15 @@ def _respuesta_sin_herramientas(texto: str, fuente: str, docente: dict, inicio: 
 
 async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None) -> Dict[str, Any]:
     inicio = time.time()
-    cortesia = respuesta_cortesia(mensaje, docente)
-    if cortesia:  # saludo o cortesía: sin herramientas ni LLM
-        return _respuesta_sin_herramientas(cortesia, "cortesia", docente, inicio)
+    tipo = clasificar_cortesia(mensaje)
+    if tipo:  # saludo o cortesía: sin herramientas ni LLM, sin repetir la misma respuesta en la conversación
+        previas: Dict[str, int] = {}
+        for log in repositories.chats_recientes(docente["email"]):
+            t = (log.get("detalle") or {}).get("cortesia")
+            if t:
+                previas[t] = previas.get(t, 0) + 1
+        texto = respuesta_cortesia(mensaje, docente, previas)
+        return _respuesta_sin_herramientas(texto, "cortesia", docente, inicio, {"cortesia": tipo})
     ctx = _contexto(mensaje, docente, course_id)
     if _REFUERZO.search(ctx["texto"]) and not ctx["estudiante"]:
         return _respuesta_sin_herramientas(

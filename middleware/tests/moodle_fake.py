@@ -13,9 +13,9 @@ from app import repositories
 from app.services.auth_service import create_access_token
 from app.services.moodle_client import CredencialesMoodleInvalidas, MoodleError
 
-DOCENTE = {"email": "rgomez4824@uta.edu.ec", "password": "Docente2026!"}
-ESTUDIANTE = {"email": "cmendoza3199@uta.edu.ec", "password": "Estudiante2026!"}
-OTRO_DOCENTE = {"email": "odocente3458@uta.edu.ec", "password": "OtroDocente2026!"}
+DOCENTE = {"email": "rgomez4824@uta.edu.ec", "password": "RobertoGomez1!"}
+ESTUDIANTE = {"email": "cmendoza3199@uta.edu.ec", "password": "CarlosMendoza1!"}
+OTRO_DOCENTE = {"email": "odocente3458@uta.edu.ec", "password": "OtroFicticio1!"}
 
 
 def gi(idnumber, raw=None, feedback="", grademax=10):
@@ -77,12 +77,12 @@ class FakeMoodleSprint3:
 # ------------------------------------------------------------------ Login unificado (Fase A)
 USUARIOS_MOODLE = {
     "rgomez": {"id": 10, "username": "rgomez", "email": "rgomez4824@uta.edu.ec", "fullname": "Roberto Patricio Gómez Salazar",
-               "idnumber": "U-01", "customfields": _cedula("1803454824"), "password": "Docente2026!", "cursos": {2: "editingteacher", 4: "editingteacher"}},
+               "idnumber": "U-01", "customfields": _cedula("1803454824"), "password": "RobertoGomez1!", "cursos": {2: "editingteacher", 4: "editingteacher"}},
     "otrodocente": {"id": 20, "username": "otrodocente", "email": "odocente3458@uta.edu.ec",
-                    "fullname": "Otro Docente Ficticio Prueba", "idnumber": "U-90", "password": "OtroDocente2026!",
+                    "fullname": "Otro Docente Ficticio Prueba", "idnumber": "U-90", "password": "OtroFicticio1!",
                     "cursos": {3: "editingteacher"}},
     "cmendoza": {"id": 12, "username": "cmendoza", "email": "cmendoza3199@uta.edu.ec", "fullname": "Carlos Andrés Mendoza Paredes",
-                 "idnumber": "U-04", "customfields": _cedula("1804923199"), "password": "Estudiante2026!", "cursos": {2: "student", 3: "student"}},
+                 "idnumber": "U-04", "customfields": _cedula("1804923199"), "password": "CarlosMendoza1!", "cursos": {2: "student", 3: "student"}},
 }
 CURSOS_MOODLE = {2: "SOF-POO-A", 3: "SOF-ED-B", 4: "SOF-MA-B", 9: "OTRO-CURSO"}
 

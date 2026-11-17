@@ -20,11 +20,14 @@ const TILDES: Record<string, string> = {
   tecnicas: 'técnicas',
 };
 
+/** Numerales romanos de las materias seriadas («Ingeniería de Software I»): se conservan en mayúsculas. */
+const ROMANOS = new Set(['i', 'ii', 'iii', 'iv', 'v', 'vi']);
+
 function conTildes(texto: string): string {
   return texto
     .toLowerCase()
     .split(' ')
-    .map((p) => TILDES[p] ?? p)
+    .map((p) => (ROMANOS.has(p) ? p.toUpperCase() : TILDES[p] ?? p))
     .join(' ');
 }
 

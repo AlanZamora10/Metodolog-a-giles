@@ -27,9 +27,10 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 INFERENCE_TIMEOUT = float(os.getenv("AGENT_PLAN_TIMEOUT_SECONDS", "5.0"))
 
 # Saludos, cortesías y preguntas sobre el asistente: no requieren herramientas ni esperar a Ollama
-_TRIVIAL = re.compile(r"^(hola|holi|hey|buenas|buenos dias|buenas tardes|buenas noches|saludos|gracias|muchas gracias|"
-                      r"ok|okay|vale|listo|perfecto|chao|adios|hasta luego|ayuda|help|menu|opciones|quien eres|"
-                      r"que eres|que puedes hacer|que sabes hacer|como funcionas|como funciona)$")
+_TRIVIAL = re.compile(r"^((hola|holi|hey|buenas|buenos dias|buen dia|buenas tardes|buenas noches|saludos) ?)?"
+                      r"(como estas|como esta|como esta usted|como te va|como le va|que tal|que tal estas|"
+                      r"gracias|muchas gracias|ok|okay|vale|listo|perfecto|chao|adios|hasta luego|ayuda|help|menu|"
+                      r"opciones|quien eres|que eres|que puedes hacer|que sabes hacer|como funcionas|como funciona)?$")
 
 def _normalizar(texto: str) -> str:
     texto = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
@@ -106,7 +107,8 @@ def _herramientas_ollama(herramientas: List[Dict[str, Any]]) -> List[Dict[str, A
 
 
 def es_trivial(mensaje: str) -> bool:
-    return bool(_TRIVIAL.match(" ".join(re.findall(r"[a-z0-9]+", _normalizar(mensaje)))))
+    texto = " ".join(re.findall(r"[a-z0-9]+", _normalizar(mensaje)))
+    return bool(texto) and bool(_TRIVIAL.match(texto))
 
 
 async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: List[Dict[str, Any]],

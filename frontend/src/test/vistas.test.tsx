@@ -156,7 +156,7 @@ describe('Login con correo institucional', () => {
     renderApp('/login');
     await u.click(await screen.findByRole('button', { name: 'Microsoft Office 365' }));
     await u.type(await screen.findByLabelText(/correo institucional/i), 'rgomez');
-    await u.type(screen.getByLabelText(/contraseña/i), 'Docente2026!');
+    await u.type(screen.getByLabelText(/contraseña/i), 'RobertoGomez1!');
     await u.click(screen.getByRole('button', { name: 'Ingresar' }));
     expect(await screen.findByTestId('login-error')).toHaveTextContent(/correo institucional completo/i);
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/auth/login'))).toBe(false);
