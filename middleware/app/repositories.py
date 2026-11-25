@@ -335,6 +335,7 @@ def _consulta_alertas():
             materias.c.moodle_course_id.label("curso_id"), materias.c.docentes.label("curso_docentes"),
             estudiantes.c.id_number, estudiantes.c.nombres, estudiantes.c.email,
             parciales.c.numero_parcial, refuerzos.c.id.label("refuerzo_id"),
+            refuerzos.c.cmid.label("refuerzo_cmid"),
         )
         .join(materias, materias.c.id == alertas_tempranas.c.materia_id)
         .join(estudiantes, estudiantes.c.id == alertas_tempranas.c.estudiante_id)

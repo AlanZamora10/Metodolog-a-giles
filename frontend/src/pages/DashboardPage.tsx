@@ -36,6 +36,26 @@ function tipoDeActividad(codigo: string): 'A' | 'T' | 'P' | null {
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
+function mediana(v: number[]): number | null {
+  if (!v.length) return null;
+  const o = [...v].sort((a, b) => a - b);
+  const m = Math.floor(o.length / 2);
+  return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
+}
+
+const nombreUnidad = (u: string) => u.replace(/^U(\d+)$/, 'Unidad $1');
+const listaNombres = (n: string[]) => (n.length <= 1 ? n.join('') : `${n.slice(0, -1).join(', ')} y ${n[n.length - 1]}`);
+
+/** Tarjeta minimalista de un hallazgo (título + líneas cortas). */
+function Hallazgo({ titulo, children, testid }: { titulo: string; children: React.ReactNode; testid: string }) {
+  return (
+    <article className="hallazgo" data-testid={testid}>
+      <h3>{titulo}</h3>
+      <div className="hallazgo-cuerpo">{children}</div>
+    </article>
+  );
+}
+
 /** Dashboard académico grupal. */
 export function DashboardPage() {
   return (
@@ -46,7 +66,7 @@ export function DashboardPage() {
 }
 
 function Dashboard() {
-  const { datos, alertas, corte, reporte } = useCurso();
+  const { datos, alertas, corte } = useCurso();
   const estudiantes = datos!.estudiantes;
   const etiquetaCorte = CORTES.find((c) => c.valor === corte)!.etiqueta;
 
@@ -68,6 +88,18 @@ function Dashboard() {
   const componentes = useMemo(() => promedioPorComponente(estudiantes, corte), [estudiantes, corte]);
   const estados = useMemo(() => contarEstados(estudiantes.flatMap((e) => actividadesEnCorte(e, corte))), [estudiantes, corte]);
   const activas = alertas.filter((a) => ACTIVAS.has(a.estado));
+  const criticos = useMemo(
+    () => estudiantes.filter((e) => metricasEnCorte(e, corte)?.nivel_riesgo === 'CRITICO').map((e) => e.nombres),
+    [estudiantes, corte],
+  );
+  const descenso = useMemo(
+    () => estudiantes.filter((e) => e.regla_alerta === 'R2_DESCENSO').map((e) => e.nombres),
+    [estudiantes],
+  );
+  const menorComponente = useMemo(
+    () => [...componentes].filter((c) => c.promedio > 0).sort((a, b) => a.promedio - b.promedio)[0],
+    [componentes],
+  );
   const prioritarios = useMemo(
     () =>
       estudiantes
@@ -230,14 +262,70 @@ function Dashboard() {
         </section>
       </div>
 
-      {reporte && corte === 'periodo' && reporte.hallazgos.length > 0 && (
-        <section className="card card-pad">
-          <h2 style={{ marginBottom: 8 }}>Hallazgos del período</h2>
-          <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4 }}>
-            {reporte.hallazgos.map((h) => (
-              <li key={h}>{h}</li>
-            ))}
-          </ul>
+      {notas.length > 0 && (
+        <section className="card card-pad" aria-label="Hallazgos">
+          <h2 style={{ marginBottom: 12 }}>{corte === 'periodo' ? 'Hallazgos del período' : `Hallazgos · ${etiquetaCorte}`}</h2>
+          <div className="hallazgos-grid">
+            <Hallazgo titulo="Rendimiento general" testid="hallazgo-rendimiento">
+              <p>
+                Promedio <b className="num">{r.promedio?.toFixed(2)}</b>/10 · Mediana <b className="num">{mediana(notas)?.toFixed(2)}</b>/10
+              </p>
+              <p>
+                Aprobación <b className="num">{r.tasaAprobacion?.toFixed(1)} %</b>{' '}
+                <span className="muted">({r.aprobados} de {r.evaluados} estudiantes)</span>
+              </p>
+            </Hallazgo>
+            <Hallazgo titulo="Evolución por unidades" testid="hallazgo-unidades">
+              {unidades.length >= 2 ? (
+                <>
+                  <p>
+                    {nombreUnidad(unidades[0].unidad)} <b className="num">{unidades[0].promedio.toFixed(2)}</b> →{' '}
+                    {nombreUnidad(unidades[unidades.length - 1].unidad)}{' '}
+                    <b className="num">{unidades[unidades.length - 1].promedio.toFixed(2)}</b>
+                  </p>
+                  {(() => {
+                    const d = unidades[unidades.length - 1].promedio - unidades[0].promedio;
+                    return (
+                      <p className={d < 0 ? 'variacion-baja' : d > 0 ? 'variacion-sube' : 'muted'}>
+                        Variación <b className="num">{d >= 0 ? '+' : ''}{d.toFixed(2)}</b>{' '}
+                        {d < 0 ? '(el grupo baja)' : d > 0 ? '(el grupo mejora)' : '(sin cambio)'}
+                      </p>
+                    );
+                  })()}
+                </>
+              ) : (
+                <p className="muted">Sólo hay notas de una unidad en este corte.</p>
+              )}
+            </Hallazgo>
+            <Hallazgo titulo="Estudiantes que requieren atención" testid="hallazgo-atencion">
+              {criticos.length === 0 && descenso.length === 0 && (
+                <p className="muted">Ningún estudiante en nivel crítico ni con descenso sostenido.</p>
+              )}
+              {criticos.length > 0 && (
+                <p>
+                  <b>{plural(criticos.length, 'en nivel crítico', 'en nivel crítico')}</b>: {listaNombres(criticos)}
+                </p>
+              )}
+              {descenso.length > 0 && (
+                <p>
+                  <b>{plural(descenso.length, 'con descenso sostenido', 'con descenso sostenido')}</b>: {listaNombres(descenso)}
+                </p>
+              )}
+            </Hallazgo>
+            <Hallazgo titulo="Componentes y pendientes" testid="hallazgo-componentes">
+              {menorComponente && (
+                <p>
+                  Menor promedio: <b>{menorComponente.componente}</b> <b className="num">{menorComponente.promedio.toFixed(2)}</b>/10
+                </p>
+              )}
+              <p>
+                Nota 0: <b className="num">{estados.cero}</b> · Sin entrega: <b className="num">{estados.sin_entrega}</b>
+              </p>
+              <p className="muted">
+                {plural(estados.pendiente, 'actividad pendiente de calificar', 'actividades pendientes de calificar')}
+              </p>
+            </Hallazgo>
+          </div>
         </section>
       )}
     </>

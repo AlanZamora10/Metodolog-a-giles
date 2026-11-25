@@ -119,6 +119,8 @@ export interface Alerta {
   refuerzo_id: number | null;
   /** 1 = Primer Parcial, 2 = Segundo Parcial (un estudiante puede tener una alerta en cada parcial). */
   parcial?: number | null;
+  /** Enlace a la tarea de refuerzo en Moodle (sólo cuando la alerta tiene el refuerzo publicado). */
+  moodle_url?: string | null;
 }
 
 export interface Refuerzo {

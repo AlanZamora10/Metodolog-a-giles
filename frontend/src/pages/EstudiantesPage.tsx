@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurso } from '../context/CursoContext';
 import { CursoRequerido } from '../components/layout/CursoRequerido';
-import { EstadoActividadBadge, NivelBadge } from '../components/ui/ui';
+import { NivelBadge } from '../components/ui/ui';
 import { actividadesEnCorte, contarEstados, metricasEnCorte, REGLAS } from '../utils/academico';
 import type { MetricasEstudiante as Metricas } from '../api/types';
 import { nota } from '../utils/formato';
@@ -128,7 +128,7 @@ function Listado() {
         </div>
 
         <div className="table-wrap">
-          <table className="tabla">
+          <table className="tabla tabla-estudiantes">
             <thead>
               <tr>
                 <th>Estudiante</th>
@@ -167,10 +167,14 @@ function Listado() {
                     {/* primero las incidencias reales (nota cero, sin entrega); las pendientes de calificar, en una sola etiqueta compacta */}
                     <div className="incidencias" data-testid="incidencias">
                       {estados.cero > 0 && (
-                        <EstadoActividadBadge estado="cero" texto={estados.cero > 1 ? `Nota cero (0.0) × ${estados.cero}` : undefined} />
+                        <span className="badge incidencia incidencia-cero">
+                          Nota cero (0.0){estados.cero > 1 ? ` × ${estados.cero}` : ''}
+                        </span>
                       )}
                       {estados.sin_entrega > 0 && (
-                        <EstadoActividadBadge estado="sin_entrega" texto={estados.sin_entrega > 1 ? `Sin entrega × ${estados.sin_entrega}` : undefined} />
+                        <span className="badge incidencia incidencia-sin-entrega">
+                          Sin entrega{estados.sin_entrega > 1 ? ` × ${estados.sin_entrega}` : ''}
+                        </span>
                       )}
                       {estados.pendiente > 0 && (
                         <span className="pendientes-compacto" title="Actividades entregadas, pendientes de calificación en Moodle">

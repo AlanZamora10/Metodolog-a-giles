@@ -303,7 +303,7 @@ function CentroAlertas() {
                   )}
                   {a.regla === 'R2_DESCENSO' && a.pendiente !== null && (
                     <div>
-                      <dt>Variación</dt>
+                      <dt>Caída entre unidades</dt>
                       <dd className="num">
                         {a.pendiente >= 0 ? '+' : ''}
                         {a.pendiente.toFixed(2)}
@@ -359,9 +359,24 @@ function CentroAlertas() {
                   )}
                 </div>
                 <p className="small muted">
-                  La alerta es una señal para revisión docente, no una calificación definitiva. Detectada {fechaHora(sel.fecha_creacion)}.{' '}
-                  <Link to={`/estudiantes/${sel.id_number}`}>Ver ficha</Link>
+                  La alerta es una señal para revisión docente, no una calificación definitiva. Detectada {fechaHora(sel.fecha_creacion).replace(/\.$/, '')}.
                 </p>
+                <div className="acciones-detalle">
+                  <Link className="btn btn-sm" to={`/estudiantes/${sel.id_number}`}>
+                    Ver ficha
+                  </Link>
+                  {sel.estado === 'PUBLICADO' && (publicaciones[sel.id]?.moodle_link ?? sel.moodle_url) && (
+                    <a
+                      className="btn btn-sm"
+                      href={publicaciones[sel.id]?.moodle_link ?? sel.moodle_url ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid="ver-tarea-moodle"
+                    >
+                      Ver tarea en Moodle ↗
+                    </a>
+                  )}
+                </div>
 
                 {error && <Aviso tipo="error">{error}</Aviso>}
 

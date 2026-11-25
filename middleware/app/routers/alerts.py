@@ -69,6 +69,7 @@ class AlertaOut(BaseModel):
     fecha_actualizacion: Optional[str] = None
     refuerzo_id: Optional[int] = None
     parcial: Optional[int] = None          # 1 = Primer Parcial, 2 = Segundo Parcial
+    moodle_url: Optional[str] = None       # tarea de refuerzo publicada (mod/assign/view.php?id=<cmid>)
 
 
 class PublicarRefuerzoReq(BaseModel):
@@ -98,6 +99,8 @@ def _alerta_out(a: Dict[str, Any]) -> Dict[str, Any]:
         tipo_accion_sugerida=a.get("tipo_accion_sugerida"), fecha_creacion=a.get("fecha_alerta"),
         fecha_actualizacion=a.get("fecha_actualizacion"), refuerzo_id=a.get("refuerzo_id"),
         parcial=a.get("numero_parcial"),
+        moodle_url=(f"{settings.MOODLE_EXTERNAL_URL}/mod/assign/view.php?id={int(a['refuerzo_cmid'])}"
+                    if a.get("refuerzo_cmid") and (a.get("estado") == "PUBLICADO") else None),
     ).model_dump()
 
 

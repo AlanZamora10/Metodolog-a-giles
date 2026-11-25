@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { mensajeErrorLogin, useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
@@ -25,6 +25,32 @@ function IconoMicrosoft() {
  * 1) tarjeta con el escudo y el botón Microsoft Office 365; 2) al pulsarlo se despliega el formulario de
  * credenciales de Moodle UTA (correo @uta.edu.ec y contraseña), con opción para volver.
  */
+/** Imágenes de fondo opcionales: basta con pegar una de ellas en frontend/public/images/. */
+export const FONDOS_LOGIN = ['/images/login-bg.jpg', '/images/login-bg.png'];
+
+/**
+ * Devuelve la primera imagen de fondo que realmente carga (jpg, luego png) o null.
+ * Mientras no exista ninguna, el login conserva su fondo institucional azul UTA.
+ */
+function useFondoLogin(): string | null {
+  const [fondo, setFondo] = useState<string | null>(null);
+  useEffect(() => {
+    let vigente = true;
+    const probar = (i: number) => {
+      if (i >= FONDOS_LOGIN.length || typeof Image === 'undefined') return;
+      const img = new Image();
+      img.onload = () => vigente && img.naturalWidth > 0 && setFondo(FONDOS_LOGIN[i]);
+      img.onerror = () => vigente && probar(i + 1);
+      img.src = FONDOS_LOGIN[i];
+    };
+    probar(0);
+    return () => {
+      vigente = false;
+    };
+  }, []);
+  return fondo;
+}
+
 export function LoginPage() {
   const { usuario, iniciarSesion, aviso } = useAuth();
   const location = useLocation();
@@ -34,6 +60,7 @@ export function LoginPage() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<{ texto: string; estado: number } | null>(null);
   const botonO365 = useRef<HTMLButtonElement>(null);
+  const fondo = useFondoLogin();
   const volvio = useRef(false);
 
   useEffect(() => {
@@ -77,7 +104,11 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-page login-institucional">
+    <div
+      className={`login-page login-institucional${fondo ? ' login-con-imagen' : ''}`}
+      style={fondo ? ({ '--login-bg': `url("${fondo}")` } as CSSProperties) : undefined}
+      data-testid="login-fondo"
+    >
       <main className="login-tarjeta stagger-1">
         <div className="login-escudos">
           <img src="/uta-logo-azul.png" alt="Universidad Técnica de Ambato" className="login-logo" />

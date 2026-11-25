@@ -139,3 +139,29 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     await waitFor(() => expect(screen.queryByTestId('publicado')).not.toBeInTheDocument());
   });
 });
+
+describe('Centro de alertas · tarea publicada y caída entre unidades', () => {
+  it('muestra «Ver tarea en Moodle» sólo con refuerzo publicado y rotula la caída del descenso', async () => {
+    iniciarSesionFalsa();
+    const url = 'http://localhost:8080/mod/assign/view.php?id=165';
+    mockApi({
+      'GET /api/v1/alertas': () =>
+        json([
+          { ...ALERTAS[0], estado: 'PUBLICADO', refuerzo_id: 9, moodle_url: url },
+          { ...ALERTAS[1], regla: 'R2_DESCENSO', nivel: 'EN_RIESGO', pendiente: -0.79 },
+        ]),
+    });
+    const u = userEvent.setup();
+    renderApp('/alertas');
+    const descenso = await screen.findByTestId('alerta-2');
+    expect(descenso).toHaveTextContent(/Caída entre unidades:?\s*-0\.79/);
+    expect(screen.getByTestId('alerta-1')).not.toHaveTextContent('Caída entre unidades');
+
+    await u.click(screen.getByTestId('alerta-1'));
+    const enlace = await screen.findByTestId('ver-tarea-moodle');
+    expect(enlace).toHaveAttribute('href', url);
+    expect(enlace).toHaveAttribute('target', '_blank');
+    expect(enlace).toHaveTextContent('Ver tarea en Moodle');
+    expect(screen.getByRole('link', { name: 'Ver ficha' })).toBeInTheDocument();
+  });
+});

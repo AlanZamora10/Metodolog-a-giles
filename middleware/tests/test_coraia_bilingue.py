@@ -184,3 +184,15 @@ def test_resumen_de_incidencias_agrupa_las_pendientes():
 def test_cada_alerta_indica_su_parcial(sincronizado):  # noqa: F811
     alertas = client.get("/api/v1/alertas", headers=sincronizado).json()
     assert alertas and all(a["parcial"] in (1, 2) for a in alertas)
+
+
+def test_alerta_publicada_enlaza_su_tarea_en_moodle():
+    from app.config import settings
+    from app.routers.alerts import _alerta_out
+    base = {"id": 1, "curso_id": 2, "curso_codigo": "SOF-POO-A", "curso_nombre": "POO", "id_number": "U-04",
+            "nombres": "Carlos", "email": "c@uta.edu.ec", "regla": "R1_NOTA_CRITICA", "nivel": "CRITICO",
+            "nota_final": 3.4, "motivo": "Nota crítica", "numero_parcial": 1, "refuerzo_cmid": 165}
+    publicada = _alerta_out({**base, "estado": "PUBLICADO"})
+    assert publicada["moodle_url"] == f"{settings.MOODLE_EXTERNAL_URL}/mod/assign/view.php?id=165"
+    assert _alerta_out({**base, "estado": "ABIERTA"})["moodle_url"] is None
+    assert _alerta_out({**base, "estado": "PUBLICADO", "refuerzo_cmid": None})["moodle_url"] is None

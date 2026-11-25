@@ -59,7 +59,7 @@ describe('RF-05 · dashboard', () => {
     iniciarSesionFalsa();
     mockApi();
     renderApp('/dashboard');
-    expect(await screen.findByText('6.05')).toBeInTheDocument();
+    expect((await screen.findAllByText('6.05'))[0]).toBeInTheDocument();
     expect(screen.getByText('/10')).toBeInTheDocument();
     expect(screen.getByText('33.3')).toBeInTheDocument();
     expect(screen.getByText('Alertas activas').parentElement).toHaveTextContent('2');
@@ -72,7 +72,7 @@ describe('RF-05 · dashboard', () => {
     mockApi();
     const u = userEvent.setup();
     renderApp('/dashboard');
-    await screen.findByText('6.05');
+    await screen.findAllByText('6.05');
     expect(screen.getAllByTestId('leyenda-referencias')).toHaveLength(3);   // unidad, actividad y componentes
     expect(screen.getAllByTestId('leyenda-referencias')[0]).toHaveTextContent(/Aprobación \(7\.00\).*Crítico \(5\.00\)/);
     expect(screen.getByTestId('leyenda-codigos')).toHaveTextContent('A = Examen');
@@ -230,8 +230,34 @@ describe('Estudiantes · tabla ordenada', () => {
     const tendencias = screen.getAllByTestId('tendencia');
     expect(tendencias[0].textContent).toMatch(/^(↗ Sube|↘ Baja|→ Estable) \([+-]\d\.\d{2}\)$/);
     expect(document.body.textContent).not.toMatch(/Pendiente de calificación/);
+    expect(document.querySelectorAll('.estado-punto').length).toBe(0);
     expect(screen.getAllByTestId('incidencias').some((c) => /\d+ pendientes? de calificar/.test(c.textContent ?? ''))).toBe(true);
     expect(screen.getAllByText('Sin alertas').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nota crítica', { selector: '.badge' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Dashboard · hallazgos en cuadrícula', () => {
+  it('agrupa los hallazgos en 4 tarjetas temáticas', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    renderApp('/dashboard');
+    await screen.findAllByText('6.05');
+    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Promedio\s*6\.05\/10 · Mediana/);
+    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Aprobación\s*33\.3 %/);
+    expect(screen.getByTestId('hallazgo-unidades')).toHaveTextContent(/Unidad 1/);
+    expect(screen.getByTestId('hallazgo-atencion')).toHaveTextContent('Carlos Andrés Mendoza Paredes');
+    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(/Nota 0:\s*\d+ · Sin entrega:\s*\d+/);
+    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(/pendientes? de calificar/);
+  });
+});
+
+describe('Login · fondo opcional', () => {
+  it('sin imagen en /images conserva el fondo institucional', async () => {
+    mockApi();
+    renderApp('/login');
+    const fondo = await screen.findByTestId('login-fondo');
+    expect(fondo).toHaveClass('login-page');
+    expect(fondo).not.toHaveClass('login-con-imagen');
   });
 });
