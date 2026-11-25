@@ -78,7 +78,7 @@ export function AgentePage() {
     <>
       <div className="page-head">
         <div>
-          <h1>Agente IA</h1>
+          <h1>CoraIA</h1>
           <p>Consultas en lenguaje natural respondidas sólo con datos reales sincronizados desde Moodle UTA</p>
         </div>
         {mensajes.length > 0 && (

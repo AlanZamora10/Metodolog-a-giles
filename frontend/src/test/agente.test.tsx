@@ -71,7 +71,7 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     const fetch = mockApi({ 'POST /api/v1/agent/chat': () => json(RESPUESTA_ALERTAS) });
     const u = userEvent.setup();
     renderApp('/agente');
-    await screen.findByRole('heading', { name: 'Agente IA' });
+    await screen.findByRole('heading', { name: 'CoraIA' });
     await waitFor(() => expect(screen.getByLabelText('Curso')).toHaveDisplayValue('Programación orientada a objetos — Paralelo A'));
 
     expect(screen.queryByText(/herramientas disponibles/i)).not.toBeInTheDocument();

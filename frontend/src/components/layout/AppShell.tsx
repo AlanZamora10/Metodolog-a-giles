@@ -9,7 +9,7 @@ const NAV = [
   { a: '/dashboard', texto: 'Dashboard' },
   { a: '/estudiantes', texto: 'Estudiantes' },
   { a: '/alertas', texto: 'Centro de alertas' },
-  { a: '/agente', texto: 'Agente IA' },
+  { a: '/agente', texto: 'CoraIA' },
   { a: '/reporte', texto: 'Informe' },
 ];
 
