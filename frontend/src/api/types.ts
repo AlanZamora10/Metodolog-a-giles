@@ -264,5 +264,7 @@ export interface Reporte {
     regla_alerta: string | null;
   }[];
   hallazgos: string[];
+  /** Hallazgos en 3 bloques: rendimiento general, estudiantes que requieren atención, componentes y entregas. */
+  hallazgos_grupos?: { titulo: string; items: string[] }[];
   recomendaciones: string[];
 }

@@ -143,7 +143,7 @@ class AuthService:
 
         cursos = await _cursos_como_docente(client, usuario["id"])
         if not cursos:
-            raise LoginRechazado("EduMonitor AI es de uso exclusivo para docentes de los cursos del portafolio.")
+            raise LoginRechazado("CoraIA es de uso exclusivo para docentes de los cursos del portafolio.")
 
         perfil = repositories.upsert_usuario_moodle({
             "email": usuario["email"],

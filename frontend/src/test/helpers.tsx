@@ -99,8 +99,16 @@ export const REPORTE: Reporte = {
   distribucion_estados: { calificado: 4, cero: 1, sin_entrega: 1, pendiente: 1, total_registros: 7, estudiantes_con_cero: 1, estudiantes_sin_entrega: 1, estudiantes_con_pendiente: 1 },
   alertas: { r1_activas: 2, r2_activas: 0, abiertas: 2, atendidas: 0, publicadas: 0, cerradas: 0, resueltas: 0 },
   estudiantes_prioritarios: [{ id_number: 'U-04', nombres: 'Carlos Andrés Mendoza Paredes', nota_final: 3.04, nivel_riesgo: 'CRITICO', regla_alerta: 'R1_NOTA_CRITICA' }],
-  hallazgos: ['Promedio del curso 6.05/10 (mediana 6.20).'],
-  recomendaciones: ['Atender primero las alertas de nota crítica.'],
+  hallazgos: ['Promedio general 6.05/10 y mediana 6.20.', '1 estudiante en nivel crítico: Carlos Andrés Mendoza Paredes (3.04).'],
+  hallazgos_grupos: [
+    { titulo: 'Rendimiento general del curso', items: ['Promedio general 6.05/10 y mediana 6.20.'] },
+    { titulo: 'Estudiantes que requieren atención', items: ['1 estudiante en nivel crítico: Carlos Andrés Mendoza Paredes (3.04).'] },
+    { titulo: 'Componentes y entregas pendientes', items: ['1 actividad sigue pendiente de calificación (1 estudiante); no cuenta en el promedio.'] },
+  ],
+  recomendaciones: [
+    'Atender primero las alertas de nota crítica.',
+    'Calificación de pendientes: calificar la actividad pendiente y volver a sincronizar para completar el análisis.',
+  ],
 };
 
 export const json = (cuerpo: unknown, status = 200, headers: Record<string, string> = {}) =>

@@ -30,6 +30,11 @@ def _nombre(e: Dict[str, Any]) -> str:
     return e.get("nombres") or e["id_number"]
 
 
+def plural(cantidad: int, singular: str, plural_: str) -> str:
+    """plural(1, 'estudiante', 'estudiantes') -> '1 estudiante'; con 2 -> '2 estudiantes' (sin «estudiante(s)»)."""
+    return f"{cantidad} {singular if cantidad == 1 else plural_}"
+
+
 def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
                       ultima_sincronizacion: Optional[str]) -> Dict[str, Any]:
     est = curso["estudiantes"]
@@ -103,52 +108,82 @@ def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
     ]
 
     # ------------------------------------------------------------------ Hallazgos (cada uno cita sus datos)
-    hallazgos: List[str] = []
+    # Tres bloques ordenados: rendimiento general, estudiantes que requieren atención, componentes y entregas.
+    rendimiento: List[str] = []
     if total:
-        hallazgos.append(
-            f"Promedio del curso {metricas['promedio']:.2f}/10 (mediana {metricas['mediana']:.2f}); "
-            f"{metricas['aceptables']} de {total} estudiantes ({metricas['porcentaje_aceptables']}%) en nivel aceptable.")
-    if metricas["criticos"]:
-        criticos = [p for p in prioritarios if p["nivel_riesgo"] == "CRITICO"]
-        hallazgos.append(f"{metricas['criticos']} estudiante(s) en nivel crítico: "
-                         + ", ".join(f"{p['nombres']} ({p['nota_final']:.2f})" for p in criticos) + ".")
-    comp_validos = {k: v for k, v in componentes.items() if v is not None}
-    comp_bajo = min(comp_validos, key=comp_validos.get) if comp_validos else None
-    if comp_bajo:
-        hallazgos.append(f"El componente con menor promedio es {COMPONENTES[comp_bajo]}: {comp_validos[comp_bajo]:.2f}/10.")
+        rendimiento.append(f"Promedio general {metricas['promedio']:.2f}/10 y mediana {metricas['mediana']:.2f}.")
+        aceptables = metricas["aceptables"]
+        rendimiento.append(f"{aceptables} de {plural(total, 'estudiante', 'estudiantes')} "
+                           f"({metricas['porcentaje_aceptables']:.1f} %) {'está' if aceptables == 1 else 'están'} "
+                           "en nivel aceptable.")
     if len(unidades) >= 2:
         serie = list(unidades.items())
         (u_ini, v_ini), (u_fin, v_fin) = serie[0], serie[-1]
         tendencia = "baja" if v_fin < v_ini else "sube" if v_fin > v_ini else "se mantiene"
-        hallazgos.append(f"El promedio por unidad {tendencia} de {u_ini} ({v_ini:.2f}) a {u_fin} ({v_fin:.2f}).")
+        rendimiento.append(f"El promedio por unidad {tendencia} de Unidad {u_ini[1:]} ({v_ini:.2f}) a "
+                           f"Unidad {u_fin[1:]} ({v_fin:.2f}).")
+
+    atencion: List[str] = []
+    criticos = [p for p in prioritarios if p["nivel_riesgo"] == "CRITICO"]
+    if metricas["criticos"]:
+        detalle = (": " + ", ".join(f"{p['nombres']} ({p['nota_final']:.2f})" for p in criticos)) if criticos else ""
+        atencion.append(f"{plural(metricas['criticos'], 'estudiante', 'estudiantes')} en nivel crítico{detalle}.")
     if resumen_alertas["r2_activas"]:
         nombres_r2 = [p["nombres"] for p in prioritarios if p["regla_alerta"] == "R2_DESCENSO"]
-        hallazgos.append(f"{resumen_alertas['r2_activas']} estudiante(s) con descenso sostenido entre unidades: "
-                         + ", ".join(nombres_r2) + ".")
+        atencion.append(f"{plural(resumen_alertas['r2_activas'], 'estudiante', 'estudiantes')} con descenso sostenido "
+                        "entre unidades" + (f": {', '.join(nombres_r2)}." if nombres_r2 else "."))
+    if not atencion:
+        atencion.append("Ningún estudiante en nivel crítico ni con descenso sostenido entre unidades.")
+
+    entregas: List[str] = []
+    comp_validos = {k: v for k, v in componentes.items() if v is not None}
+    comp_bajo = min(comp_validos, key=comp_validos.get) if comp_validos else None
+    if comp_bajo:
+        entregas.append(f"El componente con menor promedio es {COMPONENTES[comp_bajo]}: {comp_validos[comp_bajo]:.2f}/10.")
     if incidencias_actividad:
         actividad, veces = incidencias_actividad.most_common(1)[0]
-        hallazgos.append(f"La actividad {actividad} concentra {veces} registro(s) con nota 0 o sin entrega.")
+        entregas.append(f"La actividad {actividad} concentra {plural(veces, 'registro', 'registros')} con nota 0 o "
+                        "sin entrega.")
     if distribucion["pendiente"]:
-        hallazgos.append(f"{distribucion['pendiente']} actividad(es) siguen pendientes de revisión "
-                         f"({distribucion['estudiantes_con_pendiente']} estudiante(s)); no cuentan en el promedio.")
+        n = distribucion["pendiente"]
+        entregas.append(f"{plural(n, 'actividad sigue pendiente', 'actividades siguen pendientes')} de calificación "
+                        f"({plural(distribucion['estudiantes_con_pendiente'], 'estudiante', 'estudiantes')}); "
+                        f"{'no cuenta' if n == 1 else 'no cuentan'} en el promedio.")
+    if not entregas:
+        entregas.append("No hay actividades con nota 0, sin entrega ni pendientes de calificación.")
 
-    # ------------------------------------------------------------------ Recomendaciones (reglas sobre los datos)
+    hallazgos_grupos = [
+        {"titulo": "Rendimiento general del curso", "items": rendimiento},
+        {"titulo": "Estudiantes que requieren atención", "items": atencion},
+        {"titulo": "Componentes y entregas pendientes", "items": entregas},
+    ]
+    hallazgos = [h for g in hallazgos_grupos for h in g["items"]]
+
+    # ------------------------------------------------------------------ Recomendaciones (en orden de prioridad)
     recomendaciones: List[str] = []
     if metricas["criticos"]:
-        recomendaciones.append("Atender primero las alertas de nota crítica desde el Centro de alertas y publicar un refuerzo "
-                               "personalizado en Moodle para cada estudiante crítico.")
+        recomendaciones.append(
+            f"Atención inmediata a {plural(metricas['criticos'], 'estudiante crítico', 'estudiantes críticos')}: "
+            "atender sus alertas desde el Centro de alertas y publicar un refuerzo personalizado en Moodle.")
     if resumen_alertas["r2_activas"]:
-        unidad_baja = min(unidades, key=unidades.get) if unidades else "la última unidad"
-        recomendaciones.append(f"Revisar los contenidos de {unidad_baja} con los estudiantes en descenso sostenido "
-                               "antes de que su nota baje de 5.00.")
+        unidad_baja = min(unidades, key=unidades.get) if unidades else None
+        recomendaciones.append(
+            f"Seguimiento al descenso sostenido de "
+            f"{plural(resumen_alertas['r2_activas'], 'estudiante', 'estudiantes')}: revisar los contenidos de "
+            f"{('la Unidad ' + unidad_baja[1:]) if unidad_baja else 'la última unidad'} antes de que su nota baje de 5.00.")
     if comp_bajo and comp_validos[comp_bajo] < 7:
-        recomendaciones.append(_RECOMENDACION_COMPONENTE[comp_bajo])
+        texto = _RECOMENDACION_COMPONENTE[comp_bajo]
+        recomendaciones.append(f"Refuerzo del componente {COMPONENTES[comp_bajo]}: {texto[:1].lower()}{texto[1:]}")
     if distribucion["sin_entrega"] or distribucion["cero"]:
-        recomendaciones.append("Contactar a los estudiantes con entregas faltantes o nota 0 y, si procede, "
-                               "habilitar una segunda oportunidad de entrega.")
+        faltantes = distribucion["sin_entrega"] + distribucion["cero"]
+        recomendaciones.append(
+            f"Gestión de entregas faltantes ({plural(faltantes, 'registro', 'registros')} con nota 0 o sin entrega): "
+            "contactar a los estudiantes y, si procede, habilitar una segunda oportunidad de entrega.")
     if distribucion["pendiente"]:
-        recomendaciones.append(f"Calificar las {distribucion['pendiente']} actividad(es) pendientes y volver a "
-                               "sincronizar para completar el análisis.")
+        n = distribucion["pendiente"]
+        recomendaciones.append(
+            f"Calificación de pendientes: calificar {'la actividad pendiente' if n == 1 else f'las {n} actividades pendientes'} "
+            "y volver a sincronizar para completar el análisis.")
     if not recomendaciones:
         recomendaciones.append("Mantener el seguimiento semanal: no hay estudiantes en riesgo ni incidencias registradas.")
 
@@ -164,6 +199,7 @@ def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
         "alertas": resumen_alertas,
         "estudiantes_prioritarios": prioritarios,
         "hallazgos": hallazgos,
+        "hallazgos_grupos": hallazgos_grupos,
         "recomendaciones": recomendaciones,
     }
 
@@ -257,6 +293,8 @@ def reporte_markdown(r: Dict[str, Any], docente: Optional[str] = None) -> str:
         lineas += ["", "| Estudiante prioritario | Nota final | Nivel | Alerta |", "|---|---|---|---|"]
         lineas += [f"| {e['nombres']} | {e['nota_final']:.2f} | {_NIVEL.get(e['nivel_riesgo'], e['nivel_riesgo'])} | "
                    f"{_ALERTA.get(e['regla_alerta'], e['regla_alerta'] or '-')} |" for e in r["estudiantes_prioritarios"]]
-    lineas += ["", "## 4. Hallazgos", "", *[f"- {h}" for h in r["hallazgos"]],
-               "", "## 5. Recomendaciones", "", *[f"- {x}" for x in r["recomendaciones"]], ""]
+    lineas += ["", "## 4. Hallazgos"]
+    for i, grupo in enumerate(r.get("hallazgos_grupos") or [{"titulo": "Hallazgos", "items": r["hallazgos"]}], 1):
+        lineas += ["", f"### 4.{i}. {grupo['titulo']}", "", *[f"- {h}" for h in grupo["items"]]]
+    lineas += ["", "## 5. Recomendaciones", "", *[f"{i}. {x}" for i, x in enumerate(r["recomendaciones"], 1)], ""]
     return "\n".join(lineas)

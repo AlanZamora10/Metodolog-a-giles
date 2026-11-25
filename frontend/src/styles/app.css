@@ -1,4 +1,4 @@
-/* EduMonitor AI — identidad azul/blanco UTA (FISEI) */
+/* CoraIA — identidad azul/blanco UTA (FISEI) */
 :root {
   --uta-blue: #11297a;
   --uta-blue-hover: #0c1f5e;
@@ -453,3 +453,10 @@ table.tabla { width: 100%; border-collapse: collapse; }
 .adjunto-nombre { font-size: 12.5px; overflow-wrap: anywhere; flex: 1 1 160px; }
 .adjunto-acciones { display: flex; gap: 6px; }
 .adjunto-error { flex-basis: 100%; font-size: 12px; color: var(--danger, #b42318); }
+
+/* Informe: hallazgos en sub-bloques y recomendaciones numeradas por prioridad (blanco y negro) */
+.informe-hallazgos { display: grid; gap: 10px; }
+.informe-subbloque { border: 1px solid #000; padding: 8px 12px 10px; break-inside: avoid; }
+.informe-subbloque h3 { font-size: 12.5px; font-weight: 700; color: #000; margin: 0 0 6px; }
+.informe-oficial ol.informe-recomendaciones { margin: 0; padding-left: 22px; display: grid; gap: 5px; }
+.informe-oficial ol.informe-recomendaciones li::marker { font-weight: 700; }

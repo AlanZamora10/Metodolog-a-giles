@@ -183,7 +183,7 @@ function Mensaje({ m }: { m: MensajeChat }) {
       </div>
       {propuesta && <AccionPropuesta p={propuesta} />}
       <div className="msg-meta">
-        <span>{m.rol === 'docente' ? 'Usted' : m.rol === 'agente' ? 'Agente EduMonitor' : 'Error'}</span>
+        <span>{m.rol === 'docente' ? 'Usted' : m.rol === 'agente' ? 'CoraIA' : 'Error'}</span>
         <span>· {fechaHora(m.fecha)}</span>
       </div>
       {m.detalle && m.detalle.herramientas.length > 0 && <Auditoria r={m.detalle} />}

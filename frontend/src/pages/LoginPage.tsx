@@ -85,7 +85,7 @@ export function LoginPage() {
             FISEI
           </span>
         </div>
-        <h1 className="login-titulo">EduMonitor AI · Sistema de Monitoreo Académico</h1>
+        <h1 className="login-titulo">CoraIA · Sistema de Monitoreo Académico</h1>
 
         {aviso && !error && <Aviso tipo="warn">{aviso}</Aviso>}
 

@@ -253,20 +253,29 @@ function Informe() {
 
         <section>
           <h2>4. Hallazgos</h2>
-          <ul>
-            {r.hallazgos.map((h) => (
-              <li key={h}>{h}</li>
+          <div className="informe-hallazgos">
+            {(r.hallazgos_grupos ?? [{ titulo: 'Hallazgos', items: r.hallazgos }]).map((g, i) => (
+              <div key={g.titulo} className="informe-subbloque" data-testid={`hallazgos-${i + 1}`}>
+                <h3>
+                  4.{i + 1}. {g.titulo}
+                </h3>
+                <ul>
+                  {g.items.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
 
         <section>
           <h2>5. Recomendaciones</h2>
-          <ul>
+          <ol className="informe-recomendaciones" data-testid="recomendaciones">
             {r.recomendaciones.map((h) => (
               <li key={h}>{h}</li>
             ))}
-          </ul>
+          </ol>
         </section>
       </article>
     </>

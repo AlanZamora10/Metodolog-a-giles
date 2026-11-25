@@ -1,6 +1,7 @@
 """Planificador de herramientas del agente (Fase A): Ollama tool calling con respaldo sin plan."""
 
 import asyncio
+import json
 
 import httpx
 
@@ -74,6 +75,8 @@ def test_el_prompt_incluye_el_nombre_de_la_materia_y_la_regla(monkeypatch):
     assert "Programacion orientada a objetos (paralelo A)" in capturado["json"]
     assert "nunca un estudiante" in capturado["json"]
     assert '"umbral":{"type":"number"}' in capturado["json"].replace(" ", "")
+    assert "Asistente académico CoraIA (UTA - FISEI)" in json.loads(capturado["json"])["messages"][0]["content"]
+    assert "EduMonitor" not in capturado["json"]                      # la marca visible es CoraIA
 
 
 def test_mensajes_triviales_no_esperan_a_ollama(monkeypatch):

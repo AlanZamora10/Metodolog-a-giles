@@ -604,7 +604,7 @@ _INSULTOS = {"inutil", "idiota", "estupido", "estupida", "tonto", "tonta", "imbe
              "maldita", "pendejo", "pendeja", "carajo", "verga", "puta", "puto", "porqueria", "callate", "odio",
              "baboso", "babosa", "burro", "inservible", "mamon", "huevon", "cojudo", "gil"}
 _TECLADO = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
-_RESPUESTA_INSTITUCIONAL = ("Soy el asistente académico institucional de EduMonitor AI. Puedo ayudarle con sus "
+_RESPUESTA_INSTITUCIONAL = ("Soy CoraIA, el asistente académico de la FISEI. Puedo ayudarle con sus "
                             "**cursos**, las **notas** de sus estudiantes o las **alertas tempranas**. "
                             "¿Qué necesita consultar?")
 
@@ -791,7 +791,7 @@ def respuesta_cortesia(mensaje: str, docente: dict, previas: Optional[Dict[str, 
     ejemplos = "\n".join(f"- {e}" for e in _ejemplos(docente))
 
     if tipo == "ayuda":
-        return (f"Soy su Asistente Académico de EduMonitor AI{', ' + formal if formal else ''}. Reviso sus cursos de "
+        return (f"Soy CoraIA, su asistente académico de la FISEI{', ' + formal if formal else ''}. Reviso sus cursos de "
                 "Moodle UTA, detecto a los estudiantes en riesgo y preparo planes de apoyo. Puede preguntarme, por "
                 f"ejemplo:\n{ejemplos}")
     if tipo == "como_estas":
@@ -824,7 +824,7 @@ def respuesta_cortesia(mensaje: str, docente: dict, previas: Optional[Dict[str, 
     if n:
         return _variante([f"¡Hola de nuevo, {pila}! ¿Qué desea revisar ahora?",
                           f"¡Aquí sigo, {pila}! ¿Con qué curso o estudiante continuamos?"], n - 1)
-    return (f"¡Hola, {pila}! Soy el Asistente Académico EduMonitor AI. Puedo revisar sus cursos, detectar a los "
+    return (f"¡Hola, {pila}! Soy CoraIA, el asistente académico de la FISEI. Puedo revisar sus cursos, detectar a los "
             f"estudiantes en riesgo y preparar planes de apoyo. Por ejemplo:\n{ejemplos}")
 
 

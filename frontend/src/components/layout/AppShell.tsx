@@ -27,7 +27,7 @@ export function AppShell() {
         <div className="brand">
           <img src="/uta-escudo-blanco.png" alt="Escudo de la Universidad Técnica de Ambato" className="brand-escudo" />
           <div>
-            <div className="brand-name">EduMonitor AI</div>
+            <div className="brand-name">CoraIA</div>
             <div className="brand-sub">UTA · FISEI</div>
           </div>
         </div>

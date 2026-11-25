@@ -121,6 +121,17 @@ describe('RF-11 · informe', () => {
     expect(screen.queryByText(/determinista|calculado a partir|señales para revisión|sin texto inventado/i)).not.toBeInTheDocument();
     expect(document.querySelector('.informe-oficial .badge, .informe-oficial .metricas-mini')).toBeNull();
     expect(screen.getByText('Atender primero las alertas de nota crítica.')).toBeInTheDocument();
+    // 4. Hallazgos en 3 sub-bloques ordenados y 5. Recomendaciones numeradas por prioridad
+    expect(screen.getByTestId('hallazgos-1')).toHaveTextContent('4.1. Rendimiento general del curso');
+    expect(screen.getByTestId('hallazgos-2')).toHaveTextContent('4.2. Estudiantes que requieren atención');
+    expect(screen.getByTestId('hallazgos-3')).toHaveTextContent('4.3. Componentes y entregas pendientes');
+    const recomendaciones = screen.getByTestId('recomendaciones');
+    expect(recomendaciones.tagName).toBe('OL');
+    expect(within(recomendaciones).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Atender primero las alertas de nota crítica.',
+      'Calificación de pendientes: calificar la actividad pendiente y volver a sincronizar para completar el análisis.',
+    ]);
+    expect(document.querySelector('.informe-oficial')?.textContent).not.toMatch(/\(s\)|\(es\)/);
 
     await u.click(screen.getByRole('button', { name: /descargar \.md/i }));
     await waitFor(() => expect(clic).toHaveBeenCalled());

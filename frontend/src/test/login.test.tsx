@@ -44,7 +44,7 @@ describe('RF-01 · Login con Moodle UTA', () => {
   it('sin sesión, una ruta protegida redirige al login', async () => {
     mockApi();
     renderApp('/alertas');
-    expect(await screen.findByRole('heading', { name: 'EduMonitor AI · Sistema de Monitoreo Académico' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'CoraIA · Sistema de Monitoreo Académico' })).toBeInTheDocument();
   });
 
   it('un 401 con sesión activa cierra la sesión automáticamente y avisa', async () => {

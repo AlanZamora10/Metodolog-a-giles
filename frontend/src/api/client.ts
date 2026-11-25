@@ -99,7 +99,7 @@ export async function api<T>(ruta: string, opciones: Opciones = {}): Promise<T> 
     });
   } catch (ex) {
     if ((ex as Error).name === 'AbortError') throw ex;
-    throw new ApiError(0, 'No se pudo conectar con el servidor de EduMonitor.');
+    throw new ApiError(0, 'No se pudo conectar con el servidor de CoraIA.');
   }
 
   if (!resp.ok) {

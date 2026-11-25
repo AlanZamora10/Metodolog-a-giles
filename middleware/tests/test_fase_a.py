@@ -384,3 +384,42 @@ def test_chat_rechaza_planes_del_llm_invalidos(sincronizado, monkeypatch, llamad
     data = _chat(sincronizado, "resumen de POO")
     assert data["plan_fuente"] == "reglas_deterministas"
     assert [h["herramienta"] for h in data["herramientas"]] == ["generar_resumen"]
+
+
+def test_hallazgos_en_tres_bloques_y_recomendaciones_por_prioridad(sincronizado):
+    r = client.get("/api/v1/courses/2/reporte", headers=sincronizado).json()
+    grupos = r["hallazgos_grupos"]
+    assert [g["titulo"] for g in grupos] == ["Rendimiento general del curso", "Estudiantes que requieren atención",
+                                             "Componentes y entregas pendientes"]
+    assert grupos[0]["items"][0].startswith("Promedio general ")
+    assert any("Unidad 1" in h and "Unidad 2" in h for h in grupos[0]["items"])            # variación U1 -> U2
+    assert grupos[1]["items"] == [
+        "1 estudiante en nivel crítico: Carlos Andrés Mendoza Paredes (2.65).",
+        "1 estudiante con descenso sostenido entre unidades: Sebastián Alejandro Romero Haro."]
+    assert grupos[2]["items"][0].startswith("El componente con menor promedio es ")
+    assert grupos[2]["items"][-1] == ("1 actividad sigue pendiente de calificación (1 estudiante); no cuenta en el "
+                                      "promedio.")
+    assert r["hallazgos"] == [h for g in grupos for h in g["items"]]
+    # Prioridad académica: críticos, descenso, componente débil, entregas faltantes y pendientes
+    prefijos = ["Atención inmediata", "Seguimiento al descenso", "Refuerzo del componente", "Gestión de entregas",
+                "Calificación de pendientes"]
+    orden = [next(i for i, p in enumerate(prefijos) if x.startswith(p)) for x in r["recomendaciones"]]
+    assert orden == sorted(orden) and orden[0] == 0
+    assert all(x.split(": ", 1)[1][:1].islower() for x in r["recomendaciones"] if ": " in x)   # minúscula tras «:»
+    # Concordancia natural: nada de «estudiante(s)», «registro(s)» ni «actividad(es)»
+    assert not any("(s)" in t or "(es)" in t for t in r["hallazgos"] + r["recomendaciones"])
+
+
+def test_markdown_con_subbloques_y_recomendaciones_numeradas(sincronizado):
+    md = client.get("/api/v1/courses/2/reporte", params={"formato": "md"}, headers=sincronizado).text
+    assert "### 4.1. Rendimiento general del curso" in md and "### 4.2. Estudiantes que requieren atención" in md
+    assert "### 4.3. Componentes y entregas pendientes" in md
+    assert "\n1. Atención inmediata a 1 estudiante crítico:" in md and "\n2. Seguimiento al descenso sostenido" in md
+    assert "(s)" not in md and "(es)" not in md
+
+
+def test_plural_concuerda_con_la_cantidad():
+    from app.services.reporte_service import plural
+    assert plural(1, "estudiante", "estudiantes") == "1 estudiante"
+    assert plural(2, "registro", "registros") == "2 registros"
+    assert plural(0, "actividad sigue pendiente", "actividades siguen pendientes") == "0 actividades siguen pendientes"

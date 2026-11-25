@@ -388,7 +388,7 @@ function CentroAlertas() {
                     )}
                     {origen && !borrador.desdeAgente && (
                       <span className="badge badge-blue" data-testid="origen-borrador">
-                        Borrador sugerido por: Asistente Académico EduMonitor AI
+                        Borrador sugerido por: Asistente Académico CoraIA
                       </span>
                     )}
                     <label>

@@ -75,7 +75,7 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     renderApp('/alertas');
     await u.click(within(await screen.findByTestId('alerta-2')).getByRole('button', { name: 'Atender' }));
     const instr = await screen.findByDisplayValue('Instrucciones para Valeria Sofía Ortiz Zambrano');
-    expect(screen.getByTestId('origen-borrador')).toHaveTextContent('Borrador sugerido por: Asistente Académico EduMonitor AI');
+    expect(screen.getByTestId('origen-borrador')).toHaveTextContent('Borrador sugerido por: Asistente Académico CoraIA');
     expect(screen.getByTestId('origen-borrador')).not.toHaveTextContent(/heur|hu11b/i);
     await u.clear(instr);
     await u.type(instr, 'Resolver la guía de herencia y polimorfismo.');

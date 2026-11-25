@@ -127,7 +127,7 @@ async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: L
         return {"llamadas": [], "fuente": "sin_plan_trivial"}
     contexto = "; ".join(f"{c['id']}={c['shortname']} {_nombre_materia(c.get('fullname', ''))}" for c in cursos)
     sistema = (
-        "Asistente académico de EduMonitor AI. Elige herramientas y parámetros; no inventes datos. "
+        "Asistente académico CoraIA (UTA - FISEI). Elige herramientas y parámetros; no inventes datos. "
         "Todos los cursos o totales: sin course_id. Refuerzo: proponer_refuerzo(student_query). "
         "Guía en PDF de un estudiante: generar_guia_pdf(student_query). "
         "Un nombre de materia es un curso (course_id), nunca un estudiante. "

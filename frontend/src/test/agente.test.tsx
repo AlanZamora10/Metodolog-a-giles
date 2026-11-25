@@ -189,7 +189,7 @@ describe('Agente conversacional e interfaz animada', () => {
     const u = userEvent.setup();
     renderApp('/login');
     expect(await screen.findByRole('img', { name: 'Universidad Técnica de Ambato' })).toHaveAttribute('src', '/uta-logo-azul.png');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('EduMonitor AI · Sistema de Monitoreo Académico');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('CoraIA · Sistema de Monitoreo Académico');
     expect(screen.getByText('Identifíquese usando su cuenta en:')).toBeInTheDocument();
     // Vista inicial limpia: sin campos de credenciales
     expect(screen.queryByLabelText(/correo institucional/i)).not.toBeInTheDocument();

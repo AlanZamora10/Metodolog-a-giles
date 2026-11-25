@@ -357,7 +357,7 @@ def test_preguntas_sobre_el_asistente_responden_al_instante(sincronizado, monkey
     _sin_llm(monkeypatch)
     data = _chat(sincronizado, mensaje)
     assert data["herramientas"] == [] and data["plan_fuente"] == "cortesia"
-    assert data["respuesta"].startswith("Soy su Asistente Académico de EduMonitor AI, Ing. Gómez.")
+    assert data["respuesta"].startswith("Soy CoraIA, su asistente académico de la FISEI, Ing. Gómez.")
     ejemplos = [ln for ln in data["respuesta"].splitlines() if ln.startswith("- «")]
     assert len(ejemplos) == 3 and "«¿Cómo van mis cursos?»" in ejemplos[0]
     assert "Programación orientada a objetos" in data["respuesta"]           # ejemplo con su materia real
@@ -366,7 +366,7 @@ def test_preguntas_sobre_el_asistente_responden_al_instante(sincronizado, monkey
 def test_saludo_usa_el_nombre_del_docente_y_sugiere_ejemplos(sincronizado, monkeypatch):  # noqa: F811
     _sin_llm(monkeypatch)
     data = _chat(sincronizado, "Hola")
-    assert data["respuesta"].startswith("¡Hola, Roberto! Soy el Asistente Académico EduMonitor AI.")
+    assert data["respuesta"].startswith("¡Hola, Roberto! Soy CoraIA, el asistente académico de la FISEI.")
     assert "«Prepárame un plan de apoyo para Carlos Mendoza»" in data["respuesta"]  # su estudiante más crítico
 
 
@@ -443,7 +443,7 @@ def test_si_ollama_no_responde_a_tiempo_responden_las_reglas(sincronizado, monke
     ("¿cómo te va?", "Muy bien, gracias por preguntar, Ing. Gómez.", True),
     ("Hola, ¿cómo estás?", "¡Hola, Roberto! Muy bien, gracias por preguntar.", True),
     ("Buenos días, ¿cómo está?", "¡Buenos días, Ing. Gómez! Muy bien, gracias por preguntar.", True),
-    ("qué tal", "¡Hola, Roberto! Soy el Asistente Académico EduMonitor AI.", False),
+    ("qué tal", "¡Hola, Roberto! Soy CoraIA, el asistente académico de la FISEI.", False),
     ("perfecto", "Perfecto.", True), ("listo", "Perfecto.", True),
 ])
 def test_cada_tipo_de_saludo_tiene_su_propia_respuesta(sincronizado, monkeypatch, mensaje, esperado,
@@ -533,7 +533,7 @@ def test_mensajes_fuera_de_contexto_reciben_respuesta_profesional(sincronizado, 
     _sin_llm(monkeypatch)
     data = _chat(sincronizado, mensaje)
     assert data["herramientas"] == [] and data["plan_fuente"] == "fuera_de_contexto"
-    assert "Soy el asistente académico institucional de EduMonitor AI" in data["respuesta"]
+    assert "Soy CoraIA, el asistente académico de la FISEI" in data["respuesta"]
     assert ("respetuosa" in data["respuesta"]) is (motivo == "inapropiado")
     assert "No estoy seguro" not in data["respuesta"]
 
