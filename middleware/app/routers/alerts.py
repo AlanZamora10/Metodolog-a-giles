@@ -68,6 +68,7 @@ class AlertaOut(BaseModel):
     fecha_creacion: Optional[str] = None
     fecha_actualizacion: Optional[str] = None
     refuerzo_id: Optional[int] = None
+    parcial: Optional[int] = None          # 1 = Primer Parcial, 2 = Segundo Parcial
 
 
 class PublicarRefuerzoReq(BaseModel):
@@ -96,6 +97,7 @@ def _alerta_out(a: Dict[str, Any]) -> Dict[str, Any]:
         estado=a.get("estado") or "ABIERTA", diagnostico_ia=a.get("diagnostico_ia"),
         tipo_accion_sugerida=a.get("tipo_accion_sugerida"), fecha_creacion=a.get("fecha_alerta"),
         fecha_actualizacion=a.get("fecha_actualizacion"), refuerzo_id=a.get("refuerzo_id"),
+        parcial=a.get("numero_parcial"),
     ).model_dump()
 
 

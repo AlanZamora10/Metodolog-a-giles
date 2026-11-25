@@ -13,7 +13,7 @@ import { useChat, type MensajeChat } from '../context/ChatContext';
 import { useCurso } from '../context/CursoContext';
 import { Markdown } from '../components/ui/Markdown';
 import { fechaHora, haceCuanto } from '../utils/formato';
-import { materiaCurso, nombreCurso } from '../utils/nombres';
+import { materiaCurso, partesCurso } from '../utils/nombres';
 
 export const NOMBRES_HERRAMIENTAS: Record<string, string> = {
   listar_cursos_autorizados: 'Cursos autorizados del docente',
@@ -134,7 +134,13 @@ export function AgentePage() {
             {curso ? (
               <dl>
                 <dt>Curso</dt>
-                <dd>{nombreCurso(curso.fullname)}</dd>
+                <dd data-testid="contexto-curso">{partesCurso(curso.fullname).materia}</dd>
+                {partesCurso(curso.fullname).paralelo && (
+                  <>
+                    <dt>Paralelo</dt>
+                    <dd data-testid="contexto-paralelo">{partesCurso(curso.fullname).paralelo}</dd>
+                  </>
+                )}
                 <dt>Estudiantes</dt>
                 <dd>{curso.total_estudiantes}</dd>
                 <dt>Promedio</dt>
@@ -147,9 +153,6 @@ export function AgentePage() {
             ) : (
               <p className="muted small">Sin curso seleccionado: se consultan todos sus cursos.</p>
             )}
-            <p className="small muted" style={{ marginTop: 8 }}>
-              Las preguntas sobre «todos mis cursos» o sobre un estudiante consultan los {sync?.cursos.length ?? 0} cursos.
-            </p>
           </section>
           <section className="card card-pad stagger-3" aria-label="Preguntas sugeridas">
             <h3 style={{ marginBottom: 6 }}>Preguntas sugeridas</h3>

@@ -79,7 +79,11 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     for (const g of ['Panorama general', 'Seguimiento de estudiantes', 'Actividades', 'Intervención']) {
       expect(screen.getByText(g)).toBeInTheDocument();
     }
-    expect(within(screen.getByLabelText('Contexto activo')).getByText('Programación orientada a objetos — Paralelo A')).toBeInTheDocument();
+    // Curso y paralelo en filas separadas, sin el párrafo aclaratorio inferior
+    const contexto = screen.getByLabelText('Contexto activo');
+    expect(within(contexto).getByTestId('contexto-curso')).toHaveTextContent(/^Programación orientada a objetos$/);
+    expect(within(contexto).getByTestId('contexto-paralelo')).toHaveTextContent(/^A$/);
+    expect(contexto).not.toHaveTextContent(/consultan los/);
 
     await u.click(screen.getByRole('button', { name: '¿Qué estudiantes de Programación orientada a objetos necesitan atención?' }));
     expect(await screen.findByRole('heading', { name: 'Alertas tempranas' })).toBeInTheDocument();

@@ -217,3 +217,21 @@ describe('Login con correo institucional', () => {
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/auth/login'))).toBe(false);
   });
 });
+
+describe('Estudiantes · tabla ordenada', () => {
+  it('números centrados, tendencia en una línea, incidencias compactas y «Sin alertas»', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    renderApp('/estudiantes');
+    await screen.findByText('Carlos Andrés Mendoza Paredes');
+    for (const col of ['Exámenes', 'Tareas', 'APE', 'Nota final']) {
+      expect(screen.getByRole('columnheader', { name: col })).toHaveClass('center');
+    }
+    const tendencias = screen.getAllByTestId('tendencia');
+    expect(tendencias[0].textContent).toMatch(/^(↗ Sube|↘ Baja|→ Estable) \([+-]\d\.\d{2}\)$/);
+    expect(document.body.textContent).not.toMatch(/Pendiente de calificación/);
+    expect(screen.getAllByTestId('incidencias').some((c) => /\d+ pendientes? de calificar/.test(c.textContent ?? ''))).toBe(true);
+    expect(screen.getAllByText('Sin alertas').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nota crítica', { selector: '.badge' }).length).toBeGreaterThan(0);
+  });
+});

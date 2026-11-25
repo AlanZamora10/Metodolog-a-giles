@@ -117,6 +117,8 @@ export interface Alerta {
   fecha_creacion: string | null;
   fecha_actualizacion: string | null;
   refuerzo_id: number | null;
+  /** 1 = Primer Parcial, 2 = Segundo Parcial (un estudiante puede tener una alerta en cada parcial). */
+  parcial?: number | null;
 }
 
 export interface Refuerzo {

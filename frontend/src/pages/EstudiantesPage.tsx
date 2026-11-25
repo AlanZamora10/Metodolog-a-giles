@@ -4,6 +4,7 @@ import { useCurso } from '../context/CursoContext';
 import { CursoRequerido } from '../components/layout/CursoRequerido';
 import { EstadoActividadBadge, NivelBadge } from '../components/ui/ui';
 import { actividadesEnCorte, contarEstados, metricasEnCorte, REGLAS } from '../utils/academico';
+import type { MetricasEstudiante as Metricas } from '../api/types';
 import { nota } from '../utils/formato';
 import { nombreCurso } from '../utils/nombres';
 
@@ -30,6 +31,18 @@ export function coincideBusqueda(e: { nombres: string; cedula?: string | null },
   // cada palabra escrita debe ser el inicio de alguna palabra del nombre.
   const palabras = nombre.split(/\s+/);
   return q.split(/\s+/).every((t) => palabras.some((p) => p.startsWith(t)));
+}
+
+const TENDENCIAS = { SUBE: ['↗', 'Sube'], BAJA: ['↘', 'Baja'], ESTABLE: ['→', 'Estable'] } as const;
+
+/** «↗ Sube (+0.54)» en una sola línea. */
+function Tendencia({ m }: { m: Metricas }) {
+  const [flecha, texto] = TENDENCIAS[m.tendencia as keyof typeof TENDENCIAS] ?? TENDENCIAS.ESTABLE;
+  return (
+    <span className={`tendencia tendencia-${m.tendencia.toLowerCase()}`} data-testid="tendencia">
+      <span aria-hidden>{flecha}</span> {texto} <span className="num">({m.pendiente >= 0 ? '+' : ''}{m.pendiente.toFixed(2)})</span>
+    </span>
+  );
 }
 
 function Listado() {
@@ -119,10 +132,10 @@ function Listado() {
             <thead>
               <tr>
                 <th>Estudiante</th>
-                <th className="right">Exámenes</th>
-                <th className="right">Tareas</th>
-                <th className="right">APE</th>
-                <th className="right">Nota final</th>
+                <th className="center">Exámenes</th>
+                <th className="center">Tareas</th>
+                <th className="center">APE</th>
+                <th className="center">Nota final</th>
                 <th>Nivel</th>
                 <th>Tendencia</th>
                 <th>Incidencias</th>
@@ -142,25 +155,40 @@ function Listado() {
                       </span>
                     </div>
                   </td>
-                  <td className="right num">{nota(m?.acd)}</td>
-                  <td className="right num">{nota(m?.tareas)}</td>
-                  <td className="right num">{nota(m?.pae)}</td>
-                  <td className="right num">
+                  <td className="center num">{nota(m?.acd)}</td>
+                  <td className="center num">{nota(m?.tareas)}</td>
+                  <td className="center num">{nota(m?.pae)}</td>
+                  <td className="center num">
                     <strong>{nota(m?.nota_final)}</strong>
                   </td>
                   <td>{m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted">Sin notas</span>}</td>
-                  <td className="small">
-                    {m ? `${m.tendencia === 'SUBE' ? '↗' : m.tendencia === 'BAJA' ? '↘' : '→'} ${m.tendencia.toLowerCase()} (${m.pendiente >= 0 ? '+' : ''}${m.pendiente.toFixed(2)})` : '—'}
-                  </td>
+                  <td className="small nowrap">{m ? <Tendencia m={m} /> : <span className="muted">Sin datos</span>}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {estados.cero > 0 && <EstadoActividadBadge estado="cero" />}
-                      {estados.sin_entrega > 0 && <EstadoActividadBadge estado="sin_entrega" />}
-                      {estados.pendiente > 0 && <EstadoActividadBadge estado="pendiente" />}
+                    {/* primero las incidencias reales (nota cero, sin entrega); las pendientes de calificar, en una sola etiqueta compacta */}
+                    <div className="incidencias" data-testid="incidencias">
+                      {estados.cero > 0 && (
+                        <EstadoActividadBadge estado="cero" texto={estados.cero > 1 ? `Nota cero (0.0) × ${estados.cero}` : undefined} />
+                      )}
+                      {estados.sin_entrega > 0 && (
+                        <EstadoActividadBadge estado="sin_entrega" texto={estados.sin_entrega > 1 ? `Sin entrega × ${estados.sin_entrega}` : undefined} />
+                      )}
+                      {estados.pendiente > 0 && (
+                        <span className="pendientes-compacto" title="Actividades entregadas, pendientes de calificación en Moodle">
+                          {estados.pendiente} {estados.pendiente === 1 ? 'pendiente' : 'pendientes'} de calificar
+                        </span>
+                      )}
                       {estados.cero + estados.sin_entrega + estados.pendiente === 0 && <span className="muted small">Ninguna</span>}
                     </div>
                   </td>
-                  <td className="small">{e.regla_alerta ? REGLAS[e.regla_alerta] ?? e.regla_alerta : <span className="muted">—</span>}</td>
+                  <td>
+                    {e.regla_alerta ? (
+                      <span className={`badge ${e.regla_alerta.startsWith('R1') ? 'nivel-critico' : 'nivel-riesgo'}`}>
+                        {REGLAS[e.regla_alerta] ?? e.regla_alerta}
+                      </span>
+                    ) : (
+                      <span className="sin-alertas">Sin alertas</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {filas.length === 0 && (

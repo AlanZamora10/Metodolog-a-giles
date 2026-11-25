@@ -26,8 +26,11 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     const item = await screen.findByTestId('alerta-1');
     expect(item).toHaveTextContent('3.04');
     expect(item).toHaveTextContent('Nota crítica');
-    // Tarjeta limpia en dos líneas: nombre/C.I./estado y motivo/nota/unidad, sin el texto de evidencia repetido
-    expect(item.querySelectorAll(':scope > .fila')).toHaveLength(2);
+    // Tarjeta en bloques: quién (nombre, C.I., parcial) · métricas con etiqueta · acción de ancho fijo
+    expect(item.querySelector('.alerta-quien')).toHaveTextContent('Carlos Andrés Mendoza Paredes');
+    expect(within(item).getByTestId('parcial-alerta')).toHaveTextContent('Primer Parcial');
+    expect(item.querySelector('.alerta-metricas')).toHaveTextContent(/Motivo\s*Nota crítica\s*Promedio\s*3\.04\/10\s*Unidad crítica\s*Unidad 2/);
+    expect(within(item.querySelector('.alerta-accion') as HTMLElement).getByRole('button', { name: 'Atender' })).toBeInTheDocument();
     expect(item.querySelector('.evidencia')).toBeNull();
     expect(item).not.toHaveTextContent('-0.25');                // la pendiente sólo acompaña al descenso sostenido
     expect(item).not.toHaveTextContent(/R1|< 5\.00/);
@@ -36,6 +39,20 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     expect(screen.getByTestId('nota-pedagogica')).toHaveTextContent(
       'Las alertas son indicadores preventivos para revisión docente y no constituyen calificaciones ni diagnósticos definitivos.',
     );
+  });
+
+  it('filtra por Primer / Segundo Parcial y rotula cada tarjeta con su parcial', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    const u = userEvent.setup();
+    renderApp('/alertas');
+    await screen.findByTestId('alerta-1');
+    expect(within(screen.getByTestId('alerta-2')).getByTestId('parcial-alerta')).toHaveTextContent('Segundo Parcial');
+    await u.click(within(screen.getByRole('group', { name: 'Filtrar por parcial' })).getByRole('button', { name: /Segundo Parcial/ }));
+    expect(screen.queryByTestId('alerta-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('alerta-2')).toBeInTheDocument();
+    await u.click(within(screen.getByRole('group', { name: 'Filtrar por parcial' })).getByRole('button', { name: /Ambos parciales/ }));
+    expect(screen.getByTestId('alerta-1')).toBeInTheDocument();
   });
 
   it('el panel cambia al instante al estudiante elegido y descarta la respuesta tardía de la alerta anterior', async () => {

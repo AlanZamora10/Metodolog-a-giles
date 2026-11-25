@@ -272,7 +272,7 @@ def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estud
                 continue
             resultado.append({
                 "curso_id": c["id"], "curso": c["shortname"], "curso_nombre": c["fullname"],
-                "id_number": e["id_number"], "nombres": e["nombres"],
+                "id_number": e["id_number"], "nombres": e["nombres"], "cedula": e.get("cedula"),
                 "acd": e["acd"], "tareas": e["tareas"], "pae": e["pae"], "nota_final": e["nota_final"],
                 "nivel_riesgo": e["nivel_riesgo"], "tendencia": e.get("tendencia"),
                 "promedios_unidad": e.get("promedios_unidad") or {},
@@ -1244,25 +1244,35 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
     if r.get("criterio"):
         return _seccion_calificaciones_criterio(r)
     if r.get("estudiante"):
+        # Ficha individual: nombre y cédula (sin el código interno U-xx), una cabecera por materia, una línea
+        # de notas y las incidencias reales; las pendientes de calificar se resumen en un solo conteo.
         nombre = filas[0]["nombres"]
+        cedula = f" (C.I. {filas[0]['cedula']})" if filas[0].get("cedula") else ""
+        n = len(filas)
         criticos = sum(1 for f in filas if f["nivel_riesgo"] == "CRITICO")
-        promedio = sum(f["nota_final"] for f in filas) / len(filas)
-        if len(filas) == 1:
+        promedio = sum(f["nota_final"] for f in filas) / n
+        if n == 1:
             f0 = filas[0]
-            clave = (f"**{nombre}** ({f0['id_number']}) tiene **{f0['nota_final']:.2f}/10** "
+            clave = (f"**{nombre}**{cedula} · Tiene **{f0['nota_final']:.2f}/10** "
                      f"({NIVEL_TEXTO.get(f0['nivel_riesgo'], f0['nivel_riesgo'])}) en "
                      f"**{_curso_titulo(f0['curso_nombre'])}**.")
         else:
-            clave = (f"**{nombre}** ({filas[0]['id_number']}) cursa **{len(filas)} materias** con "
-                     f"promedio **{promedio:.2f}/10**; nivel crítico en {criticos} de {len(filas)}.")
+            estado = (f"**estado crítico en sus {n} materias**" if criticos == n
+                      else "ninguna materia en estado crítico" if criticos == 0
+                      else f"**estado crítico en {criticos} de sus {n} materias**")
+            clave = (f"**{nombre}**{cedula} · Cursa **{n} materias** con promedio general de "
+                     f"**{promedio:.2f}/10** ({estado}).")
         lineas = []
         for f in sorted(filas, key=lambda x: x["nota_final"]):
-            lineas.append(f"- **{f['curso']}**: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])}) · "
-                          f"Exámenes {_f(f['acd'])} · Tareas {_f(f['tareas'])} · APE {_f(f['pae'])} · tendencia "
+            nivel = NIVEL_TEXTO.get(f["nivel_riesgo"], f["nivel_riesgo"]).capitalize()
+            lineas.append(f"- **{_curso_titulo(f['curso_nombre'])}**")
+            lineas.append(f"  - Promedio: **{f['nota_final']:.2f}/10 ({nivel})** · Exámenes: {_f(f['acd'])} | "
+                          f"Tareas: {_f(f['tareas'])} | APE: {_f(f['pae'])} · Tendencia: "
                           f"{TENDENCIA_TEXTO.get(f['tendencia'], (f['tendencia'] or '—').lower())}")
             if f["incidencias"]:
-                lineas.append("  - Incidencias: " + ", ".join(
-                    f"{i.split()[0]} ({_INCIDENCIA_TEXTO.get(i.split()[1], i.split()[1])})" for i in f["incidencias"]))
+                lineas.append("  - Incidencias: " + idioma.resumen_incidencias(
+                    f["incidencias"], _INCIDENCIA_TEXTO,
+                    ("actividad pendiente de calificación", "actividades pendientes de calificación")))
         return f"Calificaciones de {nombre}", clave, lineas
 
     por_curso: Dict[str, List[Dict[str, Any]]] = {}

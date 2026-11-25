@@ -151,3 +151,36 @@ def test_fecha_de_entrega_del_refuerzo_en_hora_de_ecuador():
     from app.services.agente_herramientas import hora_ecuador
     assert hora_ecuador("2026-11-22T04:59:00") == datetime(2026, 11, 21, 23, 59)          # UTC sin zona
     assert hora_ecuador("2026-11-21T23:59:00-05:00") == datetime(2026, 11, 21, 23, 59)    # ya en hora local
+
+
+def test_ficha_de_estudiante_ordenada_sin_codigo_interno(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "Dame las notas de Carlos Mendoza")
+    texto = data["respuesta"]
+    assert "**Carlos Andrés Mendoza Paredes** (C.I. 1804923199) · " in texto
+    assert "(U-04)" not in texto and "SOF-POO-A" not in texto
+    assert "**Programación orientada a objetos — Paralelo A**" in texto
+    assert "Promedio: **" in texto and "Exámenes: " in texto and "| Tareas: " in texto and "| APE: " in texto
+    assert "Tendencia: " in texto
+    assert texto.count("pendiente de calificación") <= 1          # las pendientes se agrupan en un conteo
+
+
+def test_ficha_de_estudiante_en_ingles(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    texto = _chat(sincronizado, "grades of Carlos Mendoza")["respuesta"]
+    assert "**Carlos Andrés Mendoza Paredes** (ID 1804923199) · " in texto and "(U-04)" not in texto
+    assert "Average: **" in texto and "Exams: " in texto and "| Assignments: " in texto and "Trend: " in texto
+
+
+def test_resumen_de_incidencias_agrupa_las_pendientes():
+    textos = {"SIN_ENTREGA": "sin entrega", "NOTA_0": "nota 0"}
+    pend = ("actividad pendiente de calificación", "actividades pendientes de calificación")
+    incid = ["U1-T2 NOTA_0", "U2-T4 SIN_ENTREGA"] + [f"U3-T{i} PENDIENTE" for i in range(1, 6)]
+    assert agente_idioma.resumen_incidencias(incid, textos, pend) == (
+        "U1-T2 (nota 0), U2-T4 (sin entrega) · 5 actividades pendientes de calificación")
+    assert agente_idioma.resumen_incidencias(["U3-T1 PENDIENTE"], textos, pend) == "1 actividad pendiente de calificación"
+
+
+def test_cada_alerta_indica_su_parcial(sincronizado):  # noqa: F811
+    alertas = client.get("/api/v1/alertas", headers=sincronizado).json()
+    assert alertas and all(a["parcial"] in (1, 2) for a in alertas)

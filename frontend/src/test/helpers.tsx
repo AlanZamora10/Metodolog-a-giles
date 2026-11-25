@@ -74,17 +74,17 @@ export const ESTUDIANTES: CursoEstudiantes = {
   ],
 };
 
-function alerta(id: number, id_number: string, nombres: string, nota: number): Alerta {
+function alerta(id: number, id_number: string, nombres: string, nota: number, parcial = 1): Alerta {
   return {
     id, curso_id: 2, curso_codigo: 'SOF-POO-A', curso_nombre: 'POO', id_number, nombres,
     email: `${id_number.toLowerCase()}@uta.edu.ec`, regla: 'R1_NOTA_CRITICA', nivel: 'CRITICO', nota_promedio: nota,
     pendiente: -0.25, evidencia: `Nota crítica: nota ponderada ${nota}/10.`, unidad_critica: 'Unidad 2',
     tema_critico: 'U1-T2 - Tarea 2', estado: 'ABIERTA', diagnostico_ia: null, tipo_accion_sugerida: null,
-    fecha_creacion: '2026-11-14T02:48:55+00:00', fecha_actualizacion: null, refuerzo_id: null,
+    fecha_creacion: '2026-11-14T02:48:55+00:00', fecha_actualizacion: null, refuerzo_id: null, parcial,
   };
 }
 
-export const ALERTAS: Alerta[] = [alerta(1, 'U-04', 'Carlos Andrés Mendoza Paredes', 3.04), alerta(2, 'U-07', 'Valeria Sofía Ortiz Zambrano', 4.07)];
+export const ALERTAS: Alerta[] = [alerta(1, 'U-04', 'Carlos Andrés Mendoza Paredes', 3.04), alerta(2, 'U-07', 'Valeria Sofía Ortiz Zambrano', 4.07, 2)];
 
 export const REPORTE: Reporte = {
   curso: { id: 2, shortname: 'SOF-POO-A', fullname: '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A', docentes: ['rgomez4824@uta.edu.ec'] },

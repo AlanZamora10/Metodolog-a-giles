@@ -47,7 +47,7 @@ def test_consulta_transversal_de_un_estudiante_ignora_el_curso_activo(sincroniza
                      if any(e["id_number"] == "U-04" for e in c["estudiantes"])}
     assert {f["curso"] for f in llamada["resultado"]["calificaciones"]} == cursos_reales
     assert "generar_resumen" not in {h["herramienta"] for h in data["herramientas"]}
-    assert data["respuesta"].startswith("**Carlos Andrés Mendoza Paredes** (U-04)")
+    assert data["respuesta"].startswith("**Carlos Andrés Mendoza Paredes** (C.I. 1804923199) · ")
 
 
 def test_actividades_con_menor_rendimiento_ordenadas_y_sin_inventar(sincronizado):  # noqa: F811

@@ -29,6 +29,14 @@ const FILTROS: { valor: Filtro; etiqueta: string }[] = [
 ];
 const ORDEN: Record<string, number> = { ABIERTA: 0, ATENDIDA: 1, PUBLICADO: 2, RESUELTA: 3, CERRADA: 4 };
 
+type FiltroParcial = 'todos' | 1 | 2;
+const FILTROS_PARCIAL: { valor: FiltroParcial; etiqueta: string }[] = [
+  { valor: 'todos', etiqueta: 'Ambos parciales' },
+  { valor: 1, etiqueta: 'Primer Parcial' },
+  { valor: 2, etiqueta: 'Segundo Parcial' },
+];
+const NOMBRE_PARCIAL: Record<number, string> = { 1: 'Primer Parcial', 2: 'Segundo Parcial' };
+
 function coincide(a: Alerta, f: Filtro): boolean {
   if (f === 'todas') return true;
   if (f === 'activas') return a.estado === 'ABIERTA' || a.estado === 'ATENDIDA' || a.estado === 'PUBLICADO';
@@ -77,6 +85,7 @@ function CentroAlertas() {
   const [params, setParams] = useSearchParams();
   const propuesta = (useLocation().state as { propuesta?: PropuestaAgente } | null)?.propuesta ?? null;
   const [filtro, setFiltro] = useState<Filtro>('activas');
+  const [parcial, setParcial] = useState<FiltroParcial>('todos');
   const selId = Number(params.get('alerta')) || null;
 
   const [borrador, setBorrador] = useState<Borrador | null>(null);
@@ -92,9 +101,9 @@ function CentroAlertas() {
   const lista = useMemo(
     () =>
       alertas
-        .filter((a) => coincide(a, filtro))
+        .filter((a) => coincide(a, filtro) && (parcial === 'todos' || a.parcial === parcial))
         .sort((a, b) => (ORDEN[a.estado] ?? 9) - (ORDEN[b.estado] ?? 9) || a.nota_promedio - b.nota_promedio),
-    [alertas, filtro],
+    [alertas, filtro, parcial],
   );
   const sel = alertas.find((a) => a.id === selId) ?? null;
   const cedulas = useMemo(
@@ -239,6 +248,21 @@ function CentroAlertas() {
 
       <div className="alertas-layout">
         <section className="card stagger-1" aria-label="Listado de alertas">
+          <div className="filtro-parcial" role="group" aria-label="Filtrar por parcial">
+            {FILTROS_PARCIAL.map((f) => (
+              <button
+                key={f.valor}
+                type="button"
+                aria-pressed={parcial === f.valor}
+                onClick={() => setParcial(f.valor)}
+              >
+                {f.etiqueta}
+                <span className="num">
+                  {alertas.filter((a) => coincide(a, filtro) && (f.valor === 'todos' || a.parcial === f.valor)).length}
+                </span>
+              </button>
+            ))}
+          </div>
           {lista.length === 0 && <Vacio titulo="No hay alertas en este filtro." />}
           {lista.map((a) => (
             <div
@@ -251,33 +275,48 @@ function CentroAlertas() {
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), preparar(a))}
               data-testid={`alerta-${a.id}`}
             >
-              {/* Dos líneas limpias: quién y en qué estado; por qué (motivo, nota, unidad más baja) y la acción */}
-              <div className="fila">
-                <strong>{a.nombres}</strong>
-                {cedulas[a.id_number] && <span className="muted small">C.I. {cedulas[a.id_number]}</span>}
-                <span style={{ marginLeft: 'auto' }}>
-                  <EstadoAlertaBadge estado={a.estado} />
-                </span>
-              </div>
-              <div className="fila evidencia-num">
-                <span>
-                  <b>{REGLAS[a.regla] ?? a.regla}</b>
-                  {a.regla === 'R2_DESCENSO' && a.pendiente !== null && (
-                    <> ({a.pendiente >= 0 ? '+' : ''}{a.pendiente.toFixed(2)})</>
+              {/* Bloques: quién (nombre, C.I. y parcial) · métricas con etiqueta · acción en una columna de ancho fijo */}
+              <div className="alerta-info">
+                <div className="alerta-quien">
+                  <strong>{a.nombres}</strong>
+                  {cedulas[a.id_number] && <span className="muted small">C.I. {cedulas[a.id_number]}</span>}
+                  {a.parcial && (
+                    <span className={`badge parcial-badge parcial-${a.parcial}`} data-testid="parcial-alerta">
+                      {NOMBRE_PARCIAL[a.parcial] ?? `Parcial ${a.parcial}`}
+                    </span>
                   )}
-                </span>
-                <span>
-                  Nota ponderada <b>{nota(a.nota_promedio)}</b>/10
-                </span>
-                {a.unidad_critica && (
-                  <span>
-                    Unidad más baja <b>{a.unidad_critica}</b>
-                  </span>
-                )}
+                </div>
+                <dl className="alerta-metricas">
+                  <div>
+                    <dt>Motivo</dt>
+                    <dd>{REGLAS[a.regla] ?? a.regla}</dd>
+                  </div>
+                  <div>
+                    <dt>Promedio</dt>
+                    <dd className="num">{nota(a.nota_promedio)}/10</dd>
+                  </div>
+                  {a.unidad_critica && (
+                    <div>
+                      <dt>Unidad crítica</dt>
+                      <dd>{a.unidad_critica}</dd>
+                    </div>
+                  )}
+                  {a.regla === 'R2_DESCENSO' && a.pendiente !== null && (
+                    <div>
+                      <dt>Variación</dt>
+                      <dd className="num">
+                        {a.pendiente >= 0 ? '+' : ''}
+                        {a.pendiente.toFixed(2)}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+              <div className="alerta-accion">
+                <EstadoAlertaBadge estado={a.estado} />
                 {(a.estado === 'ABIERTA' || a.estado === 'ATENDIDA') && (
                   <button
                     className="btn btn-sm btn-primary"
-                    style={{ marginLeft: 'auto' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       atender(a);

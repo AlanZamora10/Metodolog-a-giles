@@ -35,6 +35,25 @@ def t(es: str, en: str) -> str:
     return en if IDIOMA.get() == "en" else es
 
 
+def resumen_incidencias(incidencias: List[str], textos: Dict[str, str], pendientes: Tuple[str, str]) -> str:
+    """«U1-T2 (nota 0), U2-T4 (sin entrega) · 5 actividades pendientes de calificación».
+
+    Las novedades reales (nota cero, sin entrega) se listan con su código; las pendientes de calificar se
+    agrupan en un único conteo en lugar de repetir la misma frase por cada actividad.
+    """
+    reales, n_pendientes = [], 0
+    for i in incidencias:
+        codigo, _, tipo = i.partition(" ")
+        if tipo == "PENDIENTE":
+            n_pendientes += 1
+        else:
+            reales.append(f"{codigo} ({textos.get(tipo, tipo.lower())})")
+    partes = [", ".join(reales)] if reales else []
+    if n_pendientes:
+        partes.append(plural(n_pendientes, *pendientes))
+    return " · ".join(partes)
+
+
 def plural(n: int, singular: str, plural_: str) -> str:
     return f"{n} {singular if n == 1 else plural_}"
 
@@ -307,23 +326,29 @@ def _calificaciones(r):
                  + f": **{f['nota_final']:.2f}/10** ({_nivel(f)})" for f in filas])
     if r.get("estudiante"):
         nombre = filas[0]["nombres"]
-        if len(filas) == 1:
+        cedula = f" (ID {filas[0]['cedula']})" if filas[0].get("cedula") else ""
+        n = len(filas)
+        if n == 1:
             f0 = filas[0]
-            clave = (f"**{nombre}** ({f0['id_number']}) has **{f0['nota_final']:.2f}/10** ({_nivel(f0)}) in "
+            clave = (f"**{nombre}**{cedula} · Has **{f0['nota_final']:.2f}/10** ({_nivel(f0)}) in "
                      f"**{curso_en(f0['curso_nombre'])}**.")
         else:
             criticos = sum(1 for f in filas if f["nivel_riesgo"] == "CRITICO")
-            promedio = sum(f["nota_final"] for f in filas) / len(filas)
-            clave = (f"**{nombre}** ({filas[0]['id_number']}) is enrolled in **{len(filas)} courses** with an average "
-                     f"of **{promedio:.2f}/10**; critical level in {criticos} of {len(filas)}.")
+            promedio = sum(f["nota_final"] for f in filas) / n
+            estado = (f"**critical in all {n} courses**" if criticos == n
+                      else "no course at critical level" if criticos == 0
+                      else f"**critical in {criticos} of {n} courses**")
+            clave = (f"**{nombre}**{cedula} · Enrolled in **{n} courses** with an overall average of "
+                     f"**{promedio:.2f}/10** ({estado}).")
         lineas = []
         for f in sorted(filas, key=lambda x: x["nota_final"]):
-            lineas.append(f"- **{f['curso']}**: **{f['nota_final']:.2f}/10** ({_nivel(f)}) · Exams {_f(f['acd'])} · "
-                          f"Assignments {_f(f['tareas'])} · APE {_f(f['pae'])} · trend "
+            lineas.append(f"- **{curso_en(f['curso_nombre'])}**")
+            lineas.append(f"  - Average: **{f['nota_final']:.2f}/10 ({_nivel(f).capitalize()})** · "
+                          f"Exams: {_f(f['acd'])} | Assignments: {_f(f['tareas'])} | APE: {_f(f['pae'])} · Trend: "
                           f"{TENDENCIA_EN.get(f['tendencia'], (f['tendencia'] or '—').lower())}")
             if f["incidencias"]:
-                lineas.append("  - Issues: " + ", ".join(
-                    f"{i.split()[0]} ({INCIDENCIA_EN.get(i.split()[1], i.split()[1])})" for i in f["incidencias"]))
+                lineas.append("  - Issues: " + resumen_incidencias(
+                    f["incidencias"], INCIDENCIA_EN, ("activity pending grading", "activities pending grading")))
         return f"Grades of {nombre}", clave, lineas
     por_curso: Dict[str, List[Dict[str, Any]]] = {}
     for f in filas:
