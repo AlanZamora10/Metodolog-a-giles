@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useCurso } from '../context/CursoContext';
 import { CursoRequerido } from '../components/layout/CursoRequerido';
-import { DesgloseEstados, EvolucionEstudiante } from '../components/charts/Graficos';
+import { DesgloseEstados, EvolucionEstudiante, LeyendaReferencias } from '../components/charts/Graficos';
 import { EstadoAlertaBadge, EstadoDeActividad, NivelBadge, Vacio } from '../components/ui/ui';
 import { actividadesEnCorte, contarEstados, metricasEnCorte, REGLAS } from '../utils/academico';
 import { iniciales, nota } from '../utils/formato';
@@ -152,8 +152,11 @@ function Ficha() {
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
         <section className="card">
           <div className="card-head">
-            <h2>Evolución de notas</h2>
-            <p>Por actividad, en orden de unidad · los huecos son actividades sin nota</p>
+            <div className="card-titulo">
+              <h2>Evolución de notas</h2>
+              <p>Por actividad, en orden de unidad · los huecos son actividades sin nota</p>
+            </div>
+            <LeyendaReferencias />
           </div>
           <div className="card-body">
             {evolucion.length ? <EvolucionEstudiante datos={evolucion} /> : <p className="muted">Sin actividades en este corte.</p>}

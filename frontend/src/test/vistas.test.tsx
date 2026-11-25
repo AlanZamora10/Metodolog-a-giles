@@ -63,6 +63,28 @@ describe('RF-05 · dashboard', () => {
     expect(screen.getByText('/10')).toBeInTheDocument();
     expect(screen.getByText('33.3')).toBeInTheDocument();
     expect(screen.getByText('Alertas activas').parentElement).toHaveTextContent('2');
+    expect(screen.getByText('1 estudiante aprobado')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\(s\)/);
+  });
+
+  it('leyenda de referencias en la cabecera y pestañas por tipo de actividad', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    const u = userEvent.setup();
+    renderApp('/dashboard');
+    await screen.findByText('6.05');
+    expect(screen.getAllByTestId('leyenda-referencias')).toHaveLength(3);   // unidad, actividad y componentes
+    expect(screen.getAllByTestId('leyenda-referencias')[0]).toHaveTextContent(/Aprobación \(7\.00\).*Crítico \(5\.00\)/);
+    expect(screen.getByTestId('leyenda-codigos')).toHaveTextContent('A = Examen');
+    const grafico = () => screen.getByRole('img', { name: /U1-A1|U1-T2|U2-T4/ });
+    expect(grafico().getAttribute('aria-label')).toMatch(/U1-A1.*U1-T2/);
+    await u.click(screen.getByRole('tab', { name: 'Exámenes (A)' }));
+    expect(screen.getByRole('tab', { name: 'Exámenes (A)' })).toHaveAttribute('aria-selected', 'true');
+    expect(grafico().getAttribute('aria-label')).not.toMatch(/U1-T2/);
+    await u.click(screen.getByRole('tab', { name: 'Tareas (T)' }));
+    expect(grafico().getAttribute('aria-label')).not.toMatch(/U1-A1/);
+    await u.click(screen.getByRole('tab', { name: 'Prácticas APE (P)' }));
+    expect(screen.getByText('Sin actividades calificadas de este tipo en el corte.')).toBeInTheDocument();
   });
 });
 

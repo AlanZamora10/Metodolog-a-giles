@@ -22,7 +22,7 @@ import { ESTADOS_VISUALES, ORDEN_ESTADOS, type EstadoVisual } from '../../utils/
 const AZUL = '#11297A';
 const EJE = { fontSize: 12, fill: '#6A737B' };
 
-function Tip({ active, payload, label, sufijo }: TooltipProps<number, string> & { sufijo?: string }) {
+function Tip({ active, payload, label, sufijo }: TooltipProps<number, string> & { sufijo?: string | ((v: number) => string) }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];
   const extra = (p.payload as { nombre?: string; detalle?: string }) ?? {};
@@ -31,20 +31,40 @@ function Tip({ active, payload, label, sufijo }: TooltipProps<number, string> & 
       <strong>{extra.nombre ?? label}</strong>
       {extra.detalle && <div className="muted">{extra.detalle}</div>}
       <span className="num">
-        {p.value === null || p.value === undefined ? 'sin nota' : `${p.value}${sufijo ?? ''}`}
+        {p.value === null || p.value === undefined
+          ? 'sin nota'
+          : `${p.value}${typeof sufijo === 'function' ? sufijo(Number(p.value)) : (sufijo ?? '')}`}
       </span>
     </div>
   );
 }
 
+const ROJO = '#B02A2A';
+const VERDE = '#1E7B34';
+
 // Recharts sólo reconoce sus elementos como hijos directos (no envueltos en otro componente):
-// por eso las líneas de referencia se insertan como un arreglo.
+// por eso las líneas de referencia se insertan como un arreglo. Van sin texto dentro del área del
+// gráfico (se superponía a las barras); su significado lo da <LeyendaReferencias /> en la cabecera.
 const REFERENCIAS = [
-  <ReferenceLine key="r5" y={5} stroke="#B02A2A" strokeDasharray="4 4" ifOverflow="extendDomain"
-    label={{ value: 'crítico 5.00', position: 'insideTopRight', fontSize: 11, fill: '#B02A2A' }} />,
-  <ReferenceLine key="r7" y={7} stroke="#1E7B34" strokeDasharray="4 4" ifOverflow="extendDomain"
-    label={{ value: 'aprobación 7.00', position: 'insideTopRight', fontSize: 11, fill: '#1E7B34' }} />,
+  <ReferenceLine key="r5" y={5} stroke={ROJO} strokeDasharray="4 4" ifOverflow="extendDomain" />,
+  <ReferenceLine key="r7" y={7} stroke={VERDE} strokeDasharray="4 4" ifOverflow="extendDomain" />,
 ];
+
+/** Leyenda de las líneas punteadas de referencia, para la esquina superior derecha de la tarjeta. */
+export function LeyendaReferencias() {
+  return (
+    <div className="leyenda-referencias" data-testid="leyenda-referencias">
+      <span style={{ color: VERDE }}>
+        <i className="linea-ref" style={{ borderColor: VERDE }} aria-hidden /> Aprobación (7.00)
+      </span>
+      <span style={{ color: ROJO }}>
+        <i className="linea-ref" style={{ borderColor: ROJO }} aria-hidden /> Crítico (5.00)
+      </span>
+    </div>
+  );
+}
+
+const estudiantes = (v: number) => (v === 1 ? ' estudiante' : ' estudiantes');
 
 /** Histograma de notas finales (estudiantes por tramo). */
 export function DistribucionNotas({ datos }: { datos: { tramo: string; estudiantes: number }[] }) {
@@ -55,7 +75,7 @@ export function DistribucionNotas({ datos }: { datos: { tramo: string; estudiant
           <CartesianGrid vertical={false} stroke="#E9ECEF" />
           <XAxis dataKey="tramo" tick={EJE} axisLine={false} tickLine={false} />
           <YAxis allowDecimals={false} tick={EJE} axisLine={false} tickLine={false} />
-          <Tooltip cursor={{ fill: '#EEF1F9' }} content={<Tip sufijo=" estudiante(s)" />} />
+          <Tooltip cursor={{ fill: '#EEF1F9' }} content={<Tip sufijo={estudiantes} />} />
           <Bar isAnimationActive={false} dataKey="estudiantes" fill={AZUL} radius={[4, 4, 0, 0]} maxBarSize={56} label={{ position: 'top', fontSize: 12, fill: '#495057' }} />
         </BarChart>
       </ResponsiveContainer>
@@ -68,13 +88,30 @@ export function BarrasPromedio({ datos, clave, alto = 260 }: { datos: Record<str
   return (
     <div style={{ height: alto }} role="img" aria-label={datos.map((d) => `${d[clave]}: ${d.promedio}`).join(', ')}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={datos} margin={{ top: 14, right: 8, left: -18, bottom: 0 }} barCategoryGap="22%">
+        <BarChart data={datos} margin={{ top: 22, right: 8, left: -18, bottom: 0 }} barCategoryGap="22%">
           <CartesianGrid vertical={false} stroke="#E9ECEF" />
           <XAxis dataKey={clave} tick={EJE} axisLine={false} tickLine={false} interval={0} />
           <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={EJE} axisLine={false} tickLine={false} />
           <Tooltip cursor={{ fill: '#EEF1F9' }} content={<Tip sufijo=" /10" />} />
           {REFERENCIAS}
-          <Bar isAnimationActive={false} dataKey="promedio" fill={AZUL} radius={[4, 4, 0, 0]} maxBarSize={48} />
+          <Bar
+            isAnimationActive={false}
+            dataKey="promedio"
+            fill={AZUL}
+            radius={[4, 4, 0, 0]}
+            maxBarSize={48}
+            label={{
+              position: 'top',
+              fontSize: 12,
+              fontWeight: 600,
+              fill: '#343A40',
+              // halo blanco: el valor se lee aunque una línea de referencia pase por detrás
+              stroke: '#fff',
+              strokeWidth: 4,
+              paintOrder: 'stroke',
+              formatter: (v: number) => (typeof v === 'number' ? v.toFixed(2) : v),
+            }}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -470,3 +470,22 @@ table.tabla { width: 100%; border-collapse: collapse; }
 
 /* Centro de alertas: nota pedagógica (RF-07) */
 .nota-pedagogica { margin: 14px 2px 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* Dashboard: cabeceras de tarjeta que nunca recortan texto, leyenda de referencias y pestañas */
+.card-head { flex-wrap: wrap; align-items: flex-start; row-gap: 8px; }
+.card-head > * { min-width: 0; }
+.card-head h2, .card-head p { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.card-titulo { flex: 1 1 220px; display: grid; gap: 2px; }
+.leyenda-referencias { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; font-weight: 600; justify-content: flex-end; }
+.leyenda-referencias span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.linea-ref { display: inline-block; width: 22px; border-top: 2px dashed; }
+.card-extra { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.tabs-actividad { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: #f6f7f9; }
+.tabs-actividad button { border: 0; background: transparent; padding: 5px 11px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.tabs-actividad button:hover { color: var(--uta-blue); }
+.tabs-actividad button[aria-selected='true'] { background: #fff; color: var(--uta-blue); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.leyenda-codigos { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.leyenda-codigos b { color: var(--text, #212529); }
+.page-head > div { min-width: 0; flex: 1 1 320px; }
+.page-head > .btn { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 1100px) { .card-extra { align-items: flex-start; } .leyenda-referencias { justify-content: flex-start; } }

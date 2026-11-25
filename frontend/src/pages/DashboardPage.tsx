@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurso } from '../context/CursoContext';
 import { CursoRequerido } from '../components/layout/CursoRequerido';
-import { BarrasPromedio, DesgloseEstados, DistribucionNotas } from '../components/charts/Graficos';
+import { BarrasPromedio, DesgloseEstados, DistribucionNotas, LeyendaReferencias } from '../components/charts/Graficos';
 import { KpiCard, NivelBadge } from '../components/ui/ui';
 import {
   CORTES,
@@ -19,6 +19,22 @@ import { nota } from '../utils/formato';
 import { nombreCurso } from '../utils/nombres';
 
 const ACTIVAS = new Set(['ABIERTA', 'ATENDIDA', 'PUBLICADO']);
+
+/** Pestañas de «Rendimiento por actividad»: el código U<n>-<letra><n> indica el tipo de actividad. */
+type TipoActividad = 'todas' | 'A' | 'T' | 'P';
+const TIPOS_ACTIVIDAD: { valor: TipoActividad; etiqueta: string }[] = [
+  { valor: 'todas', etiqueta: 'Todas' },
+  { valor: 'A', etiqueta: 'Exámenes (A)' },
+  { valor: 'T', etiqueta: 'Tareas (T)' },
+  { valor: 'P', etiqueta: 'Prácticas APE (P)' },
+];
+
+function tipoDeActividad(codigo: string): 'A' | 'T' | 'P' | null {
+  const m = /-([ATP])\d/i.exec(codigo);
+  return m ? (m[1].toUpperCase() as 'A' | 'T' | 'P') : null;
+}
+
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
 /** Dashboard académico grupal. */
 export function DashboardPage() {
@@ -43,6 +59,11 @@ function Dashboard() {
   const actividades = useMemo(
     () => promedioPorActividad(estudiantes, corte).map((a) => ({ ...a, detalle: a.actividad })),
     [estudiantes, corte],
+  );
+  const [tipo, setTipo] = useState<TipoActividad>('todas');
+  const actividadesVisibles = useMemo(
+    () => (tipo === 'todas' ? actividades : actividades.filter((a) => tipoDeActividad(a.actividad) === tipo)),
+    [actividades, tipo],
   );
   const componentes = useMemo(() => promedioPorComponente(estudiantes, corte), [estudiantes, corte]);
   const estados = useMemo(() => contarEstados(estudiantes.flatMap((e) => actividadesEnCorte(e, corte))), [estudiantes, corte]);
@@ -77,13 +98,13 @@ function Dashboard() {
           unidad="/10"
           detalle={`${r.evaluados} de ${r.total} estudiantes con notas en el corte`}
         />
-        <KpiCard className="stagger-2" etiqueta="Total de estudiantes" valor={r.total} detalle={`${r.niveles.CRITICO} crítico(s) · ${r.niveles.EN_RIESGO} en riesgo`} />
+        <KpiCard className="stagger-2" etiqueta="Total de estudiantes" valor={r.total} detalle={`${plural(r.niveles.CRITICO, 'crítico', 'críticos')} · ${r.niveles.EN_RIESGO} en riesgo`} />
         <KpiCard
           className="stagger-3"
           etiqueta="Tasa de aprobación"
           valor={r.tasaAprobacion === null ? '—' : r.tasaAprobacion.toFixed(1)}
           unidad="%"
-          detalle={`${r.aprobados} estudiante(s) aprobados`}
+          detalle={plural(r.aprobados, 'estudiante aprobado', 'estudiantes aprobados')}
         />
         <KpiCard
           className="stagger-4"
@@ -109,8 +130,11 @@ function Dashboard() {
         </section>
         <section className="card">
           <div className="card-head">
-            <h2>Rendimiento por unidad</h2>
-            <p>Promedio del grupo /10</p>
+            <div className="card-titulo">
+              <h2>Rendimiento por unidad</h2>
+              <p>Promedio del grupo /10</p>
+            </div>
+            <LeyendaReferencias />
           </div>
           <div className="card-body">
             {unidades.length ? <BarrasPromedio datos={unidades} clave="unidad" /> : <p className="muted">Sin notas en este corte.</p>}
@@ -120,14 +144,40 @@ function Dashboard() {
 
       <section className="card">
         <div className="card-head">
-          <h2>Rendimiento por actividad</h2>
-          <p>Promedio del grupo en cada actividad calificada (U = unidad · A = examen · T = tarea · P = APE)</p>
+          <div className="card-titulo">
+            <h2>Rendimiento por actividad</h2>
+            <p>Promedio del grupo /10 en cada actividad calificada</p>
+          </div>
+          <div className="card-extra">
+            <div className="tabs-actividad" role="tablist" aria-label="Tipo de actividad">
+              {TIPOS_ACTIVIDAD.map((t) => (
+                <button
+                  key={t.valor}
+                  type="button"
+                  role="tab"
+                  aria-selected={tipo === t.valor}
+                  onClick={() => setTipo(t.valor)}
+                >
+                  {t.etiqueta}
+                </button>
+              ))}
+            </div>
+            <LeyendaReferencias />
+          </div>
         </div>
         <div className="card-body">
-          {actividades.length ? (
-            <BarrasPromedio datos={actividades} clave="actividad" alto={280} />
+          <p className="leyenda-codigos" data-testid="leyenda-codigos">
+            <span><b>U</b> = Unidad</span>
+            <span><b>A</b> = Examen</span>
+            <span><b>T</b> = Tarea</span>
+            <span><b>P</b> = Práctica APE</span>
+          </p>
+          {actividadesVisibles.length ? (
+            <BarrasPromedio datos={actividadesVisibles} clave="actividad" alto={280} />
           ) : (
-            <p className="muted">Sin actividades calificadas en este corte.</p>
+            <p className="muted">
+              {actividades.length ? 'Sin actividades calificadas de este tipo en el corte.' : 'Sin actividades calificadas en este corte.'}
+            </p>
           )}
         </div>
       </section>
@@ -135,8 +185,11 @@ function Dashboard() {
       <div className="grid grid-3">
         <section className="card">
           <div className="card-head">
-            <h2>Componentes</h2>
-            <p>Exámenes 40 % · Tareas 30 % · APE 30 %</p>
+            <div className="card-titulo">
+              <h2>Componentes</h2>
+              <p>Exámenes 40 % · Tareas 30 % · APE 30 %</p>
+            </div>
+            <LeyendaReferencias />
           </div>
           <div className="card-body">
             <BarrasPromedio datos={componentes} clave="componente" alto={220} />
