@@ -1,53 +1,53 @@
 """
-Guía de refuerzo académico en PDF con el formato institucional de las guías prácticas / tareas de la
-Universidad Técnica de Ambato (FISEI), adaptado a una actividad de refuerzo individual.
+Guía de refuerzo académico en PDF con la diagramación sobria del «Formulario de guías prácticas de aplicación y
+experimentación de los aprendizajes» de la Universidad Técnica de Ambato (FISEI), adaptada a una tarea individual.
 
 Se genera al aprobar y publicar un refuerzo y se adjunta a la tarea de Moodle (plugin local_edumonitor).
-Estructura (1 a 2 páginas): cabecera con el escudo UTA, tabla de datos generales y secciones numeradas
-I. Tema · II. Objetivo · III. Modalidad y duración · IV. Diagnóstico (4 tarjetas) · V. Instrucciones del docente ·
-VI. Recursos · VII. Fundamentación y ejemplo resuelto · VIII. Actividades por desarrollar · IX. Resultados esperados.
-Sin tabla bibliográfica extensa, sin cuadro de firmas y sin rúbrica.
+Estilo: sólo negro sobre blanco, bordes negros finos y el escudo institucional; sin cuadros de color.
+Estructura (1 a 2 páginas): cabecera institucional, tabla de datos generales y secciones
+I. Tema · II. Objetivo · III. Modalidad y duración · IV. Instrucciones · V. Material y recursos ·
+VI. Fundamentación y ejemplo resuelto · VII. Actividades por desarrollar.
+Sin tablas bibliográficas, sin cuadro de validación ni rúbrica.
 `construir_guia` arma el contenido sólo con datos reales y el catálogo de la materia; `renderizar_pdf` lo dibuja.
 """
 
 import re
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from fpdf import FPDF, FontFace
+from fpdf import FPDF
 
-from app.services.contenidos_academicos import (contenido_unidad, entorno_materia, habilidad_materia,
-                                                 objetivo_unidad, recursos_unidad, sigla_curso)
+from app.services.contenidos_academicos import (contenido_unidad, entorno_materia, objetivo_unidad,
+                                                 recursos_unidad, sigla_curso)
 
 LOGO = Path(__file__).resolve().parent.parent / "recursos" / "uta-logo-azul.png"
-AZUL = (0, 47, 108)
-DORADO = (197, 155, 39)
-GRIS = (90, 98, 110)
-TEXTO = (30, 34, 40)
-FONDO = (241, 244, 249)
-BORDE = (214, 222, 234)
-LINEA_TABLA = (150, 160, 175)
+ESCUDO_PX = (0, 0, 197, 210)   # el escudo dentro del logo (a la derecha está la marca nominativa)
+NEGRO = (0, 0, 0)
 
 UNIVERSIDAD = "UNIVERSIDAD TÉCNICA DE AMBATO"
 SUBTITULO = "GUÍA DE REFUERZO ACADÉMICO Y APLICACIÓN DE APRENDIZAJES"
-FACULTAD = "Ingeniería en Sistemas, Electrónica e Industrial (FISEI)"
+FACULTAD = "INGENIERÍA EN SISTEMAS, ELECTRÓNICA E INDUSTRIAL"
 CARRERA = "Software"
-NIVEL_CICLO = "Cuarto Semestre · Julio – Diciembre 2026"
-MODALIDAD = "Virtual / Trabajo autónomo en Moodle UTA"
+NIVEL = "Cuarto"
+CICLO = "Julio - Diciembre 2026"
+MODALIDAD = "Virtual (Moodle UTA)"
 DURACION = "2 horas no presenciales"
 PIE = "UTA - FISEI"
 
-COMPONENTES = [("acd", "Exámenes"), ("tareas", "Tareas"), ("pae", "APE")]
-NIVELES = {"CRITICO": "Crítico", "EN_RIESGO": "En riesgo", "ACEPTABLE": "Aceptable"}
+NIVELES = {"CRITICO": "crítico", "EN_RIESGO": "en riesgo", "ACEPTABLE": "aceptable"}
 MAX_TEMAS, MAX_PASOS, MAX_EJERCICIOS, MAX_ACTIVIDADES = 3, 5, 3, 3
-_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
-          "noviembre", "diciembre"]
+
+# Medidas de la página (mm)
+X0, ANCHO = 15.0, 180.0
+CUERPO_Y = 36.0        # inicio del cuerpo bajo la cabecera de cada página
+PAD = 2.0              # margen interior de las celdas y secciones
+TAM, ALTO = 9.0, 4.3   # tipografía del cuerpo
 
 # fpdf2 con fuentes estándar usa Latin-1: se sustituyen los pocos signos tipográficos que no lo admiten
-_SUSTITUTOS = {"—": "-", "–": "-", "“": '"', "”": '"', "‘": "'", "’": "'", "…": "...", "•": "-", "≥": ">=",
-               "≤": "<=", "→": "=>", "->": "=>", "←": "<=", "²": "^2", " ": " "}
+_SUSTITUTOS = {"—": "-", "–": "-", "“": '"', "”": '"', "‘": "'", "’": "'", "′": "'", "″": '"', "…": "...",
+               "•": "-", "≥": ">=", "≤": "<=", "→": "=>", "->": "=>", "←": "<=", "²": "^2", " ": " "}
 
 
 def _texto(valor: Any) -> str:
@@ -68,37 +68,6 @@ def _materia(fullname: str, shortname: str) -> str:
     return _nombre_curso(fullname or shortname).replace(", paralelo", " — Paralelo")
 
 
-def fecha_larga(fecha: Optional[datetime]) -> str:
-    """datetime(2026, 12, 2, 23, 59) -> 'miércoles 2 de diciembre de 2026, 23:59'."""
-    if not fecha:
-        return "La indicada en la tarea de Moodle UTA"
-    return (f"{_DIAS[fecha.weekday()]} {fecha.day} de {_MESES[fecha.month - 1]} de {fecha.year}, "
-            f"{fecha.strftime('%H:%M')}")
-
-
-def _detalle_actividad(a: Dict[str, Any]) -> str:
-    if a.get("estado") == "SIN_ENTREGA":
-        return f"{a.get('id_number')} (sin entrega)"
-    if a.get("estado") == "PENDIENTE" or a.get("nota") is None:
-        return f"{a.get('id_number')} (pendiente)"
-    return f"{a.get('id_number')} ({a['nota']:.2f})"
-
-
-def _diagnostico(registro: Dict[str, Any], numero: int, debiles: List[Dict[str, Any]]) -> List[Tuple[str, str]]:
-    """4 tarjetas métricas (etiqueta, valor): nota de la unidad, nota ponderada y estado, componente y actividades."""
-    nota_unidad = (registro.get("promedios_unidad") or {}).get(f"U{numero}")
-    final = registro.get("nota_final")
-    nivel = NIVELES.get(registro.get("nivel_riesgo"), registro.get("nivel_riesgo") or "-")
-    componentes = [(nombre, registro.get(clave)) for clave, nombre in COMPONENTES if registro.get(clave) is not None]
-    componente = min(componentes, key=lambda c: c[1]) if componentes else None
-    return [
-        (f"Nota de la Unidad {numero}", f"{nota_unidad:.2f} / 10" if nota_unidad is not None else "Sin notas aún"),
-        ("Nota ponderada y estado", f"{final:.2f} / 10 (Nivel: {nivel})" if final is not None else "-"),
-        ("Componente a reforzar", f"{componente[0]} ({componente[1]:.2f} / 10)" if componente else "-"),
-        ("Actividades a repasar", ", ".join(_detalle_actividad(a) for a in debiles) if debiles else "Ninguna pendiente"),
-    ]
-
-
 def _lista(items: List[str]) -> str:
     """['a', 'b', 'c'] -> 'a, b y c'."""
     items = [i for i in items if i]
@@ -110,43 +79,66 @@ def _en_minuscula(subtemas: List[str]) -> List[str]:
     return [t if len(t) > 1 and t[1].isupper() else t[:1].lower() + t[1:] for t in subtemas]
 
 
+def fecha_entrega_texto(fecha: Optional[datetime]) -> str:
+    """datetime(2026, 12, 2, 23, 59) -> '02/12/2026 a las 23:59'."""
+    if not fecha:
+        return "La indicada en la tarea de Moodle UTA"
+    return f"{fecha.strftime('%d/%m/%Y')} a las {fecha.strftime('%H:%M')}"
+
+
+def _actividad(a: Dict[str, Any]) -> str:
+    nombre = a.get("nombre") or a.get("id_number")
+    if a.get("estado") == "SIN_ENTREGA":
+        return f"{nombre} (sin entrega)"
+    if a.get("estado") == "PENDIENTE" or a.get("nota") is None:
+        return f"{nombre} (pendiente)"
+    return f"{nombre} ({a['nota']:.2f})"
+
+
+def motivo_refuerzo(registro: Dict[str, Any], numero: int, debiles: List[Dict[str, Any]]) -> Optional[str]:
+    """Notas reales que motivan el refuerzo: nota de la unidad, actividades más bajas y nota ponderada."""
+    if not registro:
+        return None
+    partes = []
+    nota_unidad = (registro.get("promedios_unidad") or {}).get(f"U{numero}")
+    if nota_unidad is not None:
+        partes.append(f"tu promedio en la unidad es {nota_unidad:.2f}/10")
+    if debiles:
+        partes.append(f"las actividades con menor resultado fueron {_lista([_actividad(a) for a in debiles])}")
+    if registro.get("nota_final") is not None:
+        nivel = NIVELES.get(registro.get("nivel_riesgo"), "")
+        partes.append(f"tu nota ponderada actual es {registro['nota_final']:.2f}/10" + (f" ({nivel})" if nivel else ""))
+    return "; ".join(partes) if partes else None
+
+
 def indicaciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
-                            fecha_entrega: Optional[datetime] = None) -> str:
-    """Mensaje cercano del profesor al estudiante, que nombra los subtemas de la unidad a fortalecer."""
-    nombre = (nombres or "").split()[0] if nombres else ""
-    plazo = (f"hasta el {fecha_entrega.strftime('%d/%m/%Y')} a las {fecha_entrega.strftime('%H:%M')}"
-             if fecha_entrega else "hasta la fecha indicada en la tarea")
-    temas = _lista(_en_minuscula(subtemas))
-    return (f"Hola {nombre}, revisando tus calificaciones de la Unidad {numero} ({titulo_unidad}), te comparto esta "
-            f"guía de apoyo para fortalecer {temas} antes de tu actividad de recuperación. Revisa primero la "
-            "fundamentación y el material recomendado, analiza el ejemplo paso a paso, resuelve los ejercicios de la "
-            f"sección VIII y sube tu archivo (PDF o código) en la tarea de Moodle UTA {plazo}.")
+                            fecha_entrega: Optional[datetime] = None, motivo: Optional[str] = None) -> str:
+    """Párrafo directo del docente: qué motiva el refuerzo, qué repasar y cómo y cuándo entregar en Moodle."""
+    nombre = (nombres or "").split()[0] if nombres else "Estimado(a) estudiante"
+    plazo = (f"hasta el {fecha_entrega_texto(fecha_entrega)}" if fecha_entrega
+             else "hasta la fecha indicada en la tarea")
+    return (f"{nombre}, este refuerzo corresponde a la Unidad {numero} ({titulo_unidad})"
+            + (f": {motivo}" if motivo else "")
+            + f". Repasa {_lista(_en_minuscula(subtemas))} con la fundamentación y el ejemplo de la sección VI, "
+            "resuelve las actividades de la sección VII y sube un único archivo PDF (o tu código comprimido en .zip) "
+            f"en la tarea de Moodle UTA {plazo}.")
 
 
 # Textos que no escribió el docente: borradores en tercera persona («El estudiante X presenta dificultades...») o
-# mensajes generados por versiones anteriores de la guía. Se reemplazan por el mensaje actual.
+# mensajes generados por esta u otras versiones de la guía. Se reemplazan por el párrafo actual con sus notas.
 _TEXTO_GENERADO = re.compile(r"^\s*((el|la) (estudiante|alumn[oa])\b|estimado/a \S+, se ha identificado|"
-                             r"hola \S+, revisando tus calificaciones)", re.IGNORECASE)
+                             r"hola \S+, revisando tus calificaciones|\S+, este refuerzo corresponde a la unidad)",
+                             re.IGNORECASE)
 
 
 def _indicaciones(instrucciones: str, generadas: str) -> str:
-    """Indicaciones al estudiante: el mensaje del profesor con los subtemas y, si las hay, sus observaciones."""
+    """Instrucciones: el párrafo del docente con las notas de la unidad y, si las hay, sus observaciones."""
     texto = (instrucciones or "").strip()
     if not texto or _TEXTO_GENERADO.match(texto):
         return generadas
     if texto.lower().startswith(("estimado", "estimada", "hola")):
         return texto   # el docente ya le escribió directamente al estudiante
-    return f"{generadas}\n\nObservación de tu docente: {texto}"
-
-
-def _resultados(subtemas: List[str], numero: int, habilidad: str) -> List[str]:
-    """IX. Lo que el estudiante demostrará al completar la tarea de refuerzo."""
-    return [
-        f"**Dominio conceptual:** explica y aplica {_lista(_en_minuscula(subtemas))} (Unidad {numero}).",
-        f"**Resolución de problemas:** capacidad para {habilidad}.",
-        "**Pensamiento crítico y responsabilidad académica:** analiza sus errores de la evaluación, los corrige con "
-        "autonomía y entrega su trabajo a tiempo en Moodle UTA.",
-    ]
+    return f"{generadas}\n**Observación del docente:** {texto}"
 
 
 def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad: Optional[str],
@@ -154,7 +146,7 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
                    registro: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Contenido de la guía. `registro` es el registro analítico del estudiante en el curso (sincronización):
-    notas por unidad, componentes y actividades; si falta, la guía omite el diagnóstico numérico.
+    notas por unidad, componentes y actividades; si falta, las instrucciones omiten las notas.
     """
     numero = _numero_unidad(unidad)
     shortname = curso.get("shortname", "")
@@ -181,8 +173,9 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
     ejemplo = contenido.get("ejemplo")
     temas = contenido["temas"][:MAX_TEMAS]
     subtemas = [t for t, _ in temas]
+    motivo = motivo_refuerzo(registro, numero, debiles)
     generadas = indicaciones_estudiante(estudiante.get("nombres") or "", numero, contenido["titulo"], subtemas,
-                                        fecha_entrega)
+                                        fecha_entrega, motivo)
     materia = _materia(curso.get("fullname", ""), shortname)
     objetivo = objetivo_unidad(shortname, numero) or f"Afianzar los contenidos de la Unidad {numero}"
     return {
@@ -195,35 +188,32 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
         "unidad": numero,
         "unidad_titulo": f"Unidad {numero}: {contenido['titulo']}",
         "subtemas": subtemas,
-        "objetivo": f"{objetivo}, superando las falencias detectadas en la evaluación de la Unidad {numero}.",
+        "objetivo": f"{objetivo}.",
         "modalidad": MODALIDAD,
         "duracion": DURACION,
         "docente": docente,
         "fecha_entrega": fecha_entrega,
         "instrucciones": (instrucciones or "").strip(),
+        "motivo": motivo,
         "indicaciones": _indicaciones(instrucciones, generadas),
-        "diagnostico": _diagnostico(registro, numero, debiles) if registro else [],
         "temas": temas,
         "entorno": entorno_materia(shortname),
         "recursos": recursos_unidad(shortname, numero),
         "ejemplo": {**ejemplo, "pasos": ejemplo["pasos"][:MAX_PASOS]} if ejemplo else None,
         "ejercicios": contenido["ejercicios"][:MAX_EJERCICIOS],
-        "resultados": _resultados(subtemas, numero, habilidad_materia(shortname)),
     }
 
 
-def datos_generales(guia: Dict[str, Any]) -> List[Tuple[str, str]]:
-    """Tabla de datos generales de la cabecera institucional UTA (etiqueta, valor)."""
+def datos_generales(guia: Dict[str, Any]) -> List[List[Tuple[str, str, int]]]:
+    """Filas de la tabla de datos generales: celdas (etiqueta, valor, columnas que ocupa) sobre 3 columnas."""
     est = guia["estudiante"]
     contacto = " · ".join(v for v in (f"C.I. {est['cedula']}" if est.get("cedula") else "", est.get("email")) if v)
     return [
-        ("FACULTAD", FACULTAD),
-        ("CARRERA", CARRERA),
-        ("ASIGNATURA", guia["materia"].replace(" — ", " - ")),
-        ("NIVEL / CICLO ACADÉMICO", NIVEL_CICLO),
-        ("DOCENTE", guia["docente"] or "-"),
-        ("ESTUDIANTE", f"{est.get('nombres') or '-'}" + (f" ({contacto})" if contacto else "")),
-        ("FECHA LÍMITE DE ENTREGA", fecha_larga(guia.get("fecha_entrega"))),
+        [("FACULTAD", FACULTAD, 2), ("CARRERA", CARRERA, 1)],
+        [("NIVEL", NIVEL, 1), ("CICLO ACADÉMICO", CICLO, 1), ("ASIGNATURA", guia["materia"].replace(" — ", " - "), 1)],
+        [("DOCENTE", guia["docente"] or "-", 3)],
+        [("ESTUDIANTE", (est.get("nombres") or "-") + (f" ({contacto})" if contacto else ""), 3)],
+        [("FECHA LÍMITE DE ENTREGA", fecha_entrega_texto(guia.get("fecha_entrega")), 3)],
     ]
 
 
@@ -232,193 +222,171 @@ def nombre_archivo(guia: Dict[str, Any]) -> str:
     return f"Guia_refuerzo_{guia['sigla']}_U{guia['unidad']}_{guia['estudiante'].get('id_number') or 'estudiante'}.pdf"
 
 
+@lru_cache(maxsize=1)
+def _escudo():
+    """Sólo el escudo de la UTA (sin la marca nominativa), como en el formulario oficial."""
+    if not LOGO.exists():
+        return None
+    from PIL import Image
+    return Image.open(LOGO).convert("RGBA").crop(ESCUDO_PX)
+
+
 class _GuiaPDF(FPDF):
     def header(self):
-        if self.page_no() == 1:
-            # Cabecera institucional: escudo UTA, nombre de la universidad y tipo de guía
-            # El escudo incluye la marca nominativa: los títulos van centrados en el espacio a su derecha
-            x_texto = 64 if LOGO.exists() else 15
-            if LOGO.exists():
-                self.image(str(LOGO), x=15, y=10, h=17)
-            self.set_xy(x_texto, 12)
-            self.set_font("helvetica", "B", 14.5)
-            self.set_text_color(*AZUL)
-            self.cell(195 - x_texto, 7, _texto(UNIVERSIDAD), align="C", new_x="LMARGIN", new_y="NEXT")
-            self.set_x(x_texto)
-            self.set_font("helvetica", "B", 8.6)
-            self.set_text_color(*GRIS)
-            self.cell(195 - x_texto, 5, _texto(SUBTITULO), align="C", new_x="LMARGIN", new_y="NEXT")
-            self.set_draw_color(*DORADO)
-            self.set_line_width(0.7)
-            self.line(15, 31, 195, 31)
-            self.set_y(34)
-            return
-        if LOGO.exists():
-            self.image(str(LOGO), x=15, y=8, h=9)
-        self.set_xy(80, 9)
-        self.set_font("helvetica", "B", 8.5)
-        self.set_text_color(*AZUL)
-        self.cell(115, 4, _texto("Universidad Técnica de Ambato · FISEI"), align="R", new_x="LMARGIN", new_y="NEXT")
-        self.set_x(80)
-        self.set_font("helvetica", "", 7)
-        self.set_text_color(*GRIS)
-        self.cell(115, 3.5, _texto(SUBTITULO.capitalize()), align="R", new_x="LMARGIN", new_y="NEXT")
-        self.set_draw_color(*DORADO)
-        self.set_line_width(0.5)
-        self.line(15, 19, 195, 19)
-        self.set_y(22)
+        escudo = _escudo()
+        if escudo is not None:
+            self.image(escudo, x=X0, y=8, h=23)
+        self.set_text_color(*NEGRO)
+        self.set_xy(X0, 13)
+        self.set_font("helvetica", "B", 12)
+        self.cell(ANCHO, 5.5, _texto(UNIVERSIDAD), align="C", new_x="LMARGIN", new_y="NEXT")
+        self.set_x(X0)
+        self.set_font("helvetica", "B", 10.5)
+        self.cell(ANCHO, 5.5, _texto(SUBTITULO), align="C", new_x="LMARGIN", new_y="NEXT")
+        self.set_y(CUERPO_Y)
 
     def footer(self):
-        self.set_y(-12)
-        self.set_font("helvetica", "", 7)
-        self.set_text_color(*GRIS)
-        self.cell(0, 6, _texto(f"Página {self.page_no()}/{{nb}} · {PIE}"), align="C")
+        self.set_y(-13)
+        self.set_text_color(*NEGRO)
+        self.set_font("helvetica", "I", 8)
+        self.cell(0, 6, _texto(f"Página {self.page_no()}/{{nb}} · {PIE}"), align="R")
 
 
-def _titulo_seccion(pdf: FPDF, numero: str, texto: str) -> None:
-    """Encabezado numerado en romano con una línea fina institucional debajo."""
-    if pdf.get_y() > 258:
-        pdf.add_page()
-    pdf.ln(2)
-    pdf.set_font("helvetica", "B", 10)
-    pdf.set_text_color(*AZUL)
-    pdf.cell(0, 5.4, _texto(f"{numero}. {texto.upper()}"), new_x="LMARGIN", new_y="NEXT")
-    y = pdf.get_y()
-    pdf.set_draw_color(*BORDE)
-    pdf.set_line_width(0.3)
-    pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
-    pdf.ln(1.2)
-    pdf.set_text_color(*TEXTO)
+def _escribir(pdf: FPDF, texto: str, tam: float = TAM, estilo: str = "", alto: float = ALTO) -> None:
+    """Texto corrido con **negritas** y `código` (Courier, sin comillas); las líneas siguientes respetan la sangría."""
+    for parte in re.split(r"(\*\*.+?\*\*|`[^`]+`)", texto):
+        if not parte:
+            continue
+        if parte.startswith("**") and parte.endswith("**"):
+            pdf.set_font("helvetica", "B", tam)
+            parte = parte[2:-2]
+        elif parte.startswith("`") and parte.endswith("`"):
+            pdf.set_font("courier", "", tam)
+            parte = parte[1:-1]
+        else:
+            pdf.set_font("helvetica", estilo, tam)
+        pdf.write(alto, _texto(parte))
+    pdf.ln(alto)
 
 
-def _parrafo(pdf: FPDF, texto: str, tam: float = 9.5, estilo: str = "", alto: float = 4.5,
-             markdown: bool = False) -> None:
-    pdf.set_font("helvetica", estilo, tam)
-    pdf.multi_cell(0, alto, _texto(texto), markdown=markdown, new_x="LMARGIN", new_y="NEXT")
-
-
-def _tarjetas(pdf: FPDF, tarjetas: List[Tuple[str, str]]) -> None:
-    """Cuadrícula 2x2 de tarjetas métricas con borde suave: etiqueta pequeña y valor destacado."""
-    ancho, alto, sep = 88.5, 14, 2.5
-    x0 = pdf.l_margin
-    for i, (etiqueta, valor) in enumerate(tarjetas):
-        if i % 2 == 0:
-            if i:
-                pdf.set_y(y + alto + sep)
-            y = pdf.get_y()
-        x = x0 + (i % 2) * (ancho + sep)
-        pdf.set_fill_color(*FONDO)
-        pdf.set_draw_color(*BORDE)
-        pdf.set_line_width(0.3)
-        pdf.rect(x, y, ancho, alto, style="DF", round_corners=True, corner_radius=2)
-        pdf.set_xy(x + 3.5, y + 2)
-        pdf.set_font("helvetica", "", 7.5)
-        pdf.set_text_color(*GRIS)
-        pdf.cell(ancho - 7, 4, _texto(etiqueta.upper()))
-        pdf.set_xy(x + 3.5, y + 6.8)
-        largo = len(valor) > 34
-        pdf.set_font("helvetica", "B", 8.8 if largo else 11)
-        pdf.set_text_color(*AZUL)
-        pdf.multi_cell(ancho - 7, 3.9 if largo else 6, _texto(valor), max_line_height=4)
-    pdf.set_y(y + alto + 1)
-    pdf.set_text_color(*TEXTO)
-
-
-def _vinieta(pdf: FPDF, marca: str, texto: str, markdown: bool = False) -> None:
-    """Viñeta con sangría francesa: las líneas siguientes quedan alineadas con el texto, no con el margen."""
-    pdf.set_font("helvetica", "B", 9.5)
-    pdf.cell(6, 4.5, _texto(marca))
-    pdf.set_font("helvetica", "", 9.5)
-    pdf.multi_cell(0, 4.5, _texto(texto), markdown=markdown, new_x="LMARGIN", new_y="NEXT")
+def _item(pdf: FPDF, marca: str, texto: str) -> None:
+    """Elemento de lista simple con sangría francesa («- texto» o «1. texto»)."""
+    izquierda = pdf.l_margin
+    pdf.set_x(izquierda)
+    pdf.set_font("helvetica", "", TAM)
+    pdf.cell(5, ALTO, _texto(marca))
+    pdf.set_left_margin(izquierda + 5)
+    _escribir(pdf, texto)
+    pdf.set_left_margin(izquierda)
     pdf.ln(0.4)
 
 
-def _tabla_datos(pdf: FPDF, filas: List[Tuple[str, str]]) -> None:
-    """Tabla de datos generales en 2 columnas con bordes finos institucionales."""
-    pdf.set_draw_color(*LINEA_TABLA)
-    pdf.set_line_width(0.2)
-    pdf.set_text_color(*TEXTO)
+def _tabla_datos(pdf: FPDF, filas: List[List[Tuple[str, str, int]]]) -> None:
+    """Tabla de datos generales con bordes negros finos: «ETIQUETA: valor» en cada celda."""
+    columnas = (60.0, 55.0, 65.0)
+    pdf.set_draw_color(*NEGRO)
+    pdf.set_line_width(0.25)
     pdf.set_font("helvetica", "", 8.5)
-    etiqueta = FontFace(emphasis="BOLD", color=AZUL, size_pt=7.8, fill_color=FONDO)
-    valor = FontFace(size_pt=8.5)
-    with pdf.table(col_widths=(52, 128), line_height=4.6, text_align="LEFT", borders_layout="ALL",
-                   first_row_as_headings=False, padding=(1.1, 2)) as tabla:
-        for e, v in filas:
-            fila = tabla.row()
-            fila.cell(_texto(e), style=etiqueta)
-            fila.cell(_texto(v), style=valor)
+    y = pdf.get_y()
+    for fila in filas:
+        celdas, x, i = [], X0, 0
+        for etiqueta, valor, ocupa in fila:
+            ancho = sum(columnas[i:i + ocupa])
+            texto = _texto(f"**{etiqueta}:** {valor}")
+            lineas = len(pdf.multi_cell(ancho - 2 * PAD, 4, texto, markdown=True, align="L", dry_run=True,
+                                        output="LINES"))
+            celdas.append((x, ancho, texto, lineas))
+            x, i = x + ancho, i + ocupa
+        alto = max(c[3] for c in celdas) * 4 + 2.4
+        for x, ancho, texto, _ in celdas:
+            pdf.rect(x, y, ancho, alto)
+            pdf.set_xy(x + PAD, y + 1.2)
+            pdf.multi_cell(ancho - 2 * PAD, 4, texto, markdown=True, align="L")
+        y += alto
+    pdf.set_y(y + 4)
+
+
+def _seccion(pdf: FPDF, titulo: str, cuerpo: Callable[[], None]) -> None:
+    """Sección del formulario: «I. TEMA:» en negrita y su contenido, enmarcados con bordes negros finos.
+    Si la sección continúa en la página siguiente, el marco se dibuja en cada página."""
+    if pdf.get_y() > 262:
+        pdf.add_page()
+    pagina0, y0 = pdf.page, pdf.get_y()
+    pdf.set_left_margin(X0 + PAD)
+    pdf.set_right_margin(pdf.w - X0 - ANCHO + PAD)
+    pdf.set_xy(X0 + PAD, y0 + 1.2)
+    pdf.set_text_color(*NEGRO)
+    pdf.set_font("helvetica", "B", TAM)
+    pdf.cell(0, ALTO + 0.4, _texto(titulo), new_x="LMARGIN", new_y="NEXT")
+    cuerpo()
+    pdf.ln(1.2)
+    pdf.set_left_margin(X0)
+    pdf.set_right_margin(pdf.w - X0 - ANCHO)
+    pagina1, y1 = pdf.page, pdf.get_y()
+
+    pdf.set_draw_color(*NEGRO)
+    pdf.set_line_width(0.25)
+    for pagina in range(pagina0, pagina1 + 1):
+        pdf.page = pagina
+        arriba = y0 if pagina == pagina0 else CUERPO_Y
+        abajo = y1 if pagina == pagina1 else pdf.page_break_trigger
+        pdf.line(X0, arriba, X0, abajo)
+        pdf.line(X0 + ANCHO, arriba, X0 + ANCHO, abajo)
+        if pagina == pagina0:
+            pdf.line(X0, arriba, X0 + ANCHO, arriba)
+        if pagina == pagina1:
+            pdf.line(X0, abajo, X0 + ANCHO, abajo)
+    pdf.page = pagina1
+    pdf.set_y(y1)
 
 
 def renderizar_pdf(guia: Dict[str, Any]) -> bytes:
     pdf = _GuiaPDF(format="A4")
-    pdf.set_margins(15, 15, 15)
-    pdf.set_auto_page_break(True, margin=15)
+    pdf.set_margins(X0, 15, X0)
+    pdf.set_auto_page_break(True, margin=16)
     pdf.set_title(_texto(f"Guía de refuerzo académico - {guia['titulo']}"))
     pdf.set_author("Universidad Técnica de Ambato · FISEI")
     pdf.set_creator("Universidad Técnica de Ambato · FISEI")
+    pdf.set_text_color(*NEGRO)
+    pdf.set_draw_color(*NEGRO)
     pdf.alias_nb_pages()
     pdf.add_page()
 
     _tabla_datos(pdf, datos_generales(guia))
 
-    _titulo_seccion(pdf, "I", "Tema")
-    _parrafo(pdf, guia["unidad_titulo"], estilo="B")
-    if guia.get("subtemas"):
-        _parrafo(pdf, f"**Subtemas a reforzar:** {_lista(guia['subtemas'])}.", markdown=True)
+    _seccion(pdf, "I. TEMA:", lambda: _escribir(pdf, guia["unidad_titulo"]))
+    _seccion(pdf, "II. OBJETIVO:", lambda: _escribir(pdf, guia["objetivo"]))
+    _seccion(pdf, "III. MODALIDAD Y DURACIÓN:", lambda: _escribir(
+        pdf, f"**Modalidad:** {guia['modalidad']} · **Duración:** {guia['duracion']}"))
+    _seccion(pdf, "IV. INSTRUCCIONES:", lambda: _escribir(pdf, guia["indicaciones"]))
 
-    _titulo_seccion(pdf, "II", "Objetivo")
-    _parrafo(pdf, guia["objetivo"])
+    def recursos():
+        _item(pdf, "-", f"**Entorno de desarrollo:** {guia['entorno']}.")
+        todos = guia.get("recursos") or []
+        aula = [r for r in todos if r[0].startswith("Aula virtual")]
+        for fuente, detalle in aula + [r for r in todos if r not in aula]:
+            _item(pdf, "-", f"**{fuente}:** {detalle}")
+    _seccion(pdf, "V. MATERIAL Y RECURSOS:", recursos)
 
-    _titulo_seccion(pdf, "III", "Modalidad y duración")
-    _parrafo(pdf, f"**Modalidad:** {guia['modalidad']}   ·   **Duración estimada:** {guia['duracion']}",
-             markdown=True)
+    def fundamentacion():
+        for tema, explicacion in guia["temas"]:
+            _item(pdf, "-", f"**{tema}:** {explicacion}")
+        ejemplo = guia.get("ejemplo")
+        if ejemplo:
+            pdf.ln(0.8)
+            _escribir(pdf, f"**Ejemplo resuelto:** {ejemplo['enunciado']}")
+            pdf.ln(0.4)
+            for i, paso in enumerate(ejemplo["pasos"], 1):
+                _item(pdf, f"{i}.", paso)
+            _escribir(pdf, f"**Resultado:** {ejemplo['resultado']}")
+    _seccion(pdf, "VI. FUNDAMENTACIÓN Y EJEMPLO RESUELTO:", fundamentacion)
 
-    if guia.get("diagnostico"):
-        _titulo_seccion(pdf, "IV", "Diagnóstico académico del estudiante")
-        pdf.ln(0.3)
-        _tarjetas(pdf, guia["diagnostico"])
-
-    _titulo_seccion(pdf, "V", "Instrucciones y orientación del docente")
-    _parrafo(pdf, guia["indicaciones"])
-
-    _titulo_seccion(pdf, "VI", "Recursos y material de apoyo")
-    _vinieta(pdf, "-", f"**Entorno de trabajo:** {guia['entorno']}.", markdown=True)
-    recursos = guia.get("recursos") or []
-    aula = [r for r in recursos if r[0].startswith("Aula virtual")]
-    for fuente, detalle in aula + [r for r in recursos if r not in aula]:
-        _vinieta(pdf, "-", f"**{fuente}:** {detalle}", markdown=True)
-
-    _titulo_seccion(pdf, "VII", "Fundamentación y ejemplo resuelto")
-    for tema, explicacion in guia["temas"]:
-        _parrafo(pdf, f"**{tema}:** {explicacion}", markdown=True)
-        pdf.ln(0.8)
-    ejemplo = guia.get("ejemplo")
-    if ejemplo:
-        if pdf.get_y() > 245:   # el ejemplo no empieza al pie de la página, separado de sus pasos
-            pdf.add_page()
-        pdf.ln(0.6)
-        pdf.set_font("helvetica", "B", 9.5)
-        pdf.set_text_color(*AZUL)
-        pdf.cell(0, 5, _texto("Ejemplo resuelto paso a paso"), new_x="LMARGIN", new_y="NEXT")
-        pdf.set_text_color(*TEXTO)
-        _parrafo(pdf, ejemplo["enunciado"], estilo="I")
-        pdf.ln(0.8)
-        for i, paso in enumerate(ejemplo["pasos"], 1):
-            _vinieta(pdf, f"{i}.", paso)
-        pdf.set_fill_color(*FONDO)
-        pdf.set_font("helvetica", "B", 9)
-        pdf.multi_cell(0, 5.5, _texto(f"Resultado: {ejemplo['resultado']}"), fill=True, new_x="LMARGIN", new_y="NEXT")
-
-    _titulo_seccion(pdf, "VIII", "Actividades por desarrollar (ejercicios de práctica)")
-    _parrafo(pdf, "Resuelve los siguientes ejercicios y súbelos como tarea de refuerzo en Moodle UTA:", tam=9,
-             estilo="I")
-    pdf.ln(0.6)
-    for i, ejercicio in enumerate(guia["ejercicios"], 1):
-        _vinieta(pdf, f"{i}.", ejercicio)
-
-    _titulo_seccion(pdf, "IX", "Resultados esperados y habilidades")
-    for resultado in guia["resultados"]:
-        _vinieta(pdf, "-", resultado, markdown=True)
+    def actividades():
+        _escribir(pdf, "Resuelve los siguientes ejercicios y sube tu desarrollo a la tarea de Moodle UTA:")
+        pdf.ln(0.4)
+        for i, ejercicio in enumerate(guia["ejercicios"], 1):
+            _item(pdf, f"{i}.", ejercicio)
+    _seccion(pdf, "VII. ACTIVIDADES POR DESARROLLAR:", actividades)
 
     return bytes(pdf.output())
 

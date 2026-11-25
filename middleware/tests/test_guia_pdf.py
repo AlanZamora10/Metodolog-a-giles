@@ -1,6 +1,7 @@
-"""Guía de estudio en PDF (material de apoyo breve) que se adjunta a cada tarea de refuerzo en Moodle."""
+"""Guía de refuerzo en PDF (formulario sobrio UTA - FISEI, blanco y negro) que se adjunta a cada tarea en Moodle."""
 
 import re
+import zlib
 from datetime import datetime
 
 import pytest
@@ -33,11 +34,12 @@ def _paginas(pdf: bytes) -> int:
     return len(re.findall(rb"/Type /Page\b(?!s)", pdf))
 
 
-def test_es_una_guia_de_estudio_sin_rubrica_ni_criterios_de_calificacion():
+def test_es_una_guia_de_refuerzo_sin_rubrica_ni_tarjetas():
     guia = _guia()
     assert "rubrica" not in guia and not hasattr(guia_pdf, "RUBRICA")
-    assert set(guia) >= {"estudiante", "materia", "unidad_titulo", "docente", "diagnostico", "indicaciones",
-                         "temas", "ejemplo", "ejercicios"}
+    assert "diagnostico" not in guia and not hasattr(guia_pdf, "_tarjetas")
+    assert set(guia) >= {"estudiante", "materia", "unidad_titulo", "docente", "objetivo", "indicaciones",
+                         "temas", "ejemplo", "ejercicios", "recursos", "entorno"}
 
 
 def test_datos_esenciales_del_estudiante_y_la_unidad():
@@ -49,42 +51,43 @@ def test_datos_esenciales_del_estudiante_y_la_unidad():
     assert nombre_archivo(guia) == "Guia_refuerzo_POO_U2_U-04.pdf"
 
 
-def test_diagnostico_en_cuatro_tarjetas_metricas():
-    assert _guia()["diagnostico"] == [
-        ("Nota de la Unidad 2", "5.94 / 10"),
-        ("Nota ponderada y estado", "6.45 / 10 (Nivel: En riesgo)"),
-        ("Componente a reforzar", "Tareas (6.31 / 10)"),
-        ("Actividades a repasar", "U2-A2 (5.50), U2-T4 (6.00), U2-T3 (6.00)"),   # sólo de la unidad, máx. 3
-    ]
+def test_las_notas_reales_que_motivan_el_refuerzo():
+    assert _guia()["motivo"] == ("tu promedio en la unidad es 5.94/10; las actividades con menor resultado fueron "
+                                 "Evaluación (5.50), Tarea 4 (6.00) y Tarea 3 (6.00); tu nota ponderada actual es "
+                                 "6.45/10 (en riesgo)")   # sólo actividades de la unidad, máx. 3
+    assert _guia(registro=None)["motivo"] is None
 
 
-def test_indicaciones_con_tono_cercano_de_profesor_y_los_subtemas_de_la_unidad():
+def test_instrucciones_directas_del_docente_con_notas_y_entrega():
     texto = indicaciones_estudiante("Carlos Andrés Mendoza Paredes", 2, "Herencia y polimorfismo",
                                     ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"],
-                                    datetime(2026, 11, 22, 23, 59))
-    assert texto == ("Hola Carlos, revisando tus calificaciones de la Unidad 2 (Herencia y polimorfismo), te comparto "
-                     "esta guía de apoyo para fortalecer herencia, sobrescritura y clases abstractas y polimorfismo antes "
-                     "de tu actividad de recuperación. Revisa primero la fundamentación y el material recomendado, analiza "
-                     "el ejemplo paso a paso, resuelve los ejercicios de la sección VIII y sube tu archivo (PDF o código) en "
-                     "la tarea de Moodle UTA hasta el 22/11/2026 a las 23:59.")
-    for robotico in ("Estimado/a", "se ha identificado", "EduMonitor", "IA"):
+                                    datetime(2026, 11, 22, 23, 59), motivo="tu promedio en la unidad es 5.94/10")
+    assert texto == ("Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo): tu promedio en la "
+                     "unidad es 5.94/10. Repasa herencia, sobrescritura y clases abstractas y polimorfismo con la "
+                     "fundamentación y el ejemplo de la sección VI, resuelve las actividades de la sección VII y sube un "
+                     "único archivo PDF (o tu código comprimido en .zip) en la tarea de Moodle UTA hasta el 22/11/2026 a "
+                     "las 23:59.")
+    for robotico in ("Estimado/a", "se ha identificado", "EduMonitor", "IA", "Hola"):
         assert robotico not in texto
     # Siglas al inicio del subtema se conservan
-    assert "fortalecer SQL avanzado" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
+    assert "Repasa SQL avanzado" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
     assert "hasta la fecha indicada en la tarea" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
 
 
 @pytest.mark.parametrize("instrucciones, empieza, contiene", [
-    # Textos que no escribió el docente (borrador en tercera persona o mensaje de una versión anterior): se reemplazan
-    ("El estudiante Carlos Mendoza presenta dificultades en Unidad 2.", "Hola Carlos, revisando", None),
-    ("Estimado/a Carlos, se ha identificado que necesitas reforzar los temas de herencia.", "Hola Carlos, revisando", None),
-    ("", "Hola Carlos, revisando", None),
-    # Indicación propia del docente: se conserva como observación tras el mensaje con los subtemas
-    ("Resuelva la guía.", "Hola Carlos, revisando", "Observación de tu docente: Resuelva la guía."),
+    # Textos que no escribió el docente (borrador en tercera persona o de versiones anteriores): se regeneran con notas
+    ("El estudiante Carlos Mendoza presenta dificultades en Unidad 2.", "Carlos, este refuerzo", None),
+    ("Estimado/a Carlos, se ha identificado que necesitas reforzar los temas de herencia.", "Carlos, este refuerzo", None),
+    ("Hola Carlos, revisando tus calificaciones de la Unidad 2, te comparto esta guía.", "Carlos, este refuerzo", None),
+    ("Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo). Repasa...", "Carlos, este refuerzo",
+     "tu promedio en la unidad es 5.94/10"),
+    ("", "Carlos, este refuerzo", None),
+    # Indicación propia del docente: se conserva como observación tras el párrafo con las notas
+    ("Resuelva la guía.", "Carlos, este refuerzo", "**Observación del docente:** Resuelva la guía."),
     # El docente ya le escribe al estudiante: se respeta su texto
     ("Estimado Carlos, revisa la herencia múltiple.", "Estimado Carlos, revisa", None),
 ])
-def test_indicaciones_respetan_lo_que_escribio_el_docente(instrucciones, empieza, contiene):
+def test_instrucciones_respetan_lo_que_escribio_el_docente(instrucciones, empieza, contiene):
     indicaciones = _guia(instrucciones=instrucciones)["indicaciones"]
     assert indicaciones.startswith(empieza)
     assert "presenta dificultades" not in indicaciones and "se ha identificado" not in indicaciones
@@ -92,8 +95,10 @@ def test_indicaciones_respetan_lo_que_escribio_el_docente(instrucciones, empieza
         assert contiene in indicaciones
 
 
-def test_donde_consultar_y_reforzar_con_fuentes_reales_y_el_aula_virtual():
-    recursos = _guia()["recursos"]
+def test_material_y_recursos_con_fuentes_reales_y_el_aula_virtual():
+    guia = _guia()
+    assert guia["entorno"].startswith("JDK 17")
+    recursos = guia["recursos"]
     assert len(recursos) == 3
     assert recursos[0] == ("Deitel y Deitel, «Cómo programar en Java», 10.ª ed., Pearson",
                            "caps. 9 y 10: herencia, clases abstractas y polimorfismo.")
@@ -113,68 +118,83 @@ def test_encabezado_institucional_uta_sin_rastros_de_ia():
     import inspect
     assert guia_pdf.UNIVERSIDAD == "UNIVERSIDAD TÉCNICA DE AMBATO"
     assert guia_pdf.SUBTITULO == "GUÍA DE REFUERZO ACADÉMICO Y APLICACIÓN DE APRENDIZAJES"
-    assert guia_pdf.LOGO.name == "uta-logo-azul.png" and guia_pdf.LOGO.exists()
+    assert guia_pdf.LOGO.exists()
+    assert guia_pdf._escudo().size == (197, 210)          # sólo el escudo, sin la marca nominativa
     fuente = inspect.getsource(guia_pdf)
     assert "EduMonitor" not in fuente
     assert 'f"Página {self.page_no()}/{{nb}} · {PIE}"' in fuente and guia_pdf.PIE == "UTA - FISEI"
 
 
+def _flujos(pdf: bytes) -> bytes:
+    """Contenido descomprimido de todos los flujos del PDF (operadores de dibujo)."""
+    salida = b""
+    for crudo in re.findall(rb"stream\r?\n(.*?)\r?\nendstream", pdf, re.S):
+        try:
+            salida += zlib.decompress(crudo)
+        except zlib.error:
+            salida += crudo
+    return salida
+
+
+def test_paleta_cien_por_ciento_blanco_y_negro():
+    import inspect
+    fuente = inspect.getsource(guia_pdf)
+    assert guia_pdf.NEGRO == (0, 0, 0)
+    assert "set_fill_color" not in fuente and "fill=True" not in fuente and "round_corners" not in fuente
+    assert set(re.findall(r"set_(?:text|draw)_color\(([^)]*)\)", fuente)) == {"*NEGRO"}
+    # En el PDF generado no hay ningún operador de color distinto de negro (fpdf2 omite el negro por defecto)
+    flujos = _flujos(renderizar_pdf(_guia()))
+    colores = set(re.findall(rb"((?:[\d.]+ ){3})(?:rg|RG)\b", flujos)) | set(re.findall(rb"([\d.]+ )(?:g|G)\b", flujos))
+    assert b"BT" in flujos and b" re" in flujos                      # se leyeron el texto y los marcos
+    assert all(float(v) == 0 for c in colores for v in c.split()), colores
+
+
 def test_tabla_de_datos_generales_institucional():
     assert guia_pdf.datos_generales(_guia()) == [
-        ("FACULTAD", "Ingeniería en Sistemas, Electrónica e Industrial (FISEI)"),
-        ("CARRERA", "Software"),
-        ("ASIGNATURA", "Programación orientada a objetos - Paralelo A"),
-        ("NIVEL / CICLO ACADÉMICO", "Cuarto Semestre · Julio – Diciembre 2026"),
-        ("DOCENTE", "Roberto Patricio Gómez Salazar"),
-        ("ESTUDIANTE", "Carlos Andrés Mendoza Paredes (C.I. 1804923199 · cmendoza3199@uta.edu.ec)"),
-        ("FECHA LÍMITE DE ENTREGA", "domingo 22 de noviembre de 2026, 23:59"),
+        [("FACULTAD", "INGENIERÍA EN SISTEMAS, ELECTRÓNICA E INDUSTRIAL", 2), ("CARRERA", "Software", 1)],
+        [("NIVEL", "Cuarto", 1), ("CICLO ACADÉMICO", "Julio - Diciembre 2026", 1),
+         ("ASIGNATURA", "Programación orientada a objetos - Paralelo A", 1)],
+        [("DOCENTE", "Roberto Patricio Gómez Salazar", 3)],
+        [("ESTUDIANTE", "Carlos Andrés Mendoza Paredes (C.I. 1804923199 · cmendoza3199@uta.edu.ec)", 3)],
+        [("FECHA LÍMITE DE ENTREGA", "22/11/2026 a las 23:59", 3)],
     ]
-    assert guia_pdf.fecha_larga(None) == "La indicada en la tarea de Moodle UTA"
+    assert guia_pdf.fecha_entrega_texto(None) == "La indicada en la tarea de Moodle UTA"
 
 
-def test_secciones_numeradas_en_romano_de_la_plantilla_uta():
+def test_secciones_numeradas_en_romano_del_formulario_uta():
     import inspect
     fuente = inspect.getsource(guia_pdf.renderizar_pdf)
-    secciones = re.findall(r'_titulo_seccion\(pdf, "([IVX]+)", "([^"]+)"\)', fuente)
-    assert secciones == [
-        ("I", "Tema"), ("II", "Objetivo"), ("III", "Modalidad y duración"),
-        ("IV", "Diagnóstico académico del estudiante"), ("V", "Instrucciones y orientación del docente"),
-        ("VI", "Recursos y material de apoyo"), ("VII", "Fundamentación y ejemplo resuelto"),
-        ("VIII", "Actividades por desarrollar (ejercicios de práctica)"), ("IX", "Resultados esperados y habilidades")]
-    for excluido in ("firma", "Firma", "BIBLIOGRAF", "Coordinador"):
-        assert excluido not in fuente + inspect.getsource(guia_pdf._GuiaPDF)   # sin firmas ni bibliografía
+    assert re.findall(r'_seccion\(pdf, "([^"]+)"', fuente) == [
+        "I. TEMA:", "II. OBJETIVO:", "III. MODALIDAD Y DURACIÓN:", "IV. INSTRUCCIONES:", "V. MATERIAL Y RECURSOS:",
+        "VI. FUNDAMENTACIÓN Y EJEMPLO RESUELTO:", "VII. ACTIVIDADES POR DESARROLLAR:"]
+    for excluido in ("firma", "Firma", "BIBLIOGRAF", "Coordinador", "VALIDACI", "Diagnóstico"):
+        assert excluido not in fuente + inspect.getsource(guia_pdf._GuiaPDF)
 
 
-def test_tema_objetivo_modalidad_recursos_y_resultados():
+def test_tema_objetivo_y_modalidad():
     guia = _guia()
-    assert guia["unidad_titulo"] == "Unidad 2: Herencia y polimorfismo"
-    assert guia["subtemas"] == ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"]
     assert guia["objetivo"] == ("Diseñar jerarquías de clases con herencia, clases abstractas y polimorfismo, "
-                                "reutilizando código sin romper la relación «es un», superando las falencias "
-                                "detectadas en la evaluación de la Unidad 2.")
-    assert (guia["modalidad"], guia["duracion"]) == ("Virtual / Trabajo autónomo en Moodle UTA", "2 horas no presenciales")
-    assert guia["entorno"].startswith("JDK 17")
-    assert len(guia["resultados"]) == 3
-    assert guia["resultados"][0] == ("**Dominio conceptual:** explica y aplica herencia, sobrescritura y clases "
-                                     "abstractas y polimorfismo (Unidad 2).")
-    assert "Pensamiento crítico y responsabilidad académica" in guia["resultados"][2]
+                                "reutilizando código sin romper la relación «es un».")
+    assert (guia["modalidad"], guia["duracion"]) == ("Virtual (Moodle UTA)", "2 horas no presenciales")
 
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
-def test_cada_materia_tiene_objetivo_por_unidad_entorno_y_habilidad(sigla):
+def test_cada_materia_tiene_objetivo_en_infinitivo_y_entorno(sigla):
     assert sorted(ca.OBJETIVOS[sigla]) == [1, 2, 3, 4]
-    assert all(o and not o.endswith(".") for o in ca.OBJETIVOS[sigla].values())
-    assert ca.ENTORNOS[sigla] and ca.HABILIDADES[sigla][0].islower()
+    for objetivo in ca.OBJETIVOS[sigla].values():
+        assert not objetivo.endswith(".") and re.match(r"^[A-ZÁÉÍÓÚ][a-záéíóúñ]+(ar|er|ir)\b", objetivo), objetivo
+        assert "falencias" not in objetivo
+    assert ca.ENTORNOS[sigla]
 
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
-def test_textos_con_negritas_no_usan_marcas_markdown_accidentales(sigla):
-    # Conceptos, recursos y resultados se dibujan con markdown=True: «--» o «__» cambiarían el formato
+def test_textos_sin_marcas_que_alteren_el_formato(sigla):
+    # Las negritas (**) las agrega el generador; el código va entre pares de acentos graves
     textos = [t for u in ca.CONTENIDOS[sigla].values() for par in u["temas"] for t in par]
     textos += [t for fuentes in ca.RECURSOS[sigla].values() for par in fuentes for t in par]
-    textos += [ca.ENTORNOS[sigla], ca.HABILIDADES[sigla]]
+    textos += [ca.ENTORNOS[sigla], *ca.OBJETIVOS[sigla].values()]
     for texto in textos:
-        assert "--" not in texto and "__" not in texto and "**" not in texto, texto
+        assert "**" not in texto and texto.count("`") % 2 == 0, texto
 
 
 def test_material_al_grano_un_ejemplo_y_hasta_tres_ejercicios():
@@ -186,13 +206,35 @@ def test_material_al_grano_un_ejemplo_y_hasta_tres_ejercicios():
 
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
-def test_tipografia_limpia_en_ejemplos_y_ejercicios(sigla):
+def test_simbolos_ascii_limpios_en_ejemplos_y_ejercicios(sigla):
     for unidad in ca.CONTENIDOS[sigla].values():
         textos = [unidad["ejemplo"]["enunciado"], unidad["ejemplo"]["resultado"], *unidad["ejemplo"]["pasos"],
                   *unidad["ejercicios"]]
         for texto in textos:
             assert "->" not in texto, texto                                     # flechas limpias (=>)
             assert not re.search(r"«[^»]*[\[\](){}+*/=<>\d][^»]*»", texto), texto   # fórmulas sin comillas angulares
+            # El código va entre acentos graves (Courier, sin comillas): ninguna comilla simple pegada a símbolos
+            assert "'" not in texto and texto.count("`") % 2 == 0, texto
+            assert "\\prime" not in texto and "^{" not in texto, texto
+            guia_pdf._texto(texto.replace("`", "")).encode("latin-1", "strict")
+
+
+def test_el_codigo_se_imprime_en_courier_sin_comillas_ni_acentos_graves(monkeypatch):
+    escritos = []
+
+    class Registro:
+        def set_font(self, familia, estilo="", tam=0):
+            self.familia = familia
+
+        def write(self, alto, texto):
+            escritos.append((self.familia, texto))
+
+        def ln(self, alto):
+            pass
+
+    guia_pdf._escribir(Registro(), "Evalúe la expresión postfija `5 3 + 2 *` usando una **pila**.")
+    assert escritos == [("helvetica", "Evalúe la expresión postfija "), ("courier", "5 3 + 2 *"),
+                        ("helvetica", " usando una "), ("helvetica", "pila"), ("helvetica", ".")]
 
 
 def test_catalogo_incluye_las_materias_de_ambos_docentes():
@@ -222,9 +264,9 @@ def test_materia_fuera_del_catalogo_usa_una_guia_breve():
     assert renderizar_pdf(guia).startswith(b"%PDF-")
 
 
-def test_sin_registro_omite_el_diagnostico_y_tolera_texto_fuera_de_latin1():
+def test_sin_registro_omite_las_notas_y_tolera_texto_fuera_de_latin1():
     guia = _guia(registro=None, titulo="Refuerzo — «U2» → ≥ 7")
-    assert guia["diagnostico"] == []
+    assert guia["motivo"] is None and guia["indicaciones"].startswith("Carlos, este refuerzo corresponde a la Unidad 2 (")
     assert renderizar_pdf(guia).startswith(b"%PDF-")
 
 

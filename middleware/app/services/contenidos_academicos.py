@@ -188,7 +188,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                  "Modelan turnos de atención, impresión y planificación de procesos."),
             ],
             "ejemplo": {
-                "enunciado": "Evalúe la expresión en notación postfija '5 3 + 2 *' usando una pila.",
+                "enunciado": "Evalúe la expresión en notación postfija `5 3 + 2 *` usando una pila.",
                 "pasos": [
                     "Leer 5 => push(5). Pila: [5].",
                     "Leer 3 => push(3). Pila: [5, 3].",
@@ -200,7 +200,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             },
             "ejercicios": [
                 "Implemente una pila con lista enlazada y los métodos push, pop, peek y estaVacia.",
-                "Verifique con una pila si los paréntesis de '(a + [b * c]) - {d}' están balanceados.",
+                "Verifique con una pila si los paréntesis de `(a + [b * c]) - {d}` están balanceados.",
                 "Simule una cola de atención con 5 clientes y muestre el orden en que son atendidos.",
                 "Compare el costo de eliminar el primer elemento en un arreglo y en una lista enlazada.",
             ],
@@ -337,7 +337,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "titulo": "Historias de usuario y estimación",
             "temas": [
                 ("Historias de usuario",
-                 "Formato: 'Como <rol>, quiero <funcionalidad>, para <beneficio>'. Deben cumplir INVEST: "
+                 "Formato: Como [rol], quiero [funcionalidad], para [beneficio]. Deben cumplir INVEST: "
                  "independientes, negociables, valiosas, estimables, pequeñas y comprobables."),
                 ("Criterios de aceptación",
                  "Condiciones verificables para dar por cumplida la historia, por ejemplo en formato Dado / Cuando / "
@@ -573,8 +573,8 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                  "Un buen requisito es claro, medible y comprobable: evita palabras ambiguas como «rápido» o «fácil»."),
             ],
             "ejemplo": {
-                "enunciado": "Reescriba de forma verificable el requisito: 'El sistema debe ser rápido al buscar "
-                             "estudiantes'.",
+                "enunciado": "Reescriba de forma verificable el requisito: «El sistema debe ser rápido al buscar "
+                             "estudiantes».",
                 "pasos": [
                     "Detectar la ambigüedad: «rápido» no se puede medir.",
                     "Clasificarlo: es un requisito no funcional de rendimiento.",
@@ -586,7 +586,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             },
             "ejercicios": [
                 "Escriba 3 requisitos funcionales y 2 no funcionales para un sistema de biblioteca.",
-                "Reescriba de forma verificable: 'La aplicación debe ser segura y fácil de usar'.",
+                "Reescriba de forma verificable: «La aplicación debe ser segura y fácil de usar».",
                 "Prepare 5 preguntas de entrevista para obtener requisitos de un docente.",
             ],
         },
@@ -603,8 +603,8 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                  "Describe el orden de los mensajes entre objetos para un escenario concreto de un caso de uso."),
             ],
             "ejemplo": {
-                "enunciado": "Modele las clases principales de 'Un docente dicta varios cursos y cada curso tiene "
-                             "muchos estudiantes matriculados'.",
+                "enunciado": "Modele las clases principales de «Un docente dicta varios cursos y cada curso tiene "
+                             "muchos estudiantes matriculados».",
                 "pasos": [
                     "Identificar sustantivos: Docente, Curso, Estudiante, Matrícula.",
                     "Docente 1 - 0..* Curso: un docente dicta varios cursos.",
@@ -639,8 +639,8 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                 "pasos": [
                     "Caso válido: [8, 6, 10] => 8.00.",
                     "Valores límite: [0, 10] => 5.00.",
-                    "Caso inválido: [11, 7] => error 'nota fuera de rango'.",
-                    "Lista vacía: [] => error 'sin notas'.",
+                    "Caso inválido: [11, 7] => error «nota fuera de rango».",
+                    "Lista vacía: [] => error «sin notas».",
                 ],
                 "resultado": "Cuatro casos cubren el escenario normal, los límites y los errores esperados.",
             },
@@ -699,10 +699,10 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "Obtenga los cursos cuyo promedio de notas es menor a 7.",
                 "pasos": [
-                    "Unir notas con cursos: 'FROM nota n JOIN curso c ON c.id = n.curso_id'.",
-                    "Agrupar por curso: 'GROUP BY c.codigo'.",
-                    "Calcular el promedio: 'SELECT c.codigo, AVG(n.valor) AS promedio'.",
-                    "Filtrar los grupos: 'HAVING AVG(n.valor) < 7'.",
+                    "Unir notas con cursos: `FROM nota n JOIN curso c ON c.id = n.curso_id`.",
+                    "Agrupar por curso: `GROUP BY c.codigo`.",
+                    "Calcular el promedio: `SELECT c.codigo, AVG(n.valor) AS promedio`.",
+                    "Filtrar los grupos: `HAVING AVG(n.valor) < 7`.",
                 ],
                 "resultado": "La consulta devuelve sólo los cursos con promedio inferior a 7, con su promedio calculado.",
             },
@@ -727,10 +727,10 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "Transfiera 100 dólares de la cuenta A a la cuenta B sin dejar datos inconsistentes.",
                 "pasos": [
-                    "Iniciar: 'BEGIN TRANSACTION'.",
-                    "Debitar la cuenta A (id 1): 'UPDATE cuenta SET saldo = saldo - 100 WHERE id = 1'.",
-                    "Acreditar la cuenta B (id 2): 'UPDATE cuenta SET saldo = saldo + 100 WHERE id = 2'.",
-                    "Si ambas operaciones tienen éxito: 'COMMIT'; si alguna falla: 'ROLLBACK'.",
+                    "Iniciar: `BEGIN TRANSACTION`.",
+                    "Debitar la cuenta A (id 1): `UPDATE cuenta SET saldo = saldo - 100 WHERE id = 1`.",
+                    "Acreditar la cuenta B (id 2): `UPDATE cuenta SET saldo = saldo + 100 WHERE id = 2`.",
+                    "Si ambas operaciones tienen éxito: `COMMIT`; si alguna falla: `ROLLBACK`.",
                 ],
                 "resultado": "El dinero nunca desaparece: o se aplican ambos cambios o ninguno (atomicidad).",
             },
@@ -754,18 +754,18 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                  "columnas necesarias."),
             ],
             "ejemplo": {
-                "enunciado": "La consulta 'SELECT * FROM estudiante WHERE cedula = :cedula' tarda varios segundos.",
+                "enunciado": "La consulta `SELECT * FROM estudiante WHERE cedula = :cedula` tarda varios segundos.",
                 "pasos": [
                     "Revisar el plan de ejecución: aparece un recorrido completo de la tabla (table scan).",
-                    "Crear el índice: 'CREATE INDEX ix_estudiante_cedula ON estudiante(cedula)'.",
-                    "Seleccionar sólo lo necesario: 'SELECT cedula, nombres FROM estudiante WHERE cedula = ...'.",
+                    "Crear el índice: `CREATE INDEX ix_estudiante_cedula ON estudiante(cedula)`.",
+                    "Seleccionar sólo lo necesario: `SELECT cedula, nombres FROM estudiante WHERE cedula = ...`.",
                     "Volver a revisar el plan: ahora usa una búsqueda en el índice (index seek).",
                 ],
                 "resultado": "La búsqueda pasa de recorrer toda la tabla a localizar la fila directamente en el índice.",
             },
             "ejercicios": [
                 "Indique qué columnas indexaría en una tabla de notas consultada por estudiante y curso.",
-                "Explique por qué 'WHERE YEAR(fecha) = 2026' puede no usar un índice sobre fecha.",
+                "Explique por qué `WHERE YEAR(fecha) = 2026` puede no usar un índice sobre fecha.",
                 "Compare un table scan y un index seek con un ejemplo de 100 000 filas.",
             ],
         },
@@ -787,16 +787,16 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "Construya una tarjeta de curso que muestre dos columnas en escritorio y una en el celular.",
                 "pasos": [
-                    "HTML: un contenedor 'div class=\"cursos\"' con varios 'article class=\"tarjeta\"'.",
-                    "CSS base: '.cursos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }'.",
-                    "Media query: '@media (max-width: 600px) { .cursos { grid-template-columns: 1fr; } }'.",
+                    "HTML: un contenedor `div class=\"cursos\"` con varios `article class=\"tarjeta\"`.",
+                    "CSS base: `.cursos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }`.",
+                    "Media query: `@media (max-width: 600px) { .cursos { grid-template-columns: 1fr; } }`.",
                     "Probar reduciendo el ancho del navegador por debajo de 600 px.",
                 ],
                 "resultado": "Las tarjetas se muestran en 2 columnas en escritorio y en 1 columna en pantallas pequeñas.",
             },
             "ejercicios": [
                 "Maquete con etiquetas semánticas la página principal de una biblioteca virtual.",
-                "Calcule qué regla gana entre '#menu a' y '.nav a' y explique por qué.",
+                "Calcule qué regla gana entre `#menu a` y `.nav a` y explique por qué.",
                 "Cree con Flexbox una barra de navegación que se apile en pantallas pequeñas.",
             ],
         },
@@ -813,17 +813,17 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                  "addEventListener ejecuta una función cuando ocurre una acción del usuario (click, input, submit)."),
             ],
             "ejemplo": {
-                "enunciado": "Muestre en pantalla el promedio de tres notas al pulsar un botón 'Calcular'.",
+                "enunciado": "Muestre en pantalla el promedio de tres notas al pulsar un botón «Calcular».",
                 "pasos": [
-                    "Seleccionar el botón: 'const boton = document.querySelector('#calcular')'.",
-                    "Escuchar el clic: 'boton.addEventListener('click', calcular)'.",
-                    "Leer las notas: '[...document.querySelectorAll('.nota')].map(n => Number(n.value))'.",
-                    "Mostrar el resultado: 'salida.textContent = (suma / 3).toFixed(2)'.",
+                    "Seleccionar el botón: `const boton = document.querySelector(\"#calcular\")`.",
+                    "Escuchar el clic: `boton.addEventListener(\"click\", calcular)`.",
+                    "Leer las notas: `[...document.querySelectorAll(\".nota\")].map(n => Number(n.value))`.",
+                    "Mostrar el resultado: `salida.textContent = (suma / 3).toFixed(2)`.",
                 ],
                 "resultado": "Con notas 8, 6 y 10 la página muestra 8.00 sin recargarse.",
             },
             "ejercicios": [
-                "Valide que un campo de correo termine en '@uta.edu.ec' antes de enviar el formulario.",
+                "Valide que un campo de correo termine en `@uta.edu.ec` antes de enviar el formulario.",
                 "Agregue y elimine elementos de una lista de tareas usando el DOM.",
                 "Explique la diferencia entre let, const y var con un ejemplo.",
             ],
@@ -844,9 +844,9 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejemplo": {
                 "enunciado": "Diseñe los endpoints para gestionar las notas de un curso.",
                 "pasos": [
-                    "Listar las notas del curso: 'GET /cursos/{id}/notas' => 200 con la lista.",
-                    "Registrar una nota: 'POST /cursos/{id}/notas' con el JSON de la nota => 201.",
-                    "Corregir una nota: 'PUT /notas/{id}' => 200; si no existe => 404.",
+                    "Listar las notas del curso: `GET /cursos/{id}/notas` => 200 con la lista.",
+                    "Registrar una nota: `POST /cursos/{id}/notas` con el JSON de la nota => 201.",
+                    "Corregir una nota: `PUT /notas/{id}` => 200; si no existe => 404.",
                     "Validar el rango: una nota fuera de 0 a 10 responde 400 con el mensaje de error.",
                 ],
                 "resultado": "Cuatro endpoints coherentes con los verbos HTTP y códigos de estado claros.",
@@ -854,7 +854,7 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             "ejercicios": [
                 "Diseñe los endpoints REST para gestionar estudiantes (listar, crear, editar, eliminar).",
                 "Indique el código de estado correcto cuando se pide una nota que no existe.",
-                "Escriba el JSON de respuesta de 'GET /estudiantes/15'.",
+                "Escriba el JSON de respuesta de `GET /estudiantes/15`.",
             ],
         },
         4: {
@@ -874,9 +874,9 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
                 "enunciado": "Corrija una consulta vulnerable que concatena el correo escrito por el usuario dentro "
                              "del texto SQL.",
                 "pasos": [
-                    "Identificar el riesgo: un texto como 'x OR 1 = 1' cambia el sentido de la consulta (inyección SQL).",
-                    "Usar un parámetro: 'SELECT * FROM usuario WHERE correo = ?'.",
-                    "Enviar el valor por separado: 'cursor.execute(sql, (correo,))'.",
+                    "Identificar el riesgo: un texto como `x OR 1 = 1` cambia el sentido de la consulta (inyección SQL).",
+                    "Usar un parámetro: `SELECT * FROM usuario WHERE correo = ?`.",
+                    "Enviar el valor por separado: `cursor.execute(sql, (correo,))`.",
                     "Validar además el formato del correo en el servidor antes de consultar.",
                 ],
                 "resultado": "El motor trata el correo sólo como dato, por lo que el ataque deja de funcionar.",
@@ -1000,8 +1000,7 @@ def recursos_unidad(shortname: str, unidad: int) -> List[Tuple[str, str]]:
     return [*RECURSOS.get(sigla_curso(shortname), {}).get(unidad, []), aula]
 
 
-# Plantilla institucional UTA (guía práctica / tarea): objetivo de cada unidad, entorno de trabajo de la materia y
-# habilidad que el estudiante demuestra al completar el refuerzo.
+# Plantilla institucional UTA (guía práctica / tarea): objetivo de cada unidad y entorno de desarrollo de la materia.
 OBJETIVOS: Dict[str, Dict[int, str]] = {
     "POO": {
         1: "Aplicar correctamente clases, objetos, constructores y encapsulamiento en Java para modelar entidades "
@@ -1068,24 +1067,9 @@ ENTORNOS: Dict[str, str] = {
     "DW": "Visual Studio Code, un navegador con herramientas de desarrollador y Node.js (versión LTS)",
 }
 
-HABILIDADES: Dict[str, str] = {
-    "POO": "diseñar e implementar soluciones en Java aplicando los principios de la orientación a objetos",
-    "ED": "seleccionar e implementar la estructura de datos y el algoritmo más eficientes para un problema",
-    "MA": "aplicar prácticas ágiles para planificar, priorizar y dar seguimiento al trabajo de un equipo",
-    "MCS": "versionar, integrar y entregar software de forma controlada y trazable",
-    "IS1": "analizar y documentar un sistema de software con artefactos de ingeniería claros y verificables",
-    "BDA": "diseñar, consultar y optimizar bases de datos relacionales de forma consistente y eficiente",
-    "DW": "construir aplicaciones web funcionales, seguras y bien estructuradas",
-}
-
-
 def objetivo_unidad(shortname: str, unidad: int) -> Optional[str]:
     return OBJETIVOS.get(sigla_curso(shortname), {}).get(unidad)
 
 
 def entorno_materia(shortname: str) -> str:
     return ENTORNOS.get(sigla_curso(shortname), "herramientas de trabajo de la materia indicadas por el docente")
-
-
-def habilidad_materia(shortname: str) -> str:
-    return HABILIDADES.get(sigla_curso(shortname), "aplicar los contenidos de la unidad en problemas prácticos")

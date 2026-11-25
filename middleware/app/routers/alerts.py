@@ -268,7 +268,7 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     guia = _guia_de_estudio(alerta, docente, titulo, instrucciones, vence)
     texto_moodle = instrucciones + (
         f"\n\nGuía de refuerzo académico (formato UTA - FISEI): descargue el PDF adjunto «{guia['nombre']}» con el "
-        "tema, el objetivo, los recursos de apoyo, un ejemplo resuelto y las actividades por desarrollar." if guia else "")
+        "tema, el objetivo, el material de apoyo, un ejemplo resuelto y las actividades por desarrollar." if guia else "")
     moodle = MoodleClient()
     try:
         tarea = await moodle.publicar_refuerzo(
@@ -329,9 +329,9 @@ def _indicaciones_borrador(alerta: dict, unidad: str) -> str:
         return indicaciones_estudiante(alerta["nombres"], numero, contenido["titulo"],
                                        [t for t, _ in contenido["temas"][:3]], _vencimiento(None))
     nombre = (alerta.get("nombres") or "").split()[0] if alerta.get("nombres") else ""
-    return (f"Hola {nombre}, revisando tus calificaciones de la {unidad}, te comparto esta guía de apoyo antes de tu "
-            "actividad de recuperación. Revisa el material de clase, resuelve los ejercicios y sube tu desarrollo en "
-            "Moodle dentro de los próximos 7 días.")
+    return (f"{nombre or 'Estimado(a) estudiante'}, este refuerzo corresponde a la {unidad}. Revisa el material de "
+            "clase, resuelve las actividades de la guía y sube un único archivo PDF en la tarea de Moodle UTA dentro "
+            "de los próximos 7 días.")
 
 
 def _guia_de_estudio(alerta: dict, docente: dict, titulo: str, instrucciones: str,
