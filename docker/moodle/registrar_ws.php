@@ -14,7 +14,8 @@ if (!$service) {
     echo "[EduMonitor AI] El servicio EduMonitor_WS aún no existe (lo crea seed.php).\n";
     exit(0);
 }
-foreach (['local_edumonitor_crear_tarea', 'local_edumonitor_publicar_refuerzo', 'local_edumonitor_notificar_refuerzo']
+foreach (['local_edumonitor_crear_tarea', 'local_edumonitor_publicar_refuerzo', 'local_edumonitor_notificar_refuerzo',
+          'core_course_get_contents']
          as $fn) {
     if ($DB->record_exists('external_functions', ['name' => $fn]) &&
         !$DB->record_exists('external_services_functions', ['externalserviceid' => $service->id, 'functionname' => $fn])) {

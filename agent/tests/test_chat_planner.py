@@ -77,6 +77,7 @@ def test_el_prompt_incluye_el_nombre_de_la_materia_y_la_regla(monkeypatch):
     assert '"umbral":{"type":"number"}' in capturado["json"].replace(" ", "")
     assert "Asistente académico CoraIA (UTA - FISEI)" in json.loads(capturado["json"])["messages"][0]["content"]
     assert "EduMonitor" not in capturado["json"]                      # la marca visible es CoraIA
+    assert "Temas ajenos al seguimiento académico" in json.loads(capturado["json"])["messages"][0]["content"]
 
 
 def test_mensajes_triviales_no_esperan_a_ollama(monkeypatch):

@@ -35,7 +35,7 @@ from app.routers.auth import get_current_docente
 from app.routers.logs import append_log
 from app.services import sync_service
 from app.services.contenidos_academicos import contenido_unidad
-from app.services.guia_pdf import generar_guia_pdf, indicaciones_estudiante
+from app.services.guia_pdf import generar_guia_pdf, indicaciones_estudiante, materiales_unidad, texto_material
 from app.services.moodle_client import MoodleClient, MoodleError
 
 logger = logging.getLogger("middleware.alertas")
@@ -326,8 +326,10 @@ def _indicaciones_borrador(alerta: dict, unidad: str) -> str:
     numero = int(digitos) if digitos else 1
     contenido = contenido_unidad(alerta.get("curso_codigo") or "", numero)
     if contenido:
+        curso = next((c for c in sync_service.SYNC_STATE["cursos"] if c["id"] == alerta.get("curso_id")), {})
         return indicaciones_estudiante(alerta["nombres"], numero, contenido["titulo"],
-                                       [t for t, _ in contenido["temas"][:3]], _vencimiento(None))
+                                       [t for t, _ in contenido["temas"][:3]], _vencimiento(None),
+                                       material=texto_material(materiales_unidad(curso, numero), numero))
     nombre = (alerta.get("nombres") or "").split()[0] if alerta.get("nombres") else ""
     return (f"{nombre or 'Estimado(a) estudiante'}, este refuerzo corresponde a la {unidad}. Revisa el material de "
             "clase, resuelve las actividades de la guía y sube un único archivo PDF en la tarea de Moodle UTA dentro "

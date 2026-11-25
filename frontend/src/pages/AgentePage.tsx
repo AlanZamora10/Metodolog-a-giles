@@ -278,7 +278,7 @@ function Auditoria({ r }: { r: ChatResponse }) {
   return (
     <details className="auditoria" data-testid="auditoria">
       <summary>
-        <span className="auditoria-titulo">Fuentes consultadas</span>
+        <span className="auditoria-titulo">Fuentes consultadas / Trazabilidad</span>
         <span className="auditoria-resumen">
           {nombres.join(' · ')} · {(r.duracion_ms / 1000).toFixed(1)} s
         </span>
@@ -296,7 +296,16 @@ function Auditoria({ r }: { r: ChatResponse }) {
   );
 }
 
+/** «curso: SOF-POO-A · docente_id: 2» (parámetros ya validados por el middleware; nunca incluye secretos). */
+function parametrosLegibles(p: Record<string, unknown>): string {
+  return Object.entries(p)
+    .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+    .join(' · ');
+}
+
 function FuenteConsultada({ h, n }: { h: HerramientaUsada; n: number }) {
+  const filas = h.resultado?.filas ?? 0;
+  const t = h.trazabilidad;
   return (
     <div className="herramienta" data-testid="herramienta-usada">
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -306,10 +315,23 @@ function FuenteConsultada({ h, n }: { h: HerramientaUsada; n: number }) {
           <span className="badge nivel-critico">sin resultado: {h.resultado.error}</span>
         ) : (
           <span className="muted">
-            {h.resultado?.filas ?? 0} registro(s){h.duracion_ms !== undefined ? ` · ${h.duracion_ms} ms` : ''}
+            {filas} {filas === 1 ? 'registro' : 'registros'}
+            {h.duracion_ms !== undefined ? ` · ${h.duracion_ms} ms` : ''}
           </span>
         )}
       </div>
+      {t && (
+        <dl className="trazabilidad" data-testid="trazabilidad">
+          <dt>Herramienta invocada</dt>
+          <dd className="mono">{t.herramienta}</dd>
+          <dt>Parámetros validados</dt>
+          <dd>{parametrosLegibles(t.parametros_validados)}</dd>
+          <dt>Estado y fuente</dt>
+          <dd>
+            <span className={t.estado === 'OK' ? 'traza-ok' : 'traza-error'}>{t.estado}</span> · {t.resultado} · {t.fuente}
+          </dd>
+        </dl>
+      )}
       <details>
         <summary className="small">Ver parámetros y registros</summary>
         <div className="small muted">

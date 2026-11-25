@@ -31,7 +31,8 @@ def _ddl_mssql():
 
 def test_esquema_tsql_tipos_sql_server():
     ddl = _ddl_mssql()
-    assert len(ddl) == 12
+    assert len(ddl) == 13                                    # incluye materiales_curso (PDF de clase)
+    assert "NVARCHAR(255)" in ddl["materiales_curso"]
     assert "IDENTITY" in ddl["usuarios"]
     assert "NVARCHAR(max)" in ddl["logs_sistema"]            # mensaje (texto) y detalle (JSON)
     assert "DATETIME2" in ddl["logs_sistema"] and "DATETIME2" in ddl["refuerzos"]

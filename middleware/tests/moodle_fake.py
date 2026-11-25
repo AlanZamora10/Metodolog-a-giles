@@ -60,6 +60,31 @@ class FakeMoodleSprint3:
             _alumno(14, "Andrés Felipe Salazar Cueva", "U-09", "asalazar2875@uta.edu.ec", "1805112875"),
         ]
 
+    # Material de clase publicado en el aula virtual (core_course_get_contents); EXTRA simula un PDF recién subido
+    MATERIAL_EXTRA = []
+
+    async def get_course_contents(self, course_id):
+        if course_id != 2:
+            return []
+        return [
+            {"id": 1, "section": 0, "name": "Informativo", "modules": [
+                {"id": 100, "name": "Sílabo de la asignatura", "modname": "resource",
+                 "contents": [{"type": "file", "filename": "Silabo_SOF-POO-A.pdf", "mimetype": "application/pdf"}]},
+                {"id": 101, "name": "Portal UTA", "modname": "url", "contents": [{"type": "url", "filename": "uta"}]},
+            ]},
+            {"id": 2, "section": 1, "name": "Primer Parcial", "modules": [
+                {"id": 110, "name": "Unidad 1 - Material de clase (PDF)", "modname": "resource",
+                 "contents": [{"type": "file", "filename": "Unidad_1_SOF-POO-A.pdf", "mimetype": "application/pdf"}]},
+                {"id": 111, "name": "Unidad 2 - Guía de herencia y polimorfismo", "modname": "resource",
+                 "contents": [{"type": "file", "filename": "Guia_Herencia_y_Polimorfismo.pdf",
+                               "mimetype": "application/pdf"}]},
+                {"id": 112, "name": "Unidad 2 - Plantilla del informe", "modname": "resource",
+                 "contents": [{"type": "file", "filename": "Plantilla_informe.docx",
+                               "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}]},
+                *self.MATERIAL_EXTRA,
+            ]},
+        ]
+
     async def get_grade_items(self, course_id):
         u2 = 8.0 if self.recuperado else 5.0
         return [

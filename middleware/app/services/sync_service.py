@@ -15,6 +15,10 @@ Cada componente es el promedio (sobre 10) de sus actividades calificadas:
   - sin nota y sin comentario     -> no cuenta (aún no evaluada)
 
 Tendencia (R2): pendiente de regresión lineal sobre el promedio de cada unidad evaluada (U1, U2, ...).
+
+Material de clase: también se leen los recursos de archivo PDF publicados en cada sección del aula virtual
+(core_course_get_contents): título visible, nombre exacto del archivo, sección y unidad. Las guías de refuerzo
+los citan por su nombre; un PDF nuevo aparece en cuanto el docente pulsa «Sincronizar».
 """
 
 import logging
@@ -211,6 +215,48 @@ def respuesta_para_docente(email: str) -> Dict[str, Any]:
     }
 
 
+# ----------------------------------------------------------------------------- Material de clase (PDF)
+_UNIDAD_EN_TEXTO = re.compile(r"unidad[\s_-]*(\d)", re.IGNORECASE)
+_PARCIAL_DE_SECCION = {"primer parcial": 1, "segundo parcial": 2}
+
+
+def materiales_de_contenido(secciones: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Recursos de archivo PDF publicados en el aula virtual: (cmid, título, archivo, sección, parcial, unidad).
+    La unidad se toma del título o del nombre del archivo («Unidad 2 - ...», «Unidad_2_...»); el parcial, de la
+    sección (Primer / Segundo Parcial) o de la unidad.
+    """
+    materiales = []
+    for seccion in secciones or []:
+        nombre_seccion = (seccion.get("name") or "").strip()
+        for modulo in seccion.get("modules") or []:
+            if modulo.get("modname") != "resource":
+                continue
+            for archivo in modulo.get("contents") or []:
+                nombre = archivo.get("filename") or ""
+                if archivo.get("type", "file") != "file" or not (
+                        nombre.lower().endswith(".pdf") or archivo.get("mimetype") == "application/pdf"):
+                    continue
+                unidad = _UNIDAD_EN_TEXTO.search(f"{modulo.get('name') or ''} {nombre}")
+                unidad = int(unidad.group(1)) if unidad and 1 <= int(unidad.group(1)) <= 4 else None
+                parcial = _PARCIAL_DE_SECCION.get(nombre_seccion.lower()) or (parcial_de_unidad(unidad) if unidad else None)
+                materiales.append({
+                    "moodle_cmid": modulo.get("id"), "titulo": modulo.get("name") or nombre, "archivo": nombre,
+                    "seccion": nombre_seccion or None, "numero_seccion": seccion.get("section"),
+                    "parcial": parcial, "unidad": unidad,
+                })
+    return materiales
+
+
+async def leer_materiales(client: MoodleClient, course_id: int) -> List[Dict[str, Any]]:
+    """Material PDF del curso; si Moodle no permite leer el contenido, la sincronización continúa sin él."""
+    try:
+        return materiales_de_contenido(await client.get_course_contents(course_id))
+    except Exception as ex:  # noqa: BLE001 - el material es complementario a las notas
+        logger.warning("No se pudo leer el material de clase del curso %s: %s", course_id, ex)
+        return []
+
+
 def _construir_curso(curso_moodle: Dict[str, Any], usuarios: List[Dict[str, Any]],
                      usergrades: Dict[Any, List[Dict[str, Any]]]) -> Dict[str, Any]:
     docentes = [u for u in usuarios if _roles(u) & TEACHER_ROLES]
@@ -262,6 +308,7 @@ def persistir(cursos: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Guarda la sincronización y regenera las alertas R1/R2 de cada curso."""
     resultado = repositories.persist_sync(cursos)
     alertas = {"creadas": 0, "actualizadas": 0, "resueltas": 0}
+    materiales = sum(repositories.replace_materiales(c["shortname"], c.get("materiales") or []) for c in cursos)
     for curso in cursos:
         ids = resultado["ids"][curso["id"]]
         candidatas = [
@@ -276,6 +323,7 @@ def persistir(cursos: List[Dict[str, Any]]) -> Dict[str, Any]:
         "estudiantes": resultado["estudiantes"],
         "calificaciones": resultado["calificaciones"],
         "ponderadas": resultado["ponderadas"],
+        "materiales": materiales,
         "alertas": alertas,
     }
 
@@ -296,7 +344,9 @@ async def sincronizar(client: Optional[MoodleClient] = None) -> Dict[str, Any]:
     for c in sorted(cursos_moodle, key=lambda x: x["id"]):
         usuarios = await client.get_enrolled_users(c["id"])
         usergrades = {g["userid"]: g.get("gradeitems", []) for g in await client.get_grade_items(c["id"])}
-        cursos.append(_construir_curso(c, usuarios, usergrades))
+        curso = _construir_curso(c, usuarios, usergrades)
+        curso["materiales"] = await leer_materiales(client, c["id"])
+        cursos.append(curso)
 
     try:
         persistencia = persistir(cursos)
@@ -327,6 +377,9 @@ def cargar_desde_bd(engine) -> None:
     ]
     if not cursos:
         return
+    materiales = repositories.load_materiales(engine)
+    for curso in cursos:
+        curso["materiales"] = materiales.get(curso["shortname"], [])
     ultimo = repositories.last_log("SINCRONIZACION", "EXITO", engine) or {}
     SYNC_STATE.update({
         "ultima_sincronizacion": ultimo.get("timestamp"),

@@ -443,6 +443,12 @@ function CentroAlertas() {
         </aside>
       </div>
 
+      {/* RF-07 / Sección 13: carácter preventivo de las alertas */}
+      <p className="nota-pedagogica" data-testid="nota-pedagogica">
+        Las alertas son indicadores preventivos para revisión docente y no constituyen calificaciones ni diagnósticos
+        definitivos.
+      </p>
+
       {confirmar === 'publicar' && sel && borrador && (
         <Confirmacion
           titulo="Publicar refuerzo en Moodle UTA"

@@ -130,6 +130,7 @@ async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: L
         "Asistente académico CoraIA (UTA - FISEI). Elige herramientas y parámetros; no inventes datos. "
         "Todos los cursos o totales: sin course_id. Refuerzo: proponer_refuerzo(student_query). "
         "Guía en PDF de un estudiante: generar_guia_pdf(student_query). "
+        "Temas ajenos al seguimiento académico (cálculos generales, cultura general, chistes): ninguna herramienta. "
         "Un nombre de materia es un curso (course_id), nunca un estudiante. "
         "Nota con umbral (menor/mayor a X, entre X y Y): obtener_calificaciones(operador, umbral). "
         f"Cursos: {contexto or 'ninguno'}." + (f" Curso activo: {course_id}." if course_id else "")

@@ -163,11 +163,21 @@ export interface PublicarResponse {
 }
 
 // ---------- Agente (POST /api/v1/agent/chat) ----------
+/** RF-09 / RF-12: herramienta, parámetros validados (sin secretos), estado/resultado y fuente de los datos. */
+export interface Trazabilidad {
+  herramienta: string;
+  parametros_validados: Record<string, unknown>;
+  estado: 'OK' | 'ERROR';
+  resultado: string;
+  fuente: string;
+}
+
 export interface HerramientaUsada {
   herramienta: string;
   parametros: Record<string, unknown>;
   resultado: Record<string, unknown> & { filas?: number; error?: string };
   duracion_ms?: number;
+  trazabilidad?: Trazabilidad;
 }
 
 /** Resultado de la herramienta proponer_refuerzo. */
@@ -199,6 +209,8 @@ export interface ChatResponse {
   formato?: 'markdown' | 'texto';
   herramientas: HerramientaUsada[];
   adjuntos?: AdjuntoChat[];
+  /** Idioma en que CoraIA respondió (detecta si el docente escribe en español o en inglés). */
+  idioma?: 'es' | 'en';
   plan_fuente: string;
   redaccion: string;
   duracion_ms: number;

@@ -9,7 +9,7 @@ Fase A: la base activa es SQL Server 2022 (`MoodleUTADB`), conectada con SQLAlch
 
 `get_engine()` al primer uso:
   1. (SQL Server) crea la base MoodleUTADB si no existe, conectándose a `master`.
-  2. Crea las 12 tablas que falten y la vista `vista_panel_curso` (idempotente).
+  2. Crea las 13 tablas que falten y la vista `vista_panel_curso` (idempotente).
   3. Ejecuta los hooks de arranque (restaurar la última sincronización, registrar el inicio, ...).
 Si la base configurada no responde tras los reintentos, usa SQLite en memoria; /health lo informa.
 
@@ -56,7 +56,7 @@ def _fecha(nombre: str, con_defecto: bool = True) -> Column:
     return Column(nombre, FechaType, server_default=func.current_timestamp() if con_defecto else None)
 
 
-# ----------------------------------------------------------------------------- 12 tablas
+# ----------------------------------------------------------------------------- 13 tablas
 usuarios = Table(
     "usuarios", metadata,
     Column("id", Integer, primary_key=True),
@@ -242,6 +242,22 @@ refuerzos = Table(
     _fecha("fecha_creacion"),
     _fecha("fecha_publicacion", con_defecto=False),
     _fecha("fecha_entrega", con_defecto=False),
+)
+
+# Material de clase publicado en Moodle (recursos PDF por sección/unidad): lo citan las guías de refuerzo
+materiales_curso = Table(
+    "materiales_curso", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("materia_id", Integer, ForeignKey("materias.id"), nullable=False),
+    Column("moodle_cmid", Integer, nullable=False),
+    Column("titulo", Unicode(255), nullable=False),          # nombre visible del recurso en el aula virtual
+    Column("archivo", Unicode(255), nullable=False),         # nombre exacto del archivo PDF
+    Column("seccion", Unicode(120)),                         # p. ej. «Primer Parcial»
+    Column("numero_seccion", Integer),
+    Column("parcial", Integer),
+    Column("unidad", Integer),
+    _fecha("actualizado_en"),
+    UniqueConstraint("materia_id", "moodle_cmid", "archivo", name="ux_materiales_materia_cmid_archivo"),
 )
 
 _VISTA_PANEL = """

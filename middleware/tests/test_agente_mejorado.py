@@ -291,7 +291,7 @@ def test_umbral_explicito_filtra_estrictamente(sincronizado, mensaje, cumple, te
     filas = data["herramientas"][0]["resultado"]["calificaciones"]
     esperadas = [x for x in _notas(sincronizado) if cumple(round(x[0], 2))]
     assert [(f["nota_final"], f["nombres"]) for f in filas] == esperadas          # sólo quienes cumplen, de menor a mayor
-    assert data["respuesta"].startswith(f"Encontré **{len(esperadas)} matrícula(s)** con **{texto}**")
+    assert data["respuesta"].startswith(f"Encontré **{len(esperadas)} {'matrícula' if len(esperadas) == 1 else 'matrículas'}** con **{texto}**")
     lineas = [ln for ln in data["respuesta"].splitlines() if ln.startswith("- ")]
     assert len(lineas) == len(esperadas)
 
@@ -391,7 +391,7 @@ def test_reprobados_lista_solo_notas_bajo_siete(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "dame los reprobados", course_id=2)
     filas = data["herramientas"][0]["resultado"]["calificaciones"]
     assert filas and all(f["nota_final"] < 7 for f in filas)
-    assert data["respuesta"].startswith(f"Encontré **{len(filas)} matrícula(s)** con **nota menor a 7.00**")
+    assert data["respuesta"].startswith(f"Encontré **{len(filas)} {'matrícula' if len(filas) == 1 else 'matrículas'}** con **nota menor a 7.00**")
 
 
 @pytest.mark.parametrize("mensaje, esperado", [

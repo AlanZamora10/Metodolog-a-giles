@@ -12,7 +12,13 @@ const RESPUESTA_ALERTAS = {
   formato: 'markdown',
   herramientas: [
     { herramienta: 'listar_cursos_autorizados', parametros: {}, resultado: { filas: 4 }, duracion_ms: 3 },
-    { herramienta: 'identificar_alertas', parametros: { course_id: 2 }, resultado: { filas: 2, alertas: [] }, duracion_ms: 5 },
+    {
+      herramienta: 'identificar_alertas', parametros: { course_id: 2 }, resultado: { filas: 2, alertas: [] }, duracion_ms: 5,
+      trazabilidad: {
+        herramienta: 'identificar_alertas', parametros_validados: { curso: 'SOF-POO-A', docente_id: 2 }, estado: 'OK',
+        resultado: '2 registros', fuente: 'Alertas tempranas registradas en MoodleUTADB · 25/11/2026 15:46',
+      },
+    },
   ],
   plan_fuente: 'ollama_slm+reglas',
   redaccion: 'determinista_desde_herramientas',
@@ -94,12 +100,19 @@ describe('RF-09 · respuestas estructuradas del agente', () => {
     expect(auditoria).not.toHaveAttribute('open');
     const resumen = within(auditoria).getByText(/Cursos autorizados del docente · Alertas tempranas · 7\.4 s/);
     expect(resumen).toBeVisible();
-    expect(within(auditoria).getByText('Fuentes consultadas')).toBeInTheDocument();
+    expect(within(auditoria).getByText('Fuentes consultadas / Trazabilidad')).toBeInTheDocument();
 
-    await u.click(within(auditoria).getByText('Fuentes consultadas'));
+    await u.click(within(auditoria).getByText('Fuentes consultadas / Trazabilidad'));
     expect(auditoria).toHaveAttribute('open');
     const fuentes = within(auditoria).getAllByTestId('herramienta-usada');
     expect(fuentes).toHaveLength(2);
+    // RF-09 / RF-12: herramienta, parámetros validados y estado/resultado/fuente visibles sin expandir el JSON
+    const traza = within(fuentes[1]).getByTestId('trazabilidad');
+    expect(traza).toHaveTextContent('Herramienta invocadaidentificar_alertas');
+    expect(traza).toHaveTextContent('Parámetros validadoscurso: SOF-POO-A · docente_id: 2');
+    expect(traza).toHaveTextContent('OK · 2 registros · Alertas tempranas registradas en MoodleUTADB · 25/11/2026 15:46');
+    expect(fuentes[0]).toHaveTextContent('4 registros');
+    expect(auditoria).not.toHaveTextContent('registro(s)');
     const detalle = fuentes[1].querySelector('details')!;
     expect(detalle).not.toHaveAttribute('open');
     await u.click(within(fuentes[1]).getByText('Ver parámetros y registros'));

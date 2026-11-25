@@ -13,10 +13,12 @@
  *     Zona de información, Exámenes (40%), Tareas (30%) y APE (30%) por parcial.
  *     Cada usuario tiene cédula ecuatoriana válida (campo de perfil «cedula») y correo institucional
  *     inicial + primer apellido + 4 últimos dígitos de la cédula (@uta.edu.ec); se ingresa con el correo.
- *     Las fechas se calculan desde el día de ejecución: Primer Parcial cerrado (vencimientos en las últimas
- *     semanas, con entregas y notas) y Segundo Parcial en curso (vencimientos en las próximas semanas).
- *  6. Libro de calificaciones ponderado 40/30/30 y notas variadas del Primer Parcial
- *     (aceptables, en riesgo, críticos, nota 0, SIN ENTREGA y PENDIENTE).
+ *     Las fechas se calculan desde el día de ejecución: Primer Parcial cerrado (vencimientos hace 7-10
+ *     semanas, con entregas y notas) y Segundo Parcial a mitad de camino (Unidad 3: 3 deberes, 1 APE y
+ *     1 evaluación; Unidad 4: 4 deberes, 1 APE y 1 evaluación; vencimientos en las últimas 5 semanas).
+ *  6. Libro de calificaciones ponderado 40/30/30: Primer Parcial completo (aceptables, en riesgo, críticos,
+ *     descenso entre unidades, nota 0, SIN ENTREGA y PENDIENTE) y cerca de la mitad del Segundo Parcial
+ *     calificada; el resto queda entregado y PENDIENTE DE REVISIÓN.
  *  7. Web Services REST, servicio EduMonitor_WS y token de integración.
  *
  * Re-ejecutable en cualquier momento: crea lo que falta, actualiza lo existente y
@@ -264,6 +266,7 @@ $courses_def = [
         'fullname' => '(SOF) PROGRAMACION ORIENTADA A OBJETOS - A',
         'summary'  => 'Programación Orientada a Objetos - Paralelo A',
         'roster'   => ['U-03' => 8.6, 'U-04' => 3.4, 'U-05' => 7.2, 'U-06' => 6.0, 'U-07' => 9.1, 'U-08' => 4.5, 'U-09' => 7.8],
+        'descenso' => ['U-06' => 1.5],
     ],
     'SOF-ED-B' => [
         'docente'  => 'U-01',
@@ -286,6 +289,7 @@ $courses_def = [
         'roster'   => ['U-03' => 8.0, 'U-04' => 3.8, 'U-05' => 7.3, 'U-07' => 8.9, 'U-08' => 5.4,
                        'U-10' => 9.2, 'U-12' => 7.6, 'U-14' => 6.8, 'U-16' => 4.4, 'U-17' => 8.5,
                        'U-18' => 5.8, 'U-19' => 7.9, 'U-20' => 6.1, 'U-21' => 3.5, 'U-22' => 9.4],
+        'descenso' => ['U-18' => 1.5],
     ],
     // ---- Cursos de la Ing. Patricia Elena Villacís Paredes
     'SOF-IS1-A' => [
@@ -293,7 +297,7 @@ $courses_def = [
         'fullname' => '(SOF) INGENIERIA DE SOFTWARE I - A',
         'summary'  => 'Ingeniería de Software I - Paralelo A',
         'roster'   => ['U-03' => 7.6, 'U-10' => 8.9, 'U-13' => 3.6, 'U-17' => 7.4, 'U-22' => 9.0,
-                       'U-23' => 8.7, 'U-24' => 4.3, 'U-25' => 6.6],
+                       'U-23' => 8.7, 'U-24' => 5.8, 'U-25' => 6.6],
         'nota_cero' => [['U-13', 'U1-T2']],
         'descenso'  => ['U-25' => 2.5],
     ],
@@ -494,13 +498,23 @@ $parciales = [
                        'U2-T3' => 'Tarea 3: Ejercicios aplicados', 'U2-T4' => 'Tarea 4: Informe de laboratorio'],
           'pae' => ['U1-P1' => 'Práctica 1: Laboratorio guiado', 'U1-P2' => 'Práctica 2: Caso de estudio',
                     'U2-P3' => 'Práctica 3: Proyecto integrador (avance)']],
+    // Segundo Parcial a mitad de camino: Unidad 3 (3 deberes, 1 APE, 1 evaluación) y Unidad 4 (4 deberes, 1 APE,
+    // 1 evaluación). Cerca de la mitad ya está calificada; el resto se entregó y espera calificación.
     2 => ['nombre' => 'Segundo Parcial', 'unidades' => [3, 4], 'cerrado' => false,
-          'acd' => ['U3-A3' => 'Evaluación Unidad 3', 'U4-A4' => 'Evaluación Unidad 4'],
-          'tareas' => ['U3-T5' => 'Tarea 5: Investigación aplicada', 'U3-T6' => 'Tarea 6: Taller de refuerzo',
-                       'U4-T7' => 'Tarea 7: Resolución de problemas', 'U4-T8' => 'Tarea 8: Informe final'],
-          'pae' => ['U3-P4' => 'Práctica 4: Laboratorio avanzado', 'U3-P5' => 'Práctica 5: Simulación',
-                    'U4-P6' => 'Práctica 6: Proyecto integrador (entrega final)']],
+          'acd' => ['U3-A1' => 'Evaluación Unidad 3', 'U4-A1' => 'Evaluación Unidad 4'],
+          'tareas' => ['U3-T1' => 'Deber 1 (Unidad 3): Investigación aplicada', 'U3-T2' => 'Deber 2 (Unidad 3): Taller práctico',
+                       'U3-T3' => 'Deber 3 (Unidad 3): Ejercicios de refuerzo',
+                       'U4-T1' => 'Deber 1 (Unidad 4): Resolución de problemas', 'U4-T2' => 'Deber 2 (Unidad 4): Caso aplicado',
+                       'U4-T3' => 'Deber 3 (Unidad 4): Informe técnico', 'U4-T4' => 'Deber 4 (Unidad 4): Informe final'],
+          'pae' => ['U3-P1' => 'Práctica APE (Unidad 3): Laboratorio avanzado',
+                    'U4-P1' => 'Práctica APE (Unidad 4): Proyecto integrador'],
+          // Vencimiento en días respecto de hoy: lo calificado ya venció; lo pendiente se entregó en los últimos días
+          'vence' => ['U3-T1' => -35, 'U3-T2' => -28, 'U3-P1' => -26, 'U3-T3' => -21, 'U3-A1' => -19,
+                      'U4-T1' => -12, 'U4-T2' => -6, 'U4-P1' => -5, 'U4-T3' => -4, 'U4-A1' => -3, 'U4-T4' => -2],
+          'calificadas' => ['U3-T1', 'U3-T2', 'U3-T3', 'U3-P1', 'U3-A1', 'U4-T1']],
 ];
+// Actividades del Segundo Parcial de siembras anteriores (otro esquema de códigos): se retiran del aula
+$p2_obsoletas = ['U3-A3', 'U4-A4', 'U3-T5', 'U3-T6', 'U4-T7', 'U4-T8', 'U3-P4', 'U3-P5', 'U4-P6'];
 
 $section_names = [0 => 'Informativo', 1 => 'Primer Parcial', 2 => 'Segundo Parcial', 3 => 'Supletorio'];
 
@@ -548,6 +562,11 @@ foreach ($courses as $short => $course) {
     ]);
 
     // --- Secciones 1 y 2: Parciales
+    foreach ($p2_obsoletas as $vieja) {
+        if ($cm_viejo = $DB->get_record('course_modules', ['course' => $course->id, 'idnumber' => $vieja])) {
+            course_delete_module($cm_viejo->id);
+        }
+    }
     foreach ($parciales as $sec => $p) {
         block_label($course, $sec, "S$sec-ZI", 'Zona de información', 'Material de lectura y enlaces de apoyo por unidad.');
         foreach ($p['unidades'] as $u) {
@@ -570,8 +589,9 @@ foreach ($courses as $short => $course) {
             $n = count($p[$key]);
             foreach ($p[$key] as $idn => $name) {
                 $i++;
-                // Cerrado: la última actividad venció hace 1 semana. En curso: la primera vence dentro de 1 semana.
-                $due = $p['cerrado'] ? $hoy - ($n - $i + 1) * 7 * DAYSECS : $hoy + $i * 7 * DAYSECS;
+                // Primer Parcial cerrado: vencimientos entre 7 y 10 semanas atrás (antes del Segundo Parcial)
+                $due = isset($p['vence'][$idn]) ? $hoy + $p['vence'][$idn] * DAYSECS
+                    : ($p['cerrado'] ? $hoy - ($n - $i + 1 + 6) * 7 * DAYSECS : $hoy + $i * 7 * DAYSECS);
                 $intro = $files ? 'Suba su archivo (PDF, DOCX o ZIP) antes de la fecha límite.' : 'Actividad evaluada en clase con el docente.';
                 ensure_assign($course, $sec, $idn, $name, $intro, $due, $files);
             }
@@ -590,7 +610,7 @@ foreach ($courses as $short => $course) {
 // =============================================================================
 // 6. LIBRO DE CALIFICACIONES 40/30/30 Y NOTAS
 // =============================================================================
-out("[6/7] Libro de calificaciones ponderado y notas del Primer Parcial...");
+out("[6/7] Libro de calificaciones ponderado: Primer Parcial completo y mitad del Segundo Parcial...");
 
 /** Nota determinística alrededor de la base del estudiante (pasos de 0.25, rango 0-10). */
 function seed_grade($base, $key) {
@@ -692,7 +712,7 @@ foreach ($courses as $short => $course) {
         }
     }
 
-    // Notas del Primer Parcial
+    // Notas del Primer Parcial (completo) y del Segundo Parcial (calificado a medias; el resto pendiente)
     $def = $courses_def[$short];
     $titular = $docentes[$def['docente']];
     $marcas = [];
@@ -704,14 +724,23 @@ foreach ($courses as $short => $course) {
     foreach ($courses_def[$short]['roster'] as $idn => $base) {
         $user = $students[$idn];
         foreach ($items_by_idn as $itemidn => [$gi, $cm]) {
-            if (!preg_match('/^U[12]-[ATP]\d+$/', $itemidn)) {
-                continue; // Segundo Parcial y Supletorio aún no evaluados
+            $segundo = (bool)preg_match('/^U[34]-[ATP]\d+$/', $itemidn);
+            if (!$segundo && !preg_match('/^U[12]-[ATP]\d+$/', $itemidn)) {
+                continue; // Supletorio: aún no evaluado
             }
             $feedback = null;
             // Descenso entre unidades (regla R2): la Unidad 2 queda por debajo de la Unidad 1
             $baseitem = str_starts_with($itemidn, 'U2-') ? $base - ($def['descenso'][$idn] ?? 0) : $base;
+            if ($segundo) {
+                // Segundo Parcial: cada estudiante mejora o baja levemente (±0.75); quien ya venía en descenso
+                // sigue bajando en la Unidad 3 y la Unidad 4.
+                $deriva = ((crc32("$short|$idn|P2") % 7) - 3) * 0.25;
+                $baseitem = $base + $deriva - 1.6 * ($def['descenso'][$idn] ?? 0);
+            }
             $value = seed_grade($baseitem, "$short|$idn|$itemidn");
-            if (($marcas["$idn|$itemidn"] ?? '') === 'CERO') {
+            if ($segundo && !in_array($itemidn, $parciales[2]['calificadas'], true)) {
+                $value = null; $feedback = 'PENDIENTE DE REVISIÓN';   // Entregada, aún sin calificar
+            } else if (($marcas["$idn|$itemidn"] ?? '') === 'CERO') {
                 $value = 0.0;
             } else if (($marcas["$idn|$itemidn"] ?? '') === 'SIN ENTREGA') {
                 $value = 0.0; $feedback = 'SIN ENTREGA';
@@ -775,7 +804,9 @@ foreach (['core_webservice_get_site_info', 'core_course_get_courses', 'core_cour
           // Aviso al estudiante en la campana de notificaciones de Moodle
           'local_edumonitor_notificar_refuerzo',
           // Tarea de refuerzo con la guía de estudio PDF adjunta
-          'local_edumonitor_publicar_refuerzo'] as $fn) {
+          'local_edumonitor_publicar_refuerzo',
+          // Material de clase publicado por unidad (recursos PDF): lo lee la sincronización para las guías
+          'core_course_get_contents'] as $fn) {
     if ($DB->record_exists('external_functions', ['name' => $fn]) &&
         !$DB->record_exists('external_services_functions', ['externalserviceid' => $service->id, 'functionname' => $fn])) {
         $DB->insert_record('external_services_functions', (object)['externalserviceid' => $service->id, 'functionname' => $fn]);
@@ -804,7 +835,7 @@ foreach ($courses_def as $short => $def) {
 }
 echo "  Admin: admin / MoodleAdmin2026!\n";
 foreach ($docentes_def as $idn => [$uname, $fn, $ln]) {
-    printf("  Docente: %s / %s  <- también es el login de EduMonitor AI\n", $docentes[$idn]->email, clave_uta($fn, $ln));
+    printf("  Docente: %s / %s  <- también es el login de CoraIA\n", $docentes[$idn]->email, clave_uta($fn, $ln));
 }
 echo "  Estudiantes: correo institucional / PrimerNombrePrimerApellido1! (p. ej. CarlosMendoza1!)\n";
 echo "====================================================================\n";

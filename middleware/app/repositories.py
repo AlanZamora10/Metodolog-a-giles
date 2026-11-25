@@ -15,7 +15,7 @@ from sqlalchemy.engine import Connection, Engine
 from app.config import settings
 from app.database import (
     actividades, alertas_tempranas, calificaciones, calificaciones_ponderadas, categorias_unidad, estudiantes,
-    get_engine, logs_sistema, materias, metadata, parciales, periodos, refuerzos, usuarios,
+    get_engine, logs_sistema, materias, materiales_curso, metadata, parciales, periodos, refuerzos, usuarios,
 )
 
 COMPONENTE_BD = {"ACD": "AUTONOMO", "TAREAS": "TAREAS", "PAE": "PAE"}
@@ -410,3 +410,36 @@ def contar(tabla_nombre: str, engine: Optional[Engine] = None) -> int:
 def filas(tabla_nombre: str, engine: Optional[Engine] = None) -> List[Dict[str, Any]]:
     with _engine(engine).connect() as conn:
         return [_dict(r) for r in conn.execute(select(metadata.tables[tabla_nombre])).all()]
+
+
+# ----------------------------------------------------------------------------- Material de clase (recursos PDF)
+_CAMPOS_MATERIAL = ("moodle_cmid", "titulo", "archivo", "seccion", "numero_seccion", "parcial", "unidad")
+
+
+def replace_materiales(codigo_materia: str, materiales: List[Dict[str, Any]],
+                       engine: Optional[Engine] = None) -> int:
+    """Reemplaza el material de clase registrado de una materia por el publicado hoy en Moodle."""
+    with _engine(engine).begin() as conn:
+        materia_id = conn.execute(select(materias.c.id).where(materias.c.codigo == codigo_materia[:20])).scalar()
+        if materia_id is None:
+            return 0
+        conn.execute(delete(materiales_curso).where(materiales_curso.c.materia_id == materia_id))
+        for m in materiales:
+            conn.execute(insert(materiales_curso).values(
+                materia_id=materia_id, actualizado_en=ahora(),
+                **{k: (m.get(k)[:255] if isinstance(m.get(k), str) else m.get(k)) for k in _CAMPOS_MATERIAL}))
+    return len(materiales)
+
+
+def load_materiales(engine: Optional[Engine] = None) -> Dict[str, List[Dict[str, Any]]]:
+    """Material de clase por código de materia (para reconstruir la sincronización al arrancar)."""
+    por_materia: Dict[str, List[Dict[str, Any]]] = {}
+    with _engine(engine).connect() as conn:
+        filas = conn.execute(
+            select(materias.c.codigo, *[materiales_curso.c[k] for k in _CAMPOS_MATERIAL])
+            .join(materias, materias.c.id == materiales_curso.c.materia_id)
+            .order_by(materiales_curso.c.numero_seccion, materiales_curso.c.moodle_cmid)
+        ).all()
+    for f in filas:
+        por_materia.setdefault(f.codigo, []).append({k: getattr(f, k) for k in _CAMPOS_MATERIAL})
+    return por_materia

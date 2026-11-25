@@ -19,13 +19,14 @@ import os
 import re
 import time
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import httpx
 
 from app import repositories
+from app.services import agente_idioma as idioma
 from app.services import reporte_service, sync_service
 
 logger = logging.getLogger("edumonitor.agente")
@@ -131,7 +132,8 @@ def _nombre_curso(fullname: str) -> str:
 def _sin_codigos(texto: str, cursos: List[Dict[str, Any]]) -> str:
     """La respuesta al docente usa el nombre de la materia, no el código interno del curso (SOF-POO-A)."""
     for c in sorted(cursos, key=lambda x: len(x["shortname"]), reverse=True):
-        texto = texto.replace(c["shortname"], _nombre_curso(c["fullname"]))
+        nombre = idioma.curso_en(c["fullname"]) if idioma.IDIOMA.get() == "en" else _nombre_curso(c["fullname"])
+        texto = texto.replace(c["shortname"], nombre)
     return texto
 
 
@@ -400,7 +402,8 @@ def proponer_refuerzo(docente: dict, student_query: Optional[str] = None,
         objetivo += f", fortalezca el componente {NOMBRE_COMPONENTE[componente_debil]} ({_f(componentes[componente_debil])}/10)"
     pendientes_entrega = [i for i in incidencias if i["tipo"] in ("SIN_ENTREGA", "NOTA_0")]
     if pendientes_entrega:
-        objetivo += f" y regularice {len(pendientes_entrega)} entrega(s) con nota 0 o sin entrega"
+        objetivo += (f" y regularice {idioma.plural(len(pendientes_entrega), 'entrega', 'entregas')} con nota 0 o "
+                     "sin entrega")
     objetivo += f", alcanzando al menos {UMBRAL_APROBACION:.2f}/10 en esta actividad."
 
     pasos = []
@@ -448,6 +451,14 @@ def proponer_refuerzo(docente: dict, student_query: Optional[str] = None,
     }
 
 
+def hora_ecuador(valor: Any) -> datetime:
+    """Fecha guardada en la base (UTC, con o sin zona) -> hora local de Ecuador (UTC-5) sin zona."""
+    fecha = valor if isinstance(valor, datetime) else datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+    if fecha.tzinfo is None:
+        fecha = fecha.replace(tzinfo=timezone.utc)
+    return fecha.astimezone(timezone(timedelta(hours=-5))).replace(tzinfo=None)
+
+
 def guia_de_estudiante(docente: dict, student_query: Optional[str],
                        course_id: Optional[int] = None) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
     """
@@ -470,7 +481,9 @@ def guia_de_estudiante(docente: dict, student_query: Optional[str],
     for alerta in repositories.list_alertas(course_id=curso["id"]):
         refuerzo = repositories.get_refuerzo(alerta_id=alerta["id"]) if alerta["id_number"] == e["id_number"] else None
         if refuerzo and refuerzo.get("fecha_entrega"):   # refuerzo ya publicado: su fecha real en Moodle
-            vence = datetime.fromisoformat(str(refuerzo["fecha_entrega"])).replace(tzinfo=None)
+            publicada = hora_ecuador(refuerzo["fecha_entrega"])
+            if publicada > datetime.now():               # uno ya vencido (parcial anterior) no fija la entrega
+                vence = publicada
     datos = {
         "estudiante": {"nombres": e["nombres"], "email": e.get("email"), "id_number": e["id_number"],
                        "cedula": e.get("cedula")},
@@ -602,8 +615,12 @@ _PERFIL = re.compile(r"\b(como me llamo|cual es mi nombre|mi nombre|quien soy( y
 # Lenguaje inapropiado: respuesta breve y profesional
 _INSULTOS = {"inutil", "idiota", "estupido", "estupida", "tonto", "tonta", "imbecil", "basura", "mierda", "maldito",
              "maldita", "pendejo", "pendeja", "carajo", "verga", "puta", "puto", "porqueria", "callate", "odio",
-             "baboso", "babosa", "burro", "inservible", "mamon", "huevon", "cojudo", "gil"}
+             "baboso", "babosa", "burro", "inservible", "mamon", "huevon", "cojudo", "gil",
+             # en inglés
+             "useless", "stupid", "idiot", "dumb", "moron", "trash", "garbage", "sucks", "shut"}
 _TECLADO = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
+_RESPUESTA_INSTITUCIONAL_EN = ("I'm CoraIA, the academic assistant of FISEI. I can help you with your **courses**, "
+                               "your students' **grades** or **early alerts**. What do you need to check?")
 _RESPUESTA_INSTITUCIONAL = ("Soy CoraIA, el asistente académico de la FISEI. Puedo ayudarle con sus "
                             "**cursos**, las **notas** de sus estudiantes o las **alertas tempranas**. "
                             "¿Qué necesita consultar?")
@@ -831,6 +848,10 @@ def respuesta_cortesia(mensaje: str, docente: dict, previas: Optional[Dict[str, 
 def ayuda_sin_intencion(docente: dict) -> str:
     """Aclaración en una frase, con opciones claras, cuando no se entiende la consulta."""
     nombre = _trato(docente)
+    if idioma.IDIOMA.get() == "en":
+        return (f"Could you be more specific{', ' + nombre if nombre else ''}? Would you like the **overall summary** "
+                "of your courses, the **at-risk students** or a **student's grades**? Type, for example, «overall "
+                "summary», «who is at risk» or the student's name.")
     return (f"No estoy seguro de qué necesita{', ' + nombre if nombre else ''}. ¿Quiere ver el **resumen general** "
             "de sus cursos, los **estudiantes en riesgo** o las **notas de un estudiante**? Escriba, por ejemplo, "
             "«resumen general», «quién está mal» o el nombre del estudiante.")
@@ -1166,7 +1187,7 @@ def _seccion_calificaciones_criterio(r: Dict[str, Any]) -> Seccion:
     filas, criterio = r["calificaciones"], texto_criterio(r["criterio"])
     if not filas:
         return ("Calificaciones", f"Ninguna matrícula tiene **{criterio}** {_alcance(r)}.", [])
-    clave = f"Encontré **{len(filas)} matrícula(s)** con **{criterio}** {_alcance(r)}:"
+    clave = f"Encontré **{idioma.plural(len(filas), 'matrícula', 'matrículas')}** con **{criterio}** {_alcance(r)}:"
     una_materia = len(r.get("cursos_consultados") or []) == 1
     lineas = [f"- **{f['nombres']}**" + ("" if una_materia else f" · {_nombre_curso(f['curso_nombre'])}")
               + f": **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])})"
@@ -1232,7 +1253,7 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
                      f"({NIVEL_TEXTO.get(f0['nivel_riesgo'], f0['nivel_riesgo'])}) en "
                      f"**{_curso_titulo(f0['curso_nombre'])}**.")
         else:
-            clave = (f"**{nombre}** ({filas[0]['id_number']}) está matriculado(a) en **{len(filas)} cursos** con "
+            clave = (f"**{nombre}** ({filas[0]['id_number']}) cursa **{len(filas)} materias** con "
                      f"promedio **{promedio:.2f}/10**; nivel crítico en {criticos} de {len(filas)}.")
         lineas = []
         for f in sorted(filas, key=lambda x: x["nota_final"]):
@@ -1257,7 +1278,8 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
                  f"**{len(criticos)} en nivel crítico** y {en_riesgo} en riesgo.")
         seguimiento = sorted((f for f in filas if f["nivel_riesgo"] != "ACEPTABLE"), key=lambda x: x["nota_final"])
         lineas = [f"- {f['nombres']}: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'])})"
-                  + (f" · {len(f['incidencias'])} incidencia(s)" if f["incidencias"] else "") for f in seguimiento[:6]]
+                  + (f" · {idioma.plural(len(f['incidencias']), 'incidencia', 'incidencias')}" if f["incidencias"] else "")
+                  for f in seguimiento[:6]]
         return "Calificaciones", clave, lineas or ["- Todos los estudiantes están aprobando."]
     else:
         clave = (f"Revisé **{len(filas)} calificaciones** en {len(por_curso)} cursos: **{len(criticos)} en nivel "
@@ -1270,7 +1292,8 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
         seguimiento = [f for f in lista if f["nivel_riesgo"] != "ACEPTABLE"]
         for f in seguimiento[:6]:
             lineas.append(f"  - {f['nombres']}: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'])})"
-                          + (f" · {len(f['incidencias'])} incidencia(s)" if f["incidencias"] else ""))
+                          + (f" · {idioma.plural(len(f['incidencias']), 'incidencia', 'incidencias')}"
+                             if f["incidencias"] else ""))
         if not seguimiento:
             lineas.append("  - Todos los estudiantes están aprobando.")
     return "Calificaciones", clave, lineas
@@ -1281,8 +1304,9 @@ def _seccion_alertas(r: Dict[str, Any]) -> Seccion:
     if not alertas:
         return "Alertas tempranas", "No hay alertas activas para el criterio consultado.", []
     abiertas = sum(1 for a in alertas if a["estado"] == "ABIERTA")
-    clave = (f"Hay **{len(alertas)} alerta(s) activa(s)**; {abiertas} sigue(n) abierta(s) y requiere(n) "
-             f"atención prioritaria.")
+    clave = (f"Hay **{idioma.plural(len(alertas), 'alerta activa', 'alertas activas')}**; "
+             + (f"{abiertas} sigue abierta y requiere" if abiertas == 1 else f"{abiertas} siguen abiertas y requieren")
+             + " atención prioritaria.")
     lineas = [f"- **{a['nombres']}** ({a['curso']}) · "
               f"{'Nota crítica' if a['regla'].startswith('R1') else 'Descenso sostenido'} · nota **{_f(a.get('nota_final'))}/10**"
               + (f" · pendiente {a['pendiente']:+.2f}" if a.get("pendiente") is not None else "")
@@ -1301,10 +1325,11 @@ def _seccion_resumen(r: Dict[str, Any]) -> List[Seccion]:
                  f"de aprobación.")
         lineas = [
             f"- **Promedio:** {m['promedio']:.2f}/10 (mediana {m['mediana']:.2f}; rango {m['nota_minima']:.2f}–{m['nota_maxima']:.2f})",
-            f"- **Niveles:** {m['criticos']} crítico(s), {m['en_riesgo']} en riesgo y {m['aceptables']} aceptable(s) "
-            f"de {m['total_estudiantes']}",
-            f"- **Entregas:** {d['cero']} con nota 0, {d['sin_entrega']} sin entrega y {d['pendiente']} pendiente(s) "
-            f"de {d['total_registros']} registros",
+            f"- **Niveles:** {idioma.plural(m['criticos'], 'crítico', 'críticos')}, {m['en_riesgo']} en riesgo y "
+            f"{idioma.plural(m['aceptables'], 'aceptable', 'aceptables')} de {m['total_estudiantes']}",
+            f"- **Entregas:** {d['cero']} con nota 0, {d['sin_entrega']} sin entrega y "
+            f"{idioma.plural(d['pendiente'], 'pendiente', 'pendientes')} de "
+            f"{idioma.plural(d['total_registros'], 'registro', 'registros')}",
         ]
         if s["hallazgos"][1:]:
             lineas.append("\n**Hallazgos clave**")
@@ -1331,7 +1356,7 @@ def _seccion_actividades(r: Dict[str, Any]) -> Seccion:
         if a["sin_entrega"]:
             extras.append(f"{a['sin_entrega']} sin entrega")
         if a["pendientes"]:
-            extras.append(f"{a['pendientes']} pendiente(s)")
+            extras.append(idioma.plural(a["pendientes"], "pendiente", "pendientes"))
         lineas.append(f"- **{a['curso']} · {a['actividad']}** {a['nombre']}: **{a['promedio']:.2f}/10** · " + ", ".join(extras))
     lineas.append("\n**Sugerencia:** revise el enunciado y la retroalimentación de estas actividades y considere "
                   "una sesión de refuerzo grupal sobre esos temas.")
@@ -1424,13 +1449,16 @@ def _secciones(nombre: str, r: Dict[str, Any]) -> List[Seccion]:
 
 def redactar(usadas: List[Dict[str, Any]]) -> str:
     """Respuesta en Markdown: resumen ejecutivo + una sección por resultado (sólo datos de las herramientas)."""
-    secciones = [s for u in usadas for s in _secciones(u["herramienta"], u["resultado"])]
+    en = idioma.IDIOMA.get() == "en"
+    secciones = [s for u in usadas
+                 for s in (idioma.secciones_en if en else _secciones)(u["herramienta"], u["resultado"])]
     if not secciones:
-        return "No encontré información para responder. Pruebe a sincronizar con Moodle UTA."
+        return idioma.t("No encontré información para responder. Pruebe a sincronizar con Moodle UTA.",
+                        "I found no information to answer. Try synchronizing with Moodle UTA.")
     if len(secciones) == 1:
         titulo, clave, lineas = secciones[0]
         return "\n".join([clave, ""] + lineas).strip()
-    partes = ["**Resumen ejecutivo**"] + [f"- {clave}" for _, clave, _ in secciones]
+    partes = [idioma.t("**Resumen ejecutivo**", "**Executive summary**")] + [f"- {clave}" for _, clave, _ in secciones]
     for titulo, _, lineas in secciones:
         if lineas:
             partes += ["", f"### {titulo}"] + lineas
@@ -1445,45 +1473,117 @@ def _respuesta_sin_herramientas(texto: str, fuente: str, docente: dict, inicio: 
         int((time.time() - inicio) * 1000),
     )
     return {"respuesta": texto, "formato": "markdown", "herramientas": [], "plan_fuente": fuente,
-            "redaccion": "determinista_sin_herramientas", "adjuntos": [],
+            "redaccion": "determinista_sin_herramientas", "adjuntos": [], "idioma": idioma.IDIOMA.get(),
             "duracion_ms": int((time.time() - inicio) * 1000)}
 
 
+_FUENTE_HERRAMIENTA = {
+    "identificar_alertas": "Alertas tempranas registradas en MoodleUTADB",
+    "generar_guia_pdf": "Guía PDF generada con las notas sincronizadas desde Moodle UTA",
+    "perfil_docente": "Perfil del docente y cursos sincronizados desde Moodle UTA",
+}
+
+
+def trazabilidad(nombre: str, params: Dict[str, Any], resultado: Dict[str, Any], docente: dict) -> Dict[str, Any]:
+    """
+    RF-09 / RF-12: herramienta invocada, parámetros validados (curso por su código, estudiante, docente_id; nunca
+    tokens ni contraseñas), estado y resultado, y la fuente de los datos con la fecha de la última sincronización.
+    """
+    from app.services.reporte_service import _fecha_hora
+    cursos = {c["id"]: c["shortname"] for c in sync_service.cursos_del_docente(docente["email"])}
+    validados: Dict[str, Any] = {}
+    for clave, valor in params.items():
+        if clave == "course_id":
+            validados["curso"] = cursos.get(int(valor), valor)
+        elif clave in ("estudiante", "student_query"):
+            validados["estudiante"] = valor
+        else:
+            validados[clave] = valor
+    if "curso" not in validados and isinstance(resultado.get("curso"), str):
+        validados["curso"] = resultado["curso"]          # curso que resolvió la herramienta (plan de apoyo, guía)
+    elif "curso" not in validados and nombre not in ("perfil_docente", "listar_cursos_autorizados"):
+        validados["curso"] = "todos los cursos del docente"
+    validados["docente_id"] = docente.get("id")
+    error = resultado.get("error")
+    fuente = _FUENTE_HERRAMIENTA.get(nombre, "Sincronizado desde Moodle UTA")
+    ultima = sync_service.SYNC_STATE.get("ultima_sincronizacion")
+    return {
+        "herramienta": nombre,
+        "parametros_validados": validados,
+        "estado": "ERROR" if error else "OK",
+        "resultado": error or idioma.plural(int(resultado.get("filas") or 0), "registro", "registros"),
+        "fuente": f"{fuente} · {_fecha_hora(ultima)}" if ultima else fuente,
+    }
+
+
+def _respuesta_dominio(docente: dict, inicio: float) -> Dict[str, Any]:
+    return _respuesta_sin_herramientas(idioma.mensaje_dominio(), "fuera_de_dominio", docente, inicio)
+
+
 async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None) -> Dict[str, Any]:
+    """Atiende un mensaje del docente en español o en inglés (CoraIA responde en el mismo idioma)."""
+    lengua = idioma.detectar_idioma(mensaje)
+    marca = idioma.IDIOMA.set(lengua)
+    try:
+        return await _conversar(mensaje, docente, course_id, lengua)
+    finally:
+        idioma.IDIOMA.reset(marca)
+
+
+async def _conversar(mensaje: str, docente: dict, course_id: Optional[int], lengua: str) -> Dict[str, Any]:
     inicio = time.time()
-    tipo = clasificar_cortesia(mensaje)
-    if tipo:  # saludo o cortesía: sin herramientas ni LLM, sin repetir la misma respuesta en la conversación
-        previas: Dict[str, int] = {}
-        for log in repositories.chats_recientes(docente["email"]):
-            t = (log.get("detalle") or {}).get("cortesia")
-            if t:
-                previas[t] = previas.get(t, 0) + 1
-        texto = respuesta_cortesia(mensaje, docente, previas)
-        return _respuesta_sin_herramientas(texto, "cortesia", docente, inicio, {"cortesia": tipo})
-    ctx = _contexto(mensaje, docente, course_id)
+    t = idioma.t
+    if lengua == "en":
+        cortesia = idioma.cortesia_en(mensaje, docente)
+        if cortesia:
+            return _respuesta_sin_herramientas(cortesia, "cortesia", docente, inicio, {"cortesia": "en"})
+    else:
+        tipo = clasificar_cortesia(mensaje)
+        if tipo:  # saludo o cortesía: sin herramientas ni LLM, sin repetir la misma respuesta en la conversación
+            previas: Dict[str, int] = {}
+            for log in repositories.chats_recientes(docente["email"]):
+                previo = (log.get("detalle") or {}).get("cortesia")
+                if previo:
+                    previas[previo] = previas.get(previo, 0) + 1
+            texto = respuesta_cortesia(mensaje, docente, previas)
+            return _respuesta_sin_herramientas(texto, "cortesia", docente, inicio, {"cortesia": tipo})
+    if idioma.fuera_de_dominio(mensaje):
+        # «2 + 2», «capital de España», chistes...: CoraIA delimita su alcance (no resuelve temas externos)
+        return _respuesta_dominio(docente, inicio)
+    # Una consulta en inglés se lleva a las mismas intenciones (en español) que entiende el planificador
+    consulta = idioma.traducir_consulta(mensaje) if lengua == "en" else mensaje
+    ctx = _contexto(consulta, docente, course_id)
     motivo = fuera_de_contexto(ctx["texto"])
-    if motivo and not planificar_por_reglas(mensaje, docente, course_id):
-        respuesta = _RESPUESTA_INSTITUCIONAL if motivo == "sin_sentido" else (
-            f"Mantengamos una comunicación respetuosa, {_trato_formal(docente) or 'por favor'}. "
-            + _RESPUESTA_INSTITUCIONAL)
+    if motivo and not planificar_por_reglas(consulta, docente, course_id):
+        institucional = t(_RESPUESTA_INSTITUCIONAL, _RESPUESTA_INSTITUCIONAL_EN)
+        respuesta = institucional if motivo == "sin_sentido" else (
+            t(f"Mantengamos una comunicación respetuosa, {_trato_formal(docente) or 'por favor'}. ",
+              f"Let's keep a respectful conversation, {_trato_formal(docente) or 'please'}. ") + institucional)
         return _respuesta_sin_herramientas(respuesta, "fuera_de_contexto", docente, inicio, {"motivo": motivo})
     if _PIDE_PDF.search(ctx["texto"]) and not ctx["estudiante"] and not estudiante_en_contexto(docente):
-        return _respuesta_sin_herramientas(
+        return _respuesta_sin_herramientas(t(
             "Con gusto genero la guía oficial en PDF. ¿De qué estudiante? Indíqueme su **nombre completo** o su "
-            "**cédula** (por ejemplo, «dame el pdf de Carlos Mendoza»).", "aclaracion", docente, inicio)
+            "**cédula** (por ejemplo, «dame el pdf de Carlos Mendoza»).",
+            "I'll gladly generate the official PDF guide. For which student? Tell me their **full name** or **ID "
+            "number** (for example, «give me the pdf of Carlos Mendoza»)."), "aclaracion", docente, inicio)
     if _REFUERZO.search(ctx["texto"]) and not ctx["estudiante"] and not _PIDE_PDF.search(ctx["texto"]):
-        return _respuesta_sin_herramientas(
+        return _respuesta_sin_herramientas(t(
             "Con gusto preparo un plan de apoyo. ¿Para qué estudiante? Indíqueme su **nombre completo** o su "
-            "**cédula** (por ejemplo, «plan de apoyo para Carlos Mendoza»).", "aclaracion", docente, inicio)
+            "**cédula** (por ejemplo, «plan de apoyo para Carlos Mendoza»).",
+            "I'll gladly prepare a support plan. For which student? Tell me their **full name** or **ID number** "
+            "(for example, «support plan for Carlos Mendoza»)."), "aclaracion", docente, inicio)
     if not ctx["estudiante"] and not ctx["criterio"] and not _PANORAMA.search(ctx["texto"]):
         ambiguos = estudiantes_ambiguos(ctx["texto"], sync_service.cursos_del_docente(docente["email"]))
         if ambiguos:
-            opciones = " o ".join(f"**{n}**" for n in ambiguos[:4])
-            extra = " (o escriba su cédula)" if len(ambiguos) > 4 else ""
+            opciones = t(" o ", " or ").join(f"**{n}**" for n in ambiguos[:4])
+            extra = t(" (o escriba su cédula)", " (or type their ID number)") if len(ambiguos) > 4 else ""
             return _respuesta_sin_herramientas(
-                f"¿A qué estudiante se refiere: {opciones}{extra}?", "aclaracion", docente, inicio)
-    plan, fuente = await planificar(mensaje, docente, course_id)
+                t(f"¿A qué estudiante se refiere: {opciones}{extra}?", f"Which student do you mean: {opciones}{extra}?"),
+                "aclaracion", docente, inicio)
+    plan, fuente = await planificar(consulta, docente, course_id)
     if not plan:
+        if not (idioma.es_academico(ctx["texto"]) or idioma.es_academico(_normalizar(mensaje))):
+            return _respuesta_dominio(docente, inicio)   # tema ajeno al seguimiento académico
         return _respuesta_sin_herramientas(ayuda_sin_intencion(docente), "aclaracion", docente, inicio)
     usadas = []
     for nombre, params in plan:
@@ -1494,23 +1594,28 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
         except HerramientaError as ex:
             resultado, estado = {"error": str(ex), "filas": 0}, "ADVERTENCIA"
         duracion = int((time.time() - t0) * 1000)
+        traza = trazabilidad(nombre, params, resultado, docente)
         repositories.insert_log(
             "AGENTE_HERRAMIENTA", estado, f"El agente invocó {nombre} ({fuente}).",
             {"herramienta": nombre, "parametros": params, "docente": docente["email"], "plan": fuente,
-             "filas": resultado.get("filas", 0), **({"error": resultado["error"]} if "error" in resultado else {})},
+             "filas": resultado.get("filas", 0), "trazabilidad": traza,
+             **({"error": resultado["error"]} if "error" in resultado else {})},
             duracion,
         )
-        usadas.append({"herramienta": nombre, "parametros": params, "resultado": resultado, "duracion_ms": duracion})
+        usadas.append({"herramienta": nombre, "parametros": params, "resultado": resultado, "duracion_ms": duracion,
+                       "trazabilidad": traza})
 
     respuesta = _sin_codigos(redactar(usadas), sync_service.cursos_del_docente(docente["email"]))
     contexto_estudiante = _estudiante_de(usadas)
     repositories.insert_log(
-        "AGENTE_CHAT", "EXITO", f"Consulta del docente atendida con {len(usadas)} herramienta(s).",
+        "AGENTE_CHAT", "EXITO",
+        f"Consulta del docente atendida con {idioma.plural(len(usadas), 'herramienta', 'herramientas')}.",
         {"docente": docente["email"], "herramientas": [u["herramienta"] for u in usadas], "plan": fuente,
-         **({"estudiante_contexto": contexto_estudiante} if contexto_estudiante else {})},
+         "idioma": lengua, **({"estudiante_contexto": contexto_estudiante} if contexto_estudiante else {})},
         int((time.time() - inicio) * 1000),
     )
-    adjuntos = [u["resultado"]["descarga"] for u in usadas if "descarga" in u["resultado"]]
+    adjuntos = [{**u["resultado"]["descarga"], **({"etiqueta": "Download PDF guide"} if lengua == "en" else {})}
+                for u in usadas if "descarga" in u["resultado"]]
     return {"respuesta": respuesta, "formato": "markdown", "herramientas": usadas, "plan_fuente": fuente,
-            "redaccion": "determinista_desde_herramientas", "adjuntos": adjuntos,
+            "redaccion": "determinista_desde_herramientas", "adjuntos": adjuntos, "idioma": lengua,
             "duracion_ms": int((time.time() - inicio) * 1000)}

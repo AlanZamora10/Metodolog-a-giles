@@ -13,6 +13,7 @@ from app.routers.auth import get_current_docente
 from app.routers.students import STUDENTS_STORE, _build_student_response, respuesta_sincronizada
 from app.schemas.academic import CourseSummary
 from app.services import reporte_service, sync_service
+from app.services.moodle_client import MoodleClient, MoodleError
 
 router = APIRouter(prefix="/courses", tags=["Cursos"])
 
@@ -125,3 +126,32 @@ async def list_courses(docente: dict = Depends(get_current_docente)):
         }
         for codigo, nombre in _CURSOS_HEREDADOS.items()
     ]
+
+
+@router.get("/{course_id}/materiales")
+async def materiales_curso(course_id: int, docente: dict = Depends(get_current_docente)):
+    """Material de clase (PDF) publicado en el aula virtual del curso, por sección y unidad."""
+    curso = curso_autorizado(course_id, docente)
+    return {"curso": curso["shortname"], "materiales": curso.get("materiales") or []}
+
+
+@router.post("/{course_id}/materiales/sincronizar")
+async def sincronizar_materiales(course_id: int, docente: dict = Depends(get_current_docente)):
+    """
+    Vuelve a leer en Moodle sólo el material PDF del curso (sin recalcular notas): un archivo recién subido queda
+    disponible al instante para las siguientes guías de refuerzo.
+    """
+    curso = curso_autorizado(course_id, docente)
+    client = MoodleClient()
+    try:
+        materiales = sync_service.materiales_de_contenido(await client.get_course_contents(course_id))
+    except MoodleError as ex:
+        raise HTTPException(status_code=502, detail=f"No se pudo leer el material del curso en Moodle: {ex}") from ex
+    curso["materiales"] = materiales
+    repositories.replace_materiales(curso["shortname"], materiales)
+    repositories.insert_log("SINCRONIZACION_MATERIALES", "EXITO",
+                            f"Material de clase de {curso['shortname']}: {len(materiales)} PDF.",
+                            {"curso": curso["shortname"], "docente": docente["email"],
+                             "archivos": [m["archivo"] for m in materiales]})
+    return {"curso": curso["shortname"], "materiales": materiales}
+

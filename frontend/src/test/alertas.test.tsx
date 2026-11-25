@@ -32,6 +32,10 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     expect(item).not.toHaveTextContent('-0.25');                // la pendiente sólo acompaña al descenso sostenido
     expect(item).not.toHaveTextContent(/R1|< 5\.00/);
     expect(item).not.toHaveTextContent(/reprobad/i);
+    // RF-07 / Sección 13: nota pedagógica al pie del Centro de alertas
+    expect(screen.getByTestId('nota-pedagogica')).toHaveTextContent(
+      'Las alertas son indicadores preventivos para revisión docente y no constituyen calificaciones ni diagnósticos definitivos.',
+    );
   });
 
   it('el panel cambia al instante al estudiante elegido y descarta la respuesta tardía de la alerta anterior', async () => {

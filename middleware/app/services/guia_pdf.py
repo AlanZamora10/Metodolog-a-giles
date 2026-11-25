@@ -111,9 +111,26 @@ def motivo_refuerzo(registro: Dict[str, Any], numero: int, debiles: List[Dict[st
     return "; ".join(partes) if partes else None
 
 
+_PARCIALES = {1: "Primer Parcial", 2: "Segundo Parcial"}
+
+
+def materiales_unidad(curso: Dict[str, Any], numero: int) -> List[Dict[str, Any]]:
+    """PDF de clase publicados en el aula virtual para esa unidad (leídos de Moodle al sincronizar)."""
+    return [m for m in curso.get("materiales") or [] if m.get("unidad") == numero and m.get("archivo")]
+
+
+def texto_material(materiales: List[Dict[str, Any]], numero: int) -> Optional[Tuple[str, str]]:
+    """(«Primer Parcial, Unidad 2», «Guia_Scrum.pdf» y «Tablero.pdf») o None si aún no se subió material."""
+    if not materiales:
+        return None
+    seccion = materiales[0].get("seccion") or _PARCIALES.get(materiales[0].get("parcial") or 0) or "aula virtual"
+    return f"{seccion}, Unidad {numero}", _lista([f"«{m['archivo']}»" for m in materiales])
+
+
 def instrucciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
                              fecha_entrega: Optional[datetime] = None,
-                             motivo: Optional[str] = None) -> Tuple[str, List[str]]:
+                             motivo: Optional[str] = None,
+                             material: Optional[Tuple[str, str]] = None) -> Tuple[str, List[str]]:
     """Instrucciones del docente en pasos cortos: (saludo, [motivo académico, qué repasar, entrega])."""
     nombre = (nombres or "").split()[0] if nombres else "Estimado(a) estudiante"
     plazo = (f"hasta el {fecha_entrega_texto(fecha_entrega)}" if fecha_entrega
@@ -123,7 +140,8 @@ def instrucciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subt
         f"**Motivo académico:** {motivo}." if motivo
         else f"**Motivo académico:** reforzar los contenidos de la Unidad {numero} según la evaluación de tu docente.",
         f"**Qué repasar:** {_lista(_en_minuscula(subtemas))}, con la fundamentación y el ejemplo resuelto de la "
-        "sección VI.",
+        "sección VI" + (f". Revisa el material publicado en el aula virtual ({material[0]}): {material[1]}."
+                        if material else "."),
         "**Entrega:** resuelve las actividades de la sección VII y sube un único archivo PDF (o tu código comprimido "
         f"en .zip) en la tarea de Moodle UTA {plazo}.",
     ]
@@ -131,9 +149,10 @@ def instrucciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subt
 
 
 def indicaciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
-                            fecha_entrega: Optional[datetime] = None, motivo: Optional[str] = None) -> str:
+                            fecha_entrega: Optional[datetime] = None, motivo: Optional[str] = None,
+                            material: Optional[Tuple[str, str]] = None) -> str:
     """Las mismas instrucciones como texto (tarea de Moodle / borrador que el docente puede editar)."""
-    intro, pasos = instrucciones_estudiante(nombres, numero, titulo_unidad, subtemas, fecha_entrega, motivo)
+    intro, pasos = instrucciones_estudiante(nombres, numero, titulo_unidad, subtemas, fecha_entrega, motivo, material)
     return "\n".join([intro, *(f"{i}. {p.replace('**', '')}" for i, p in enumerate(pasos, 1))])
 
 
@@ -185,8 +204,15 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
     temas = contenido["temas"][:MAX_TEMAS]
     subtemas = [t for t, _ in temas]
     motivo = motivo_refuerzo(registro, numero, debiles)
+    publicados = materiales_unidad(curso, numero)
+    material = texto_material(publicados, numero)
     intro, pasos = instrucciones_estudiante(estudiante.get("nombres") or "", numero, contenido["titulo"], subtemas,
-                                            fecha_entrega, motivo)
+                                            fecha_entrega, motivo, material)
+    recursos = recursos_unidad(shortname, numero)
+    if material:
+        # El aula virtual se cita con los nombres exactos de los PDF subidos por el docente a esa unidad
+        recursos = [r for r in recursos if not r[0].startswith("Aula virtual")] + [
+            ("Aula virtual de la materia (Moodle UTA)", f"material publicado en {material[0]}: {material[1]}.")]
     observacion = _observacion(instrucciones)
     materia = _materia(curso.get("fullname", ""), shortname)
     objetivo = objetivo_unidad(shortname, numero) or f"Afianzar los contenidos de la Unidad {numero}"
@@ -212,7 +238,8 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
         "observacion": observacion,
         "temas": temas,
         "entorno": entorno_materia(shortname),
-        "recursos": recursos_unidad(shortname, numero),
+        "recursos": recursos,
+        "materiales": [{"archivo": m["archivo"], "titulo": m.get("titulo")} for m in publicados],
         "referencia": referencia_unidad(shortname, numero),
         "ejemplo": {**ejemplo, "pasos": ejemplo["pasos"][:MAX_PASOS]} if ejemplo else None,
         "ejercicios": contenido["ejercicios"][:MAX_EJERCICIOS],

@@ -90,6 +90,10 @@ class MoodleClient:
     async def get_enrolled_users(self, course_id: int) -> List[Dict[str, Any]]:
         return await self.call("core_enrol_get_enrolled_users", courseid=course_id)
 
+    async def get_course_contents(self, course_id: int) -> List[Dict[str, Any]]:
+        """Secciones del aula virtual con sus módulos (recursos de archivo incluidos)."""
+        return await self.call("core_course_get_contents", courseid=course_id)
+
     async def get_grade_items(self, course_id: int) -> List[Dict[str, Any]]:
         """Libro de calificaciones (usergrades) de todos los usuarios del curso."""
         data = await self.call("gradereport_user_get_grade_items", courseid=course_id)
