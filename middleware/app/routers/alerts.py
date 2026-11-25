@@ -267,8 +267,8 @@ async def publicar_refuerzo(refuerzo_id: int, req: PublicarRefuerzoReq, docente:
     vence = _vencimiento(req.fecha_entrega)
     guia = _guia_de_estudio(alerta, docente, titulo, instrucciones, vence)
     texto_moodle = instrucciones + (
-        f"\n\nGuía de refuerzo: descargue el PDF adjunto «{guia['nombre']}» con los conceptos clave, el material "
-        "recomendado, un ejemplo resuelto y ejercicios de práctica." if guia else "")
+        f"\n\nGuía de refuerzo académico (formato UTA - FISEI): descargue el PDF adjunto «{guia['nombre']}» con el "
+        "tema, el objetivo, los recursos de apoyo, un ejemplo resuelto y las actividades por desarrollar." if guia else "")
     moodle = MoodleClient()
     try:
         tarea = await moodle.publicar_refuerzo(

@@ -541,3 +541,62 @@ def test_mensajes_fuera_de_contexto_reciben_respuesta_profesional(sincronizado, 
 def test_un_insulto_con_una_consulta_real_igual_se_responde(sincronizado):  # noqa: F811
     data = _chat(sincronizado, "estúpido sistema, dame los reprobados de POO")
     assert [h["herramienta"] for h in data["herramientas"]] == ["obtener_calificaciones"]
+
+
+@pytest.mark.parametrize("mensaje, extremo", [
+    ("¿Quién es el estudiante con la peor calificación de POO?", "peor"),
+    ("el alumno con la nota más baja en poo", "peor"),
+    ("quién tiene la menor nota de POO", "peor"),
+    ("quién tiene la nota más baja en POO", "peor"),
+    ("cuál es la calificación más alta de poo", "mejor"),
+    ("¿Cuál es el estudiante con mejor calificación de POO?", "mejor"),
+    ("el mejor estudiante de POO", "mejor"),
+])
+def test_peor_o_mejor_estudiante_de_una_materia_se_destaca_primero(sincronizado, monkeypatch, mensaje, extremo):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje)
+    llamada = _herramienta(data, "obtener_calificaciones")
+    assert [h["herramienta"] for h in data["herramientas"]] == ["obtener_calificaciones"]
+    assert llamada["parametros"] == {"course_id": 2, "extremo": extremo}
+    filas = llamada["resultado"]["calificaciones"]
+    notas = [f["nota_final"] for f in filas]
+    objetivo = min(notas) if extremo == "peor" else max(notas)
+    assert filas[0]["nota_final"] == objetivo
+    adjetivo = "menor" if extremo == "peor" else "mayor"
+    assert data["respuesta"].startswith(
+        f"En **Programación orientada a objetos — Paralelo A**, el estudiante con la **{adjetivo} calificación** es "
+        f"**{filas[0]['nombres']}**, con **{objetivo:.2f}/10**")
+    assert "curso(s)" not in data["respuesta"] and "alerta(s)" not in data["respuesta"]
+
+
+def test_peor_estudiante_en_todos_los_cursos_indica_la_materia(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "¿quién es el estudiante con la peor nota en todos mis cursos?", course_id=2)
+    assert _herramienta(data, "obtener_calificaciones")["parametros"] == {"extremo": "peor"}   # sin el curso activo
+    fila = lambda n, curso, nota, nivel: {"nombres": n, "curso_nombre": curso, "nota_final": nota,  # noqa: E731
+                                          "nivel_riesgo": nivel}
+    titulo, clave, lineas = agente_herramientas._seccion_extremo({
+        "extremo": "peor",
+        "cursos_consultados": [{"fullname": "(SOF) PROGRAMACION ORIENTADA A OBJETOS - A"},
+                               {"fullname": "(SOF) ESTRUCTURA DE DATOS - B"}],
+        "calificaciones": [fila("Ana Ruiz", "(SOF) ESTRUCTURA DE DATOS - B", 2.1, "CRITICO"),
+                           fila("Luis Paz", "(SOF) PROGRAMACION ORIENTADA A OBJETOS - A", 5.5, "EN_RIESGO"),
+                           fila("Eva Sol", "(SOF) ESTRUCTURA DE DATOS - B", 9.0, "ACEPTABLE")]})
+    assert clave == ("En sus 2 cursos, el estudiante con la **menor calificación** es **Ana Ruiz** en Estructura "
+                     "de datos — Paralelo B, con **2.10/10** (crítico).")
+    assert lineas == ["También requieren seguimiento:",
+                      "- Luis Paz en Programación orientada a objetos — Paralelo A: **5.50/10** (en riesgo)"]
+
+
+def test_las_peores_notas_en_plural_siguen_siendo_alertas(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "peores notas de POO")
+    assert [h["herramienta"] for h in data["herramientas"]] == ["identificar_alertas"]
+
+
+def test_calificaciones_de_una_sola_materia_nombran_el_curso(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "notas de POO")
+    assert data["respuesta"].startswith("En **Programación orientada a objetos — Paralelo A** revisé ")
+    assert data["respuesta"].count("Programación orientada a objetos") == 1          # sin repetir el curso
+    assert "curso(s)" not in data["respuesta"]

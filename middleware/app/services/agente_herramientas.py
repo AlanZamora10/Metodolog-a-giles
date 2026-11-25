@@ -52,7 +52,8 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
                        "Un nombre de materia es un curso (course_id), nunca un estudiante.",
         "parametros": {"course_id": "integer (opcional)", "estudiante": "string (opcional)",
                        "operador": "< | <= | > | >= | entre (opcional)", "umbral": "number (opcional)",
-                       "umbral_max": "number (opcional, sólo con entre)"},
+                       "umbral_max": "number (opcional, sólo con entre)",
+                       "extremo": "peor | mejor (opcional: el estudiante con la menor o la mayor nota)"},
     },
     "identificar_alertas": {
         "descripcion": "Alertas tempranas activas (nota crítica o descenso sostenido entre unidades) de un curso o de "
@@ -248,8 +249,10 @@ def texto_criterio(criterio: Dict[str, Any]) -> str:
 
 def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estudiante: Optional[str] = None,
                            operador: Optional[str] = None, umbral: Any = None,
-                           umbral_max: Any = None) -> Dict[str, Any]:
+                           umbral_max: Any = None, extremo: Optional[str] = None) -> Dict[str, Any]:
+    """`extremo` = 'peor' | 'mejor': ordena para destacar al estudiante con la menor o la mayor nota."""
     filtro = _normalizar(estudiante) if estudiante else None
+    extremo = extremo if extremo in ("peor", "mejor") else None
     criterio = _criterio_valido(operador, umbral, umbral_max)
     cursos = _cursos(docente, course_id)
     resultado = []
@@ -270,9 +273,12 @@ def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estud
     if filtro and not resultado and not criterio:
         raise HerramientaError(f"no encontré a «{estudiante}» entre sus estudiantes. Pruebe con su nombre "
                                "completo o su cédula.")
-    if criterio:
+    if criterio or extremo == "peor":
         resultado.sort(key=lambda f: (f["nota_final"], f["nombres"]))
+    elif extremo == "mejor":
+        resultado.sort(key=lambda f: (-f["nota_final"], f["nombres"]))
     return {"calificaciones": resultado, "filas": len(resultado), "estudiante": estudiante, "criterio": criterio,
+            "extremo": extremo,
             "cursos_consultados": [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"]}
                                    for c in cursos]}
 
@@ -448,7 +454,7 @@ EJECUTORES: Dict[str, Callable[..., Dict[str, Any]]] = {
 }
 _PARAMETROS_VALIDOS = {
     "listar_cursos_autorizados": set(),
-    "obtener_calificaciones": {"course_id", "estudiante", "operador", "umbral", "umbral_max"},
+    "obtener_calificaciones": {"course_id", "estudiante", "operador", "umbral", "umbral_max", "extremo"},
     "identificar_alertas": {"course_id", "regla"},
     "generar_resumen": {"course_id"},
     "analizar_actividades": {"course_id"},
@@ -570,8 +576,28 @@ def fuera_de_contexto(texto: str) -> Optional[str]:
     return "sin_sentido" if all(rara(p) for p in palabras) else None
 
 
+# Pregunta en singular por un extremo: «el estudiante con la peor calificación de POO», «quién tiene la mejor nota»,
+# «el mejor alumno de ED», «el estudiante con la nota más baja». («las peores notas», en plural, son alertas.)
+_EXTREMO = re.compile(
+    r"\b(?:(?:el|la|al) (?:estudiante|alumn[oa]) (?:con|que tiene|de) (?:la |el )?|quien tiene (?:la |el )?|"
+    r"(?:el|la) )(?P<adj>peor|menor|mejor|mayor|mas baja|mas bajo|mas alta|mas alto) "
+    r"(?:nota|calificacion|promedio|rendimiento|desempeno|estudiante|alumn[oa])\b"
+    r"|\b(?:(?:estudiante|alumn[oa]) con |quien tiene |cual es )?(?:la |el )(?:nota|calificacion|promedio) "
+    r"(?P<adj2>mas baja|mas bajo|mas alta|mas alto)\b")
+
+
+def extremo_pedido(texto: str) -> Optional[str]:
+    """'peor' | 'mejor' si se pregunta por EL estudiante con la menor / mayor nota."""
+    m = _EXTREMO.search(texto)
+    if not m:
+        return None
+    adjetivo = m.group("adj") or m.group("adj2")
+    return "peor" if adjetivo in ("peor", "menor", "mas baja", "mas bajo") else "mejor"
+
+
 def _intencion_directa(texto: str) -> bool:
     return bool(_PANORAMA.search(texto) or _EN_PROBLEMAS.search(texto) or _criterio_informal(texto)
+                or extremo_pedido(texto)
                 or criterio_nota(texto) or _PERFIL.search(texto) or _CONTEO.search(texto) or _pide_lista(texto))
 
 
@@ -862,6 +888,12 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
                                             **ctx["criterio"]})]
     if _PERFIL.search(texto):
         return [("perfil_docente", {})]
+    extremo = extremo_pedido(texto)
+    if extremo and not estudiante:
+        # «El estudiante con la peor nota de POO»: se destaca a ese único estudiante (no el bloque de alertas)
+        curso_extremo = ctx["explicito"] or (None if ctx["global"] else course_id)
+        return [("obtener_calificaciones", {**({"course_id": curso_extremo} if curso_extremo else {}),
+                                            "extremo": extremo})]
     if ctx["explicito"] and not estudiante and (_CONTEO.search(texto) or _pide_lista(texto)):
         # Nómina de UNA materia: «¿cuántos estudiantes tengo en POO?» (sólo la cifra) o «lista completa de ED»
         conteo = bool(_CONTEO.search(texto)) and not _pide_lista(texto)
@@ -1044,16 +1076,66 @@ def _seccion_calificaciones_criterio(r: Dict[str, Any]) -> Seccion:
     return f"Calificaciones con {criterio}", clave, lineas
 
 
+def _curso_titulo(fullname: str) -> str:
+    """'Programación orientada a objetos — Paralelo A'."""
+    return _nombre_curso(fullname).replace(", paralelo", " — Paralelo")
+
+
+def _seccion_extremo(r: Dict[str, Any]) -> Seccion:
+    """Destaca primero al único estudiante con la menor / mayor nota; debajo, otros en riesgo (o los que siguen)."""
+    filas, peor = r["calificaciones"], r["extremo"] == "peor"
+    cursos = r.get("cursos_consultados") or []
+    una_materia = len(cursos) == 1
+    alcance = f"En **{_curso_titulo(cursos[0]['fullname'])}**" if una_materia else f"En sus {len(cursos)} cursos"
+    if not filas:
+        return ("Calificaciones", f"{alcance} aún no hay calificaciones sincronizadas.", [])
+    nivel = lambda f: NIVEL_TEXTO.get(f["nivel_riesgo"], f["nivel_riesgo"])  # noqa: E731
+    primero = filas[0]
+    empatados = [f for f in filas if f["nota_final"] == primero["nota_final"]]
+    donde = lambda f: "" if una_materia else f" en {_curso_titulo(f['curso_nombre'])}"  # noqa: E731
+    adjetivo = "menor" if peor else "mayor"
+    if len(empatados) == 1:
+        clave = (f"{alcance}, el estudiante con la **{adjetivo} calificación** es **{primero['nombres']}**"
+                 f"{donde(primero)}, con **{primero['nota_final']:.2f}/10** ({nivel(primero)}).")
+    else:
+        clave = (f"{alcance}, **{len(empatados)} estudiantes** comparten la {adjetivo} calificación "
+                 f"(**{primero['nota_final']:.2f}/10**, {nivel(primero)}): "
+                 + _lista_y([f"**{f['nombres']}**{donde(f)}" for f in empatados]) + ".")
+    restantes = filas[len(empatados):]
+    if peor:
+        otros = [f for f in restantes if f["nivel_riesgo"] != "ACEPTABLE"][:5]
+        titulo_otros = "También requieren seguimiento:"
+    else:
+        otros = restantes[:2]
+        titulo_otros = "Le siguen:"
+    lineas = ([titulo_otros] + [f"- {f['nombres']}{donde(f)}: **{f['nota_final']:.2f}/10** ({nivel(f)})"
+                                for f in otros]) if otros else []
+    titulo = f"{'Menor' if peor else 'Mayor'} calificación"
+    return titulo, clave, lineas
+
+
+def _lista_y(items: List[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " y " + items[-1]
+
+
 def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
     filas = r["calificaciones"]
+    if r.get("extremo"):
+        return _seccion_extremo(r)
     if r.get("criterio"):
         return _seccion_calificaciones_criterio(r)
     if r.get("estudiante"):
         nombre = filas[0]["nombres"]
         criticos = sum(1 for f in filas if f["nivel_riesgo"] == "CRITICO")
         promedio = sum(f["nota_final"] for f in filas) / len(filas)
-        clave = (f"**{nombre}** ({filas[0]['id_number']}) está matriculado(a) en **{len(filas)} curso(s)** con promedio "
-                 f"**{promedio:.2f}/10**; nivel crítico en {criticos} de {len(filas)}.")
+        if len(filas) == 1:
+            f0 = filas[0]
+            clave = (f"**{nombre}** ({f0['id_number']}) tiene **{f0['nota_final']:.2f}/10** "
+                     f"({NIVEL_TEXTO.get(f0['nivel_riesgo'], f0['nivel_riesgo'])}) en "
+                     f"**{_curso_titulo(f0['curso_nombre'])}**.")
+        else:
+            clave = (f"**{nombre}** ({filas[0]['id_number']}) está matriculado(a) en **{len(filas)} cursos** con "
+                     f"promedio **{promedio:.2f}/10**; nivel crítico en {criticos} de {len(filas)}.")
         lineas = []
         for f in sorted(filas, key=lambda x: x["nota_final"]):
             lineas.append(f"- **{f['curso']}**: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])}) · "
@@ -1068,8 +1150,20 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
     for f in filas:
         por_curso.setdefault(f["curso"], []).append(f)
     criticos = [f for f in filas if f["nivel_riesgo"] == "CRITICO"]
-    clave = (f"Revisé **{len(filas)} calificaciones** en {len(por_curso)} curso(s): **{len(criticos)} en nivel crítico** "
-             f"y {sum(1 for f in filas if f['nivel_riesgo'] == 'EN_RIESGO')} en riesgo.")
+    en_riesgo = sum(1 for f in filas if f["nivel_riesgo"] == "EN_RIESGO")
+    if len(por_curso) == 1:
+        # Una sola materia: el curso ya va en la frase clave; la lista es directamente la de sus estudiantes
+        curso_unico = _curso_titulo(filas[0]["curso_nombre"])
+        aprobados = sum(1 for f in filas if f["nota_final"] >= UMBRAL_APROBACION)
+        clave = (f"En **{curso_unico}** revisé **{len(filas)} calificaciones** ({aprobados} aprobados): "
+                 f"**{len(criticos)} en nivel crítico** y {en_riesgo} en riesgo.")
+        seguimiento = sorted((f for f in filas if f["nivel_riesgo"] != "ACEPTABLE"), key=lambda x: x["nota_final"])
+        lineas = [f"- {f['nombres']}: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'])})"
+                  + (f" · {len(f['incidencias'])} incidencia(s)" if f["incidencias"] else "") for f in seguimiento[:6]]
+        return "Calificaciones", clave, lineas or ["- Todos los estudiantes están aprobando."]
+    else:
+        clave = (f"Revisé **{len(filas)} calificaciones** en {len(por_curso)} cursos: **{len(criticos)} en nivel "
+                 f"crítico** y {en_riesgo} en riesgo.")
     lineas = []
     for curso, lista in por_curso.items():
         lista.sort(key=lambda x: x["nota_final"])
@@ -1187,8 +1281,9 @@ def _seccion_nomina(r: Dict[str, Any]) -> Seccion:
 
 def _seccion_perfil(r: Dict[str, Any]) -> Seccion:
     cedula = f", C.I. {r['cedula']}" if r.get("cedula") else ""
-    clave = (f"Usted es **{r['nombres']}** ({r['email']}{cedula}), docente de la FISEI. Tiene **{len(r['cursos'])} "
-             f"curso(s)** asignados en el período Julio a Diciembre 2026:")
+    n = len(r["cursos"])
+    clave = (f"Usted es **{r['nombres']}** ({r['email']}{cedula}), docente de la FISEI. Tiene **{n} "
+             f"{'curso asignado' if n == 1 else 'cursos asignados'}** en el período Julio a Diciembre 2026:")
     lineas = [f"- **{_nombre_curso(c['fullname']).replace(', paralelo', ' — Paralelo')}**: "
               f"{c['total_estudiantes']} estudiantes" for c in r["cursos"]]
     return "Su perfil", clave, lineas

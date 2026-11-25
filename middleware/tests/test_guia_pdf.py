@@ -64,8 +64,9 @@ def test_indicaciones_con_tono_cercano_de_profesor_y_los_subtemas_de_la_unidad()
                                     datetime(2026, 11, 22, 23, 59))
     assert texto == ("Hola Carlos, revisando tus calificaciones de la Unidad 2 (Herencia y polimorfismo), te comparto "
                      "esta guía de apoyo para fortalecer herencia, sobrescritura y clases abstractas y polimorfismo antes "
-                     "de tu actividad de recuperación. Revisa primero los conceptos y el material recomendado, analiza el "
-                     "ejemplo paso a paso y sube tus ejercicios resueltos en Moodle hasta el 22/11/2026.")
+                     "de tu actividad de recuperación. Revisa primero la fundamentación y el material recomendado, analiza "
+                     "el ejemplo paso a paso, resuelve los ejercicios de la sección VIII y sube tu archivo (PDF o código) en "
+                     "la tarea de Moodle UTA hasta el 22/11/2026 a las 23:59.")
     for robotico in ("Estimado/a", "se ha identificado", "EduMonitor", "IA"):
         assert robotico not in texto
     # Siglas al inicio del subtema se conservan
@@ -108,11 +109,72 @@ def test_cada_unidad_tiene_dos_fuentes_ademas_del_aula_virtual(sigla):
         assert len(fuentes) == 2 and all(f and d for f, d in fuentes), (sigla, unidad)
 
 
-def test_encabezado_institucional_sin_rastros_de_ia():
+def test_encabezado_institucional_uta_sin_rastros_de_ia():
     import inspect
-    fuente = inspect.getsource(guia_pdf._GuiaPDF) + inspect.getsource(guia_pdf.renderizar_pdf)
-    assert "GUÍA DE REFUERZO ACADÉMICO · UTA - FISEI" in fuente
+    assert guia_pdf.UNIVERSIDAD == "UNIVERSIDAD TÉCNICA DE AMBATO"
+    assert guia_pdf.SUBTITULO == "GUÍA DE REFUERZO ACADÉMICO Y APLICACIÓN DE APRENDIZAJES"
+    assert guia_pdf.LOGO.name == "uta-logo-azul.png" and guia_pdf.LOGO.exists()
+    fuente = inspect.getsource(guia_pdf)
     assert "EduMonitor" not in fuente
+    assert 'f"Página {self.page_no()}/{{nb}} · {PIE}"' in fuente and guia_pdf.PIE == "UTA - FISEI"
+
+
+def test_tabla_de_datos_generales_institucional():
+    assert guia_pdf.datos_generales(_guia()) == [
+        ("FACULTAD", "Ingeniería en Sistemas, Electrónica e Industrial (FISEI)"),
+        ("CARRERA", "Software"),
+        ("ASIGNATURA", "Programación orientada a objetos - Paralelo A"),
+        ("NIVEL / CICLO ACADÉMICO", "Cuarto Semestre · Julio – Diciembre 2026"),
+        ("DOCENTE", "Roberto Patricio Gómez Salazar"),
+        ("ESTUDIANTE", "Carlos Andrés Mendoza Paredes (C.I. 1804923199 · cmendoza3199@uta.edu.ec)"),
+        ("FECHA LÍMITE DE ENTREGA", "domingo 22 de noviembre de 2026, 23:59"),
+    ]
+    assert guia_pdf.fecha_larga(None) == "La indicada en la tarea de Moodle UTA"
+
+
+def test_secciones_numeradas_en_romano_de_la_plantilla_uta():
+    import inspect
+    fuente = inspect.getsource(guia_pdf.renderizar_pdf)
+    secciones = re.findall(r'_titulo_seccion\(pdf, "([IVX]+)", "([^"]+)"\)', fuente)
+    assert secciones == [
+        ("I", "Tema"), ("II", "Objetivo"), ("III", "Modalidad y duración"),
+        ("IV", "Diagnóstico académico del estudiante"), ("V", "Instrucciones y orientación del docente"),
+        ("VI", "Recursos y material de apoyo"), ("VII", "Fundamentación y ejemplo resuelto"),
+        ("VIII", "Actividades por desarrollar (ejercicios de práctica)"), ("IX", "Resultados esperados y habilidades")]
+    for excluido in ("firma", "Firma", "BIBLIOGRAF", "Coordinador"):
+        assert excluido not in fuente + inspect.getsource(guia_pdf._GuiaPDF)   # sin firmas ni bibliografía
+
+
+def test_tema_objetivo_modalidad_recursos_y_resultados():
+    guia = _guia()
+    assert guia["unidad_titulo"] == "Unidad 2: Herencia y polimorfismo"
+    assert guia["subtemas"] == ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"]
+    assert guia["objetivo"] == ("Diseñar jerarquías de clases con herencia, clases abstractas y polimorfismo, "
+                                "reutilizando código sin romper la relación «es un», superando las falencias "
+                                "detectadas en la evaluación de la Unidad 2.")
+    assert (guia["modalidad"], guia["duracion"]) == ("Virtual / Trabajo autónomo en Moodle UTA", "2 horas no presenciales")
+    assert guia["entorno"].startswith("JDK 17")
+    assert len(guia["resultados"]) == 3
+    assert guia["resultados"][0] == ("**Dominio conceptual:** explica y aplica herencia, sobrescritura y clases "
+                                     "abstractas y polimorfismo (Unidad 2).")
+    assert "Pensamiento crítico y responsabilidad académica" in guia["resultados"][2]
+
+
+@pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
+def test_cada_materia_tiene_objetivo_por_unidad_entorno_y_habilidad(sigla):
+    assert sorted(ca.OBJETIVOS[sigla]) == [1, 2, 3, 4]
+    assert all(o and not o.endswith(".") for o in ca.OBJETIVOS[sigla].values())
+    assert ca.ENTORNOS[sigla] and ca.HABILIDADES[sigla][0].islower()
+
+
+@pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
+def test_textos_con_negritas_no_usan_marcas_markdown_accidentales(sigla):
+    # Conceptos, recursos y resultados se dibujan con markdown=True: «--» o «__» cambiarían el formato
+    textos = [t for u in ca.CONTENIDOS[sigla].values() for par in u["temas"] for t in par]
+    textos += [t for fuentes in ca.RECURSOS[sigla].values() for par in fuentes for t in par]
+    textos += [ca.ENTORNOS[sigla], ca.HABILIDADES[sigla]]
+    for texto in textos:
+        assert "--" not in texto and "__" not in texto and "**" not in texto, texto
 
 
 def test_material_al_grano_un_ejemplo_y_hasta_tres_ejercicios():
@@ -149,8 +211,8 @@ def test_cada_guia_del_catalogo_ocupa_como_maximo_dos_paginas(sigla):
         assert 1 <= _paginas(pdf) <= 2, (sigla, unidad)
 
 
-def test_la_guia_tipica_cabe_en_una_pagina():
-    assert _paginas(renderizar_pdf(_guia())) == 1
+def test_la_guia_tipica_ocupa_una_o_dos_paginas():
+    assert 1 <= _paginas(renderizar_pdf(_guia())) <= 2
 
 
 def test_materia_fuera_del_catalogo_usa_una_guia_breve():

@@ -998,3 +998,94 @@ def recursos_unidad(shortname: str, unidad: int) -> List[Tuple[str, str]]:
     aula = ("Aula virtual de la materia (Moodle UTA)",
             f"recurso «Unidad {unidad} - Material de clase (PDF)» en la sección {seccion}.")
     return [*RECURSOS.get(sigla_curso(shortname), {}).get(unidad, []), aula]
+
+
+# Plantilla institucional UTA (guía práctica / tarea): objetivo de cada unidad, entorno de trabajo de la materia y
+# habilidad que el estudiante demuestra al completar el refuerzo.
+OBJETIVOS: Dict[str, Dict[int, str]] = {
+    "POO": {
+        1: "Aplicar correctamente clases, objetos, constructores y encapsulamiento en Java para modelar entidades "
+           "que mantengan siempre un estado válido",
+        2: "Diseñar jerarquías de clases con herencia, clases abstractas y polimorfismo, reutilizando código sin "
+           "romper la relación «es un»",
+        3: "Utilizar interfaces, colecciones y genéricos de Java para manipular conjuntos de objetos de forma segura "
+           "y flexible",
+        4: "Manejar excepciones y aplicar buenas prácticas de diseño para construir programas robustos y mantenibles",
+    },
+    "ED": {
+        1: "Analizar la complejidad de los algoritmos con notación O y aplicar búsquedas sobre arreglos eligiendo la "
+           "estrategia más eficiente",
+        2: "Implementar y operar listas enlazadas, pilas y colas, seleccionando la estructura adecuada para cada "
+           "problema",
+        3: "Construir y recorrer árboles binarios de búsqueda, realizando inserciones, búsquedas y eliminaciones "
+           "correctas",
+        4: "Representar grafos, aplicar los recorridos BFS y DFS y comparar algoritmos de ordenamiento según su "
+           "eficiencia",
+    },
+    "MA": {
+        1: "Explicar los valores y principios del Manifiesto Ágil y contrastarlos con los enfoques tradicionales de "
+           "desarrollo",
+        2: "Aplicar el marco de trabajo Scrum identificando correctamente sus roles, eventos y artefactos",
+        3: "Redactar historias de usuario con criterios de aceptación y estimarlas mediante puntos de historia",
+        4: "Gestionar el flujo de trabajo con tableros Kanban e interpretar métricas ágiles para la mejora continua",
+    },
+    "MCS": {
+        1: "Aplicar los conceptos de gestión de la configuración y los comandos básicos de Git para versionar un "
+           "proyecto",
+        2: "Trabajar con ramas, integrar cambios mediante fusiones y resolver conflictos de forma ordenada",
+        3: "Configurar un flujo de integración continua y aplicar el versionado semántico en las entregas",
+        4: "Controlar los cambios de un proyecto, auditar su configuración y preparar entregas trazables",
+    },
+    "IS1": {
+        1: "Comparar los modelos de proceso de software y seleccionar el ciclo de vida adecuado para un proyecto",
+        2: "Elicitar, redactar y validar requisitos funcionales y no funcionales claros y verificables",
+        3: "Modelar un sistema con diagramas UML de casos de uso, clases y secuencia coherentes entre sí",
+        4: "Proponer una arquitectura de software adecuada y diseñar casos de prueba que verifiquen los requisitos",
+    },
+    "BDA": {
+        1: "Diseñar esquemas relacionales normalizados hasta la tercera forma normal a partir de las dependencias "
+           "funcionales",
+        2: "Escribir consultas SQL avanzadas, vistas y procedimientos almacenados que resuelvan requerimientos reales",
+        3: "Garantizar la consistencia de los datos mediante transacciones y mecanismos de control de concurrencia",
+        4: "Crear índices adecuados y analizar planes de ejecución para optimizar el rendimiento de las consultas",
+    },
+    "DW": {
+        1: "Construir páginas web semánticas y adaptables con HTML y CSS (Flexbox y Grid)",
+        2: "Programar la interacción de una página con JavaScript, manipulando el DOM y gestionando eventos",
+        3: "Diseñar y consumir una API REST aplicando correctamente los métodos y códigos de estado HTTP",
+        4: "Aplicar un framework de frontend, prácticas de seguridad web y un proceso básico de despliegue",
+    },
+}
+
+_JAVA = "JDK 17 o superior con Apache NetBeans, IntelliJ IDEA o Visual Studio Code"
+ENTORNOS: Dict[str, str] = {
+    "POO": _JAVA,
+    "ED": _JAVA,
+    "MA": "herramienta de tableros ágiles (Trello, Jira o GitHub Projects) y un procesador de texto",
+    "MCS": "Git 2.x, una cuenta de GitHub y Visual Studio Code",
+    "IS1": "herramienta de modelado UML (draw.io, StarUML o Visual Paradigm Community)",
+    "BDA": "SQL Server 2022 con SQL Server Management Studio (SSMS) o Azure Data Studio",
+    "DW": "Visual Studio Code, un navegador con herramientas de desarrollador y Node.js (versión LTS)",
+}
+
+HABILIDADES: Dict[str, str] = {
+    "POO": "diseñar e implementar soluciones en Java aplicando los principios de la orientación a objetos",
+    "ED": "seleccionar e implementar la estructura de datos y el algoritmo más eficientes para un problema",
+    "MA": "aplicar prácticas ágiles para planificar, priorizar y dar seguimiento al trabajo de un equipo",
+    "MCS": "versionar, integrar y entregar software de forma controlada y trazable",
+    "IS1": "analizar y documentar un sistema de software con artefactos de ingeniería claros y verificables",
+    "BDA": "diseñar, consultar y optimizar bases de datos relacionales de forma consistente y eficiente",
+    "DW": "construir aplicaciones web funcionales, seguras y bien estructuradas",
+}
+
+
+def objetivo_unidad(shortname: str, unidad: int) -> Optional[str]:
+    return OBJETIVOS.get(sigla_curso(shortname), {}).get(unidad)
+
+
+def entorno_materia(shortname: str) -> str:
+    return ENTORNOS.get(sigla_curso(shortname), "herramientas de trabajo de la materia indicadas por el docente")
+
+
+def habilidad_materia(shortname: str) -> str:
+    return HABILIDADES.get(sigla_curso(shortname), "aplicar los contenidos de la unidad en problemas prácticos")
