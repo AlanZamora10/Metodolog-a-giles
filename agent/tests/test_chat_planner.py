@@ -111,3 +111,12 @@ def test_siglas_institucionales_se_convierten_en_curso():
         {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "dw"}},
     ], cursos)
     assert [ll["parametros"] for ll in llamadas] == [{"course_id": 5}, {"course_id": 6}, {"course_id": 7}]
+
+
+def test_guia_pdf_sin_estudiante_se_descarta_y_con_estudiante_se_conserva():
+    llamadas = chat_planner.limpiar_llamadas([
+        {"herramienta": "generar_guia_pdf", "parametros": {}},
+        {"herramienta": "generar_guia_pdf", "parametros": {"student_query": "POO"}},          # una materia no es un estudiante
+        {"herramienta": "generar_guia_pdf", "parametros": {"student_query": "Fernanda Altamirano"}},
+    ], CURSOS_UTA)
+    assert llamadas == [{"herramienta": "generar_guia_pdf", "parametros": {"student_query": "Fernanda Altamirano"}}]

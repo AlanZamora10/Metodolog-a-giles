@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ALERTAS, iniciarSesionFalsa, json, mockApi, renderApp } from './helpers';
@@ -214,5 +214,43 @@ describe('Agente conversacional e interfaz animada', () => {
     const kpi = (await screen.findByText('Promedio general')).closest('.kpi');
     expect(kpi).toHaveClass('stagger-1');
     expect(screen.getByText('Alertas activas').closest('.kpi')).toHaveClass('stagger-4');
+  });
+});
+
+describe('Guía oficial en PDF desde el Agente IA', () => {
+  it('muestra el botón dentro de la burbuja y descarga el PDF con el JWT', async () => {
+    const token = iniciarSesionFalsa();
+    const url = '/api/v1/agent/guia-pdf?id_number=U-04&course_id=2';
+    const fetch = mockApi({
+      'POST /api/v1/agent/chat': () =>
+        json({
+          respuesta: 'Listo: generé la **guía oficial de refuerzo UTA - FISEI** para **Carlos Andrés Mendoza Paredes**.',
+          formato: 'markdown',
+          herramientas: [
+            { herramienta: 'generar_guia_pdf', parametros: { student_query: 'Carlos Andrés Mendoza Paredes' }, resultado: { filas: 1 }, duracion_ms: 40 },
+          ],
+          adjuntos: [{ tipo: 'pdf', nombre: 'Guia_refuerzo_POO_U2_U-04.pdf', etiqueta: 'Descargar guía PDF', url }],
+          plan_fuente: 'reglas_deterministas',
+          redaccion: 'determinista_desde_herramientas',
+          duracion_ms: 60,
+        }),
+      'GET /api/v1/agent/guia-pdf': () => new Response(new Blob(['%PDF-1.4'], { type: 'application/pdf' })),
+    });
+    const crear = vi.fn(() => 'blob:guia');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: crear, revokeObjectURL: vi.fn() }));
+    const clic = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const u = userEvent.setup();
+    renderApp('/agente');
+    await u.type(await screen.findByLabelText('Mensaje para el agente'), 'perfecto dame el pdf{enter}');
+
+    const adjunto = await screen.findByTestId('adjunto-pdf');
+    expect(adjunto.closest('.burbuja')).not.toBeNull();                // dentro de la burbuja del agente
+    expect(adjunto).toHaveTextContent('Guia_refuerzo_POO_U2_U-04.pdf');
+    await u.click(within(adjunto).getByRole('button', { name: /descargar guía pdf/i }));
+    await waitFor(() => expect(clic).toHaveBeenCalled());
+    const [, init] = fetch.mock.calls.find(([destino]) => String(destino) === url)!;
+    expect((init!.headers as Record<string, string>).Authorization).toBe(`Bearer ${token}`);
+    expect(crear).toHaveBeenCalled();
+    expect(screen.getAllByText((texto) => texto.includes('Guía oficial de refuerzo (PDF)')).length).toBeGreaterThan(0);
   });
 });

@@ -89,7 +89,7 @@ async def reporte_curso(
         curso, repositories.list_alertas(course_id=course_id), sync_service.SYNC_STATE.get("ultima_sincronizacion"))
     if formato == "md":
         return PlainTextResponse(
-            reporte_service.reporte_markdown(reporte), media_type="text/markdown; charset=utf-8",
+            reporte_service.reporte_markdown(reporte, docente.get("nombres")), media_type="text/markdown; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="informe_{curso["shortname"]}.md"'},
         )
     return reporte

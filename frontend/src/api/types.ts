@@ -186,10 +186,19 @@ export interface PropuestaRefuerzo {
   alerta: { id: number; estado: EstadoAlerta; regla: string } | null;
 }
 
+/** Archivo que el agente adjunta a su respuesta (p. ej. la guía oficial de refuerzo en PDF). */
+export interface AdjuntoChat {
+  tipo: 'pdf';
+  nombre: string;
+  url: string;
+  etiqueta?: string;
+}
+
 export interface ChatResponse {
   respuesta: string;
   formato?: 'markdown' | 'texto';
   herramientas: HerramientaUsada[];
+  adjuntos?: AdjuntoChat[];
   plan_fuente: string;
   redaccion: string;
   duracion_ms: number;

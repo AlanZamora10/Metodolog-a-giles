@@ -251,6 +251,7 @@ function CentroAlertas() {
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), preparar(a))}
               data-testid={`alerta-${a.id}`}
             >
+              {/* Dos líneas limpias: quién y en qué estado; por qué (motivo, nota, unidad más baja) y la acción */}
               <div className="fila">
                 <strong>{a.nombres}</strong>
                 {cedulas[a.id_number] && <span className="muted small">C.I. {cedulas[a.id_number]}</span>}
@@ -258,29 +259,25 @@ function CentroAlertas() {
                   <EstadoAlertaBadge estado={a.estado} />
                 </span>
               </div>
-              <div className="evidencia-num">
+              <div className="fila evidencia-num">
                 <span>
                   <b>{REGLAS[a.regla] ?? a.regla}</b>
+                  {a.regla === 'R2_DESCENSO' && a.pendiente !== null && (
+                    <> ({a.pendiente >= 0 ? '+' : ''}{a.pendiente.toFixed(2)})</>
+                  )}
                 </span>
                 <span>
-                  Nota ponderada: <b>{nota(a.nota_promedio)}</b>/10
+                  Nota ponderada <b>{nota(a.nota_promedio)}</b>/10
                 </span>
-                {a.pendiente !== null && (
-                  <span>
-                    Pendiente: <b>{a.pendiente >= 0 ? '+' : ''}{a.pendiente.toFixed(2)}</b>
-                  </span>
-                )}
                 {a.unidad_critica && (
                   <span>
-                    Unidad más baja: <b>{a.unidad_critica}</b>
+                    Unidad más baja <b>{a.unidad_critica}</b>
                   </span>
                 )}
-              </div>
-              <div className="evidencia">{a.evidencia}</div>
-              {(a.estado === 'ABIERTA' || a.estado === 'ATENDIDA') && (
-                <div>
+                {(a.estado === 'ABIERTA' || a.estado === 'ATENDIDA') && (
                   <button
                     className="btn btn-sm btn-primary"
+                    style={{ marginLeft: 'auto' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       atender(a);
@@ -288,8 +285,8 @@ function CentroAlertas() {
                   >
                     {a.estado === 'ATENDIDA' ? 'Regenerar refuerzo' : 'Atender'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ))}
         </section>

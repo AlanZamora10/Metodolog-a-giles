@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { REPORTE, iniciarSesionFalsa, json, mockApi, renderApp } from './helpers';
 
@@ -76,6 +76,23 @@ describe('RF-06 · ficha del estudiante', () => {
       expect(document.querySelector(`.tabla [data-estado="${estado}"]`)).not.toBeNull();
     }
     expect(screen.getByTestId('estado-cero')).toHaveTextContent('1');
+    // Cabecera ordenada: C.I. · correo · materia y paralelo
+    const meta = screen.getByTestId('perfil-meta');
+    expect([...meta.querySelectorAll('span')].map((s) => s.textContent)).toEqual([
+      'C.I. 1804923199',
+      'u-04@uta.edu.ec',
+      'Programación orientada a objetos — Paralelo A',
+    ]);
+    // Calificaciones agrupadas por parcial y tipo: evaluaciones, prácticas APE y tareas (en orden de unidad)
+    const parcial = screen.getByTestId('parcial-1');
+    expect(within(parcial).getByRole('columnheader', { name: 'Primer Parcial' })).toBeInTheDocument();
+    const filas = [...parcial.querySelectorAll('tr')].map((tr) => tr.textContent ?? '');
+    const indice = (texto: string) => filas.findIndex((f) => f.includes(texto));
+    expect(indice('Evaluaciones')).toBeLessThan(indice('U1-A1'));
+    expect(indice('U1-A1')).toBeLessThan(indice('Prácticas APE'));
+    expect(indice('Prácticas APE')).toBeLessThan(indice('U2-P1'));
+    expect(indice('U2-P1')).toBeLessThan(indice('Tareas'));
+    expect(indice('U1-T2')).toBeLessThan(indice('U2-T4'));
     expect(screen.getAllByText('Nota cero (0.0)').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Pendiente de calificación').length).toBeGreaterThan(0);
   });
@@ -97,7 +114,12 @@ describe('RF-11 · informe', () => {
     renderApp('/reporte');
 
     expect(await screen.findByRole('heading', { name: /informe académico — programación orientada a objetos — paralelo a/i })).toBeInTheDocument();
-    expect(screen.getByText(/julio a diciembre 2026/i, { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.getByText(/julio a diciembre 2026/i, { selector: 'td' })).toBeInTheDocument();
+    // Documento sobrio institucional, sin textos aclaratorios de la herramienta
+    expect(screen.getByText('UNIVERSIDAD TÉCNICA DE AMBATO')).toBeInTheDocument();
+    expect(document.querySelector('.informe-oficial img.informe-escudo')).toHaveAttribute('src', '/uta-escudo-azul.png');
+    expect(screen.queryByText(/determinista|calculado a partir|señales para revisión|sin texto inventado/i)).not.toBeInTheDocument();
+    expect(document.querySelector('.informe-oficial .badge, .informe-oficial .metricas-mini')).toBeNull();
     expect(screen.getByText('Atender primero las alertas de nota crítica.')).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: /descargar \.md/i }));

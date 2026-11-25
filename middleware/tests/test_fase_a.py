@@ -263,7 +263,12 @@ def test_reporte_descargable_markdown(sincronizado):
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/markdown")
     assert 'attachment; filename="informe_SOF-POO-A.md"' == res.headers["content-disposition"]
-    assert "# Informe del curso SOF-POO-A" in res.text and "| Sin entrega | 1 | 1 |" in res.text
+    assert res.text.startswith("# Informe académico del curso")
+    assert "| Asignatura | Programación orientada a objetos - Paralelo A (SOF-POO-A) |" in res.text
+    assert "| Docente | Roberto Patricio Gómez Salazar |" in res.text and "| Sin entrega | 1 | 1 |" in res.text
+    assert "## 1. Métricas del curso" in res.text and "## 5. Recomendaciones" in res.text
+    # Sobrio: sin rellenos ni marcas de la herramienta
+    assert "EduMonitor" not in res.text and "determinista" not in res.text and "—" not in res.text
 
 
 def test_reporte_curso_ajeno_403_y_desconocido_404(sincronizado):

@@ -130,11 +130,11 @@ def test_plan_del_llm_de_refuerzo_usa_el_estudiante_mencionado(sincronizado, mon
     assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Andrés Mendoza Paredes"
 
 
-def test_catalogo_expone_las_ocho_herramientas(sincronizado):  # noqa: F811
+def test_catalogo_expone_las_nueve_herramientas(sincronizado):  # noqa: F811
     nombres = [h["nombre"] for h in client.get("/api/v1/agent/herramientas", headers=sincronizado).json()]
     assert nombres == ["listar_cursos_autorizados", "obtener_calificaciones", "identificar_alertas",
                        "generar_resumen", "analizar_actividades", "listar_estudiantes", "perfil_docente",
-                       "proponer_refuerzo"]
+                       "generar_guia_pdf", "proponer_refuerzo"]
 
 
 def test_refuerzo_propuesto_por_el_llm_sin_pedido_explicito_se_descarta(sincronizado, monkeypatch):  # noqa: F811
@@ -600,3 +600,48 @@ def test_calificaciones_de_una_sola_materia_nombran_el_curso(sincronizado, monke
     assert data["respuesta"].startswith("En **Programación orientada a objetos — Paralelo A** revisé ")
     assert data["respuesta"].count("Programación orientada a objetos") == 1          # sin repetir el curso
     assert "curso(s)" not in data["respuesta"]
+
+
+@pytest.mark.parametrize("seguimiento", ["perfecto dame el pdf", "descargar pdf", "genera el pdf de ese plan"])
+def test_pdf_del_plan_anterior_con_enlace_de_descarga(sincronizado, monkeypatch, seguimiento):  # noqa: F811
+    _sin_llm(monkeypatch)
+    plan = _chat(sincronizado, "Prepárame un plan de apoyo para Carlos Mendoza")
+    assert [h["herramienta"] for h in plan["herramientas"]] == ["proponer_refuerzo"]
+    assert "«dame el pdf»" in plan["respuesta"] and plan["adjuntos"] == []
+
+    data = _chat(sincronizado, seguimiento)
+    assert [(h["herramienta"], h["parametros"]) for h in data["herramientas"]] == [
+        ("generar_guia_pdf", {"student_query": "Carlos Andrés Mendoza Paredes", "course_id": 2})]
+    assert data["respuesta"].startswith("Listo: generé la **guía oficial de refuerzo UTA - FISEI** para "
+                                        "**Carlos Andrés Mendoza Paredes** en **Programación orientada a objetos — "
+                                        "Paralelo A**")
+    assert data["adjuntos"] == [{"tipo": "pdf", "nombre": "Guia_refuerzo_POO_U2_U-04.pdf",
+                                 "etiqueta": "Descargar guía PDF",
+                                 "url": "/api/v1/agent/guia-pdf?id_number=U-04&course_id=2"}]
+
+    pdf = client.get(data["adjuntos"][0]["url"], headers=sincronizado)
+    assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+    assert pdf.headers["content-disposition"] == 'inline; filename="Guia_refuerzo_POO_U2_U-04.pdf"'
+    assert pdf.content.startswith(b"%PDF-")
+
+
+def test_pdf_directo_de_un_estudiante_nombrado(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "dame el pdf de refuerzo de Camila Andrade")
+    assert [h["herramienta"] for h in data["herramientas"]] == ["generar_guia_pdf"]
+    assert data["adjuntos"][0]["url"].startswith("/api/v1/agent/guia-pdf?id_number=")
+    assert "Camila Alejandra Andrade Morales" in data["respuesta"]
+
+
+def test_pdf_sin_estudiante_en_contexto_pide_a_quien(sincronizado, monkeypatch):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, "perfecto dame el pdf")
+    assert data["herramientas"] == [] and data["adjuntos"] == []
+    assert "¿De qué estudiante?" in data["respuesta"]
+
+
+def test_guia_pdf_solo_de_estudiantes_del_docente(sincronizado):  # noqa: F811
+    assert client.get("/api/v1/agent/guia-pdf", params={"id_number": "U-99"}, headers=sincronizado).status_code == 404
+    assert client.get("/api/v1/agent/guia-pdf", params={"id_number": "U-04", "course_id": 3},
+                      headers=sincronizado).status_code == 404          # curso de otro docente
+    assert client.get("/api/v1/agent/guia-pdf", params={"id_number": "U-04"}).status_code == 401

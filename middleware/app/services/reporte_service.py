@@ -9,7 +9,7 @@ por IA: cada hallazgo cita los datos que lo sustentan.
 
 import statistics
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from app.config import settings
@@ -168,42 +168,95 @@ def construir_reporte(curso: Dict[str, Any], alertas: List[Dict[str, Any]],
     }
 
 
-def reporte_markdown(r: Dict[str, Any]) -> str:
-    """Versión descargable (Markdown) del reporte."""
+_ECUADOR = timezone(timedelta(hours=-5))
+_NIVEL = {"CRITICO": "Crítico", "EN_RIESGO": "En riesgo", "ACEPTABLE": "Aceptable"}
+_ALERTA = {"R1_NOTA_CRITICA": "Nota crítica", "R2_DESCENSO": "Descenso sostenido"}
+
+
+def _fecha_hora(valor: Optional[str]) -> str:
+    """ISO (UTC) -> '25/11/2026 14:16' en hora de Ecuador."""
+    if not valor:
+        return "Sin sincronizar"
+    try:
+        fecha = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+    except ValueError:
+        return str(valor)
+    if fecha.tzinfo is None:
+        fecha = fecha.replace(tzinfo=timezone.utc)
+    return fecha.astimezone(_ECUADOR).strftime("%d/%m/%Y %H:%M")
+
+
+def _fecha(valor: Optional[str]) -> str:
+    try:
+        return datetime.fromisoformat(str(valor)).strftime("%d/%m/%Y")
+    except (TypeError, ValueError):
+        return str(valor or "")
+
+
+def reporte_markdown(r: Dict[str, Any], docente: Optional[str] = None) -> str:
+    """Informe descargable en Markdown con la estructura sobria del informe institucional (UTA - FISEI)."""
+    from app.services.agente_herramientas import _nombre_curso  # evita importación circular
     m, d, a = r["metricas"], r["distribucion_estados"], r["alertas"]
     comp = m["componentes"]
-    fmt = lambda v: "—" if v is None else f"{v:.2f}"  # noqa: E731
+    fmt = lambda v: "-" if v is None else f"{v:.2f}"  # noqa: E731
+    asignatura = _nombre_curso(r["curso"]["fullname"]).replace(", paralelo", " - Paralelo")
+    p = r["periodo"]
     lineas = [
-        f"# Informe del curso {r['curso']['shortname']}",
-        f"**{r['curso']['fullname']}**  ",
-        f"Período: {r['periodo']['nombre']} ({r['periodo']['inicio']} a {r['periodo']['fin']})  ",
-        f"Última sincronización con Moodle: {r['fecha_sincronizacion'] or 'sin datos'}  ",
-        f"Generado: {r['generado_en']}",
+        "# Informe académico del curso",
         "",
-        "## Métricas",
+        "**Universidad Técnica de Ambato** · Facultad de Ingeniería en Sistemas, Electrónica e Industrial · "
+        "Carrera de Software",
+        "",
+        "| Dato | Valor |", "|---|---|",
+        f"| Asignatura | {asignatura} ({r['curso']['shortname']}) |",
+        f"| Período académico | {p['nombre']} ({_fecha(p['inicio'])} - {_fecha(p['fin'])}) |",
+        *([f"| Docente | {docente} |"] if docente else []),
+        f"| Sincronización con Moodle UTA | {_fecha_hora(r['fecha_sincronizacion'])} |",
+        f"| Fecha de emisión | {_fecha_hora(r['generado_en'])} |",
+        "",
+        "## 1. Métricas del curso",
+        "",
         "| Indicador | Valor |", "|---|---|",
         f"| Estudiantes | {m['total_estudiantes']} |",
-        f"| Promedio / mediana | {m['promedio']:.2f} / {m['mediana']:.2f} |",
-        f"| Mínima / máxima | {m['nota_minima']:.2f} / {m['nota_maxima']:.2f} |",
-        f"| Críticos / en riesgo / aceptables | {m['criticos']} / {m['en_riesgo']} / {m['aceptables']} |",
-        f"| Exámenes / Tareas / APE | {fmt(comp['acd'])} / {fmt(comp['tareas'])} / {fmt(comp['pae'])} |",
+        f"| Promedio | {m['promedio']:.2f} / 10 |",
+        f"| Mediana | {m['mediana']:.2f} |",
+        f"| Nota mínima - máxima | {m['nota_minima']:.2f} - {m['nota_maxima']:.2f} |",
+        f"| Desviación estándar | {m['desviacion_estandar']:.2f} |",
+        f"| Aprobación | {m['porcentaje_aceptables']:.1f} % |",
         "",
-        "## Distribución de estados de las actividades",
+        "| Nivel | Estudiantes |", "|---|---|",
+        f"| Crítico | {m['criticos']} |",
+        f"| En riesgo | {m['en_riesgo']} |",
+        f"| Aceptable | {m['aceptables']} |",
+        "",
+        "| Componente | Promedio |", "|---|---|",
+        f"| Exámenes (40 %) | {fmt(comp['acd'])} |",
+        f"| Tareas (30 %) | {fmt(comp['tareas'])} |",
+        f"| APE (30 %) | {fmt(comp['pae'])} |",
+        *([""] + ["| Unidad | Promedio |", "|---|---|"]
+          + [f"| Unidad {u[1:]} | {fmt(v)} |" for u, v in m["promedio_por_unidad"].items()]
+          if m.get("promedio_por_unidad") else []),
+        "",
+        "## 2. Estado de las actividades",
+        "",
         "| Estado | Registros | Estudiantes |", "|---|---|---|",
-        f"| Calificado | {d['calificado']} | — |",
+        f"| Calificado | {d['calificado']} | - |",
         f"| Nota 0 | {d['cero']} | {d['estudiantes_con_cero']} |",
         f"| Sin entrega | {d['sin_entrega']} | {d['estudiantes_sin_entrega']} |",
         f"| Pendiente de revisión | {d['pendiente']} | {d['estudiantes_con_pendiente']} |",
         "",
-        "## Alertas",
-        f"Nota crítica: {a['r1_activas']} · Descenso sostenido: {a['r2_activas']} · abiertas {a['abiertas']}, "
-        f"atendidas {a['atendidas']}, publicadas {a['publicadas']}, cerradas {a['cerradas']}, resueltas {a['resueltas']}.",
+        "## 3. Alertas tempranas",
         "",
-        "## Hallazgos",
-        *[f"- {h}" for h in r["hallazgos"]],
-        "",
-        "## Recomendaciones",
-        *[f"- {x}" for x in r["recomendaciones"]],
-        "",
+        "| Alerta | Cantidad |", "|---|---|",
+        f"| Nota crítica | {a['r1_activas']} |",
+        f"| Descenso sostenido | {a['r2_activas']} |",
+        f"| Abiertas / en atención / publicadas | {a['abiertas']} / {a['atendidas']} / {a['publicadas']} |",
+        f"| Cerradas / resueltas | {a['cerradas']} / {a['resueltas']} |",
     ]
+    if r["estudiantes_prioritarios"]:
+        lineas += ["", "| Estudiante prioritario | Nota final | Nivel | Alerta |", "|---|---|---|---|"]
+        lineas += [f"| {e['nombres']} | {e['nota_final']:.2f} | {_NIVEL.get(e['nivel_riesgo'], e['nivel_riesgo'])} | "
+                   f"{_ALERTA.get(e['regla_alerta'], e['regla_alerta'] or '-')} |" for e in r["estudiantes_prioritarios"]]
+    lineas += ["", "## 4. Hallazgos", "", *[f"- {h}" for h in r["hallazgos"]],
+               "", "## 5. Recomendaciones", "", *[f"- {x}" for x in r["recomendaciones"]], ""]
     return "\n".join(lineas)

@@ -25,8 +25,11 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
     renderApp('/alertas');
     const item = await screen.findByTestId('alerta-1');
     expect(item).toHaveTextContent('3.04');
-    expect(item).toHaveTextContent('-0.25');
     expect(item).toHaveTextContent('Nota crítica');
+    // Tarjeta limpia en dos líneas: nombre/C.I./estado y motivo/nota/unidad, sin el texto de evidencia repetido
+    expect(item.querySelectorAll(':scope > .fila')).toHaveLength(2);
+    expect(item.querySelector('.evidencia')).toBeNull();
+    expect(item).not.toHaveTextContent('-0.25');                // la pendiente sólo acompaña al descenso sostenido
     expect(item).not.toHaveTextContent(/R1|< 5\.00/);
     expect(item).not.toHaveTextContent(/reprobad/i);
   });

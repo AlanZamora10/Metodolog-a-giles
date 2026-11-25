@@ -43,4 +43,6 @@ export const endpoints = {
     api<Reporte>(`/api/v1/courses/${courseId}/reporte`, { signal }),
   reporteMarkdown: (courseId: number) =>
     api<Response>(`/api/v1/courses/${courseId}/reporte?formato=md`, { crudo: true }),
+  /** Archivo protegido (JWT) que adjunta el agente, p. ej. /api/v1/agent/guia-pdf?id_number=U-04&course_id=2 */
+  archivo: (url: string) => api<Response>(url, { crudo: true }),
 };

@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from fpdf import FPDF
 
 from app.services.contenidos_academicos import (contenido_unidad, entorno_materia, objetivo_unidad,
-                                                 recursos_unidad, sigla_curso)
+                                                 recursos_unidad, referencia_unidad, sigla_curso)
 
 LOGO = Path(__file__).resolve().parent.parent / "recursos" / "uta-logo-azul.png"
 ESCUDO_PX = (0, 0, 197, 210)   # el escudo dentro del logo (a la derecha está la marca nominativa)
@@ -32,8 +32,8 @@ FACULTAD = "INGENIERÍA EN SISTEMAS, ELECTRÓNICA E INDUSTRIAL"
 CARRERA = "Software"
 NIVEL = "Cuarto"
 CICLO = "Julio - Diciembre 2026"
-MODALIDAD = "Virtual (Moodle UTA)"
-DURACION = "2 horas no presenciales"
+MODALIDAD = "Presencial"
+DURACION = "2 horas"
 PIE = "UTA - FISEI"
 
 NIVELES = {"CRITICO": "crítico", "EN_RIESGO": "en riesgo", "ACEPTABLE": "aceptable"}
@@ -102,26 +102,39 @@ def motivo_refuerzo(registro: Dict[str, Any], numero: int, debiles: List[Dict[st
     partes = []
     nota_unidad = (registro.get("promedios_unidad") or {}).get(f"U{numero}")
     if nota_unidad is not None:
-        partes.append(f"tu promedio en la unidad es {nota_unidad:.2f}/10")
+        partes.append(f"promedio de la unidad {nota_unidad:.2f}/10")
     if debiles:
-        partes.append(f"las actividades con menor resultado fueron {_lista([_actividad(a) for a in debiles])}")
+        partes.append(f"actividades más bajas: {_lista([_actividad(a) for a in debiles])}")
     if registro.get("nota_final") is not None:
         nivel = NIVELES.get(registro.get("nivel_riesgo"), "")
-        partes.append(f"tu nota ponderada actual es {registro['nota_final']:.2f}/10" + (f" ({nivel})" if nivel else ""))
+        partes.append(f"nota ponderada actual {registro['nota_final']:.2f}/10" + (f" ({nivel})" if nivel else ""))
     return "; ".join(partes) if partes else None
+
+
+def instrucciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
+                             fecha_entrega: Optional[datetime] = None,
+                             motivo: Optional[str] = None) -> Tuple[str, List[str]]:
+    """Instrucciones del docente en pasos cortos: (saludo, [motivo académico, qué repasar, entrega])."""
+    nombre = (nombres or "").split()[0] if nombres else "Estimado(a) estudiante"
+    plazo = (f"hasta el {fecha_entrega_texto(fecha_entrega)}" if fecha_entrega
+             else "hasta la fecha indicada en la tarea")
+    intro = f"{nombre}, este refuerzo corresponde a la Unidad {numero} ({titulo_unidad})."
+    pasos = [
+        f"**Motivo académico:** {motivo}." if motivo
+        else f"**Motivo académico:** reforzar los contenidos de la Unidad {numero} según la evaluación de tu docente.",
+        f"**Qué repasar:** {_lista(_en_minuscula(subtemas))}, con la fundamentación y el ejemplo resuelto de la "
+        "sección VI.",
+        "**Entrega:** resuelve las actividades de la sección VII y sube un único archivo PDF (o tu código comprimido "
+        f"en .zip) en la tarea de Moodle UTA {plazo}.",
+    ]
+    return intro, pasos
 
 
 def indicaciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
                             fecha_entrega: Optional[datetime] = None, motivo: Optional[str] = None) -> str:
-    """Párrafo directo del docente: qué motiva el refuerzo, qué repasar y cómo y cuándo entregar en Moodle."""
-    nombre = (nombres or "").split()[0] if nombres else "Estimado(a) estudiante"
-    plazo = (f"hasta el {fecha_entrega_texto(fecha_entrega)}" if fecha_entrega
-             else "hasta la fecha indicada en la tarea")
-    return (f"{nombre}, este refuerzo corresponde a la Unidad {numero} ({titulo_unidad})"
-            + (f": {motivo}" if motivo else "")
-            + f". Repasa {_lista(_en_minuscula(subtemas))} con la fundamentación y el ejemplo de la sección VI, "
-            "resuelve las actividades de la sección VII y sube un único archivo PDF (o tu código comprimido en .zip) "
-            f"en la tarea de Moodle UTA {plazo}.")
+    """Las mismas instrucciones como texto (tarea de Moodle / borrador que el docente puede editar)."""
+    intro, pasos = instrucciones_estudiante(nombres, numero, titulo_unidad, subtemas, fecha_entrega, motivo)
+    return "\n".join([intro, *(f"{i}. {p.replace('**', '')}" for i, p in enumerate(pasos, 1))])
 
 
 # Textos que no escribió el docente: borradores en tercera persona («El estudiante X presenta dificultades...») o
@@ -131,14 +144,12 @@ _TEXTO_GENERADO = re.compile(r"^\s*((el|la) (estudiante|alumn[oa])\b|estimado/a 
                              re.IGNORECASE)
 
 
-def _indicaciones(instrucciones: str, generadas: str) -> str:
-    """Instrucciones: el párrafo del docente con las notas de la unidad y, si las hay, sus observaciones."""
+def _observacion(instrucciones: str) -> Optional[str]:
+    """Lo que escribió el propio docente (se agrega como observación); los textos generados se descartan."""
     texto = (instrucciones or "").strip()
     if not texto or _TEXTO_GENERADO.match(texto):
-        return generadas
-    if texto.lower().startswith(("estimado", "estimada", "hola")):
-        return texto   # el docente ya le escribió directamente al estudiante
-    return f"{generadas}\n**Observación del docente:** {texto}"
+        return None
+    return texto
 
 
 def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad: Optional[str],
@@ -174,8 +185,9 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
     temas = contenido["temas"][:MAX_TEMAS]
     subtemas = [t for t, _ in temas]
     motivo = motivo_refuerzo(registro, numero, debiles)
-    generadas = indicaciones_estudiante(estudiante.get("nombres") or "", numero, contenido["titulo"], subtemas,
-                                        fecha_entrega, motivo)
+    intro, pasos = instrucciones_estudiante(estudiante.get("nombres") or "", numero, contenido["titulo"], subtemas,
+                                            fecha_entrega, motivo)
+    observacion = _observacion(instrucciones)
     materia = _materia(curso.get("fullname", ""), shortname)
     objetivo = objetivo_unidad(shortname, numero) or f"Afianzar los contenidos de la Unidad {numero}"
     return {
@@ -195,10 +207,13 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
         "fecha_entrega": fecha_entrega,
         "instrucciones": (instrucciones or "").strip(),
         "motivo": motivo,
-        "indicaciones": _indicaciones(instrucciones, generadas),
+        "instrucciones_intro": intro,
+        "instrucciones_pasos": pasos + ([f"**Observación del docente:** {observacion}"] if observacion else []),
+        "observacion": observacion,
         "temas": temas,
         "entorno": entorno_materia(shortname),
         "recursos": recursos_unidad(shortname, numero),
+        "referencia": referencia_unidad(shortname, numero),
         "ejemplo": {**ejemplo, "pasos": ejemplo["pasos"][:MAX_PASOS]} if ejemplo else None,
         "ejercicios": contenido["ejercicios"][:MAX_EJERCICIOS],
     }
@@ -207,12 +222,11 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
 def datos_generales(guia: Dict[str, Any]) -> List[List[Tuple[str, str, int]]]:
     """Filas de la tabla de datos generales: celdas (etiqueta, valor, columnas que ocupa) sobre 3 columnas."""
     est = guia["estudiante"]
-    contacto = " · ".join(v for v in (f"C.I. {est['cedula']}" if est.get("cedula") else "", est.get("email")) if v)
     return [
         [("FACULTAD", FACULTAD, 2), ("CARRERA", CARRERA, 1)],
         [("NIVEL", NIVEL, 1), ("CICLO ACADÉMICO", CICLO, 1), ("ASIGNATURA", guia["materia"].replace(" — ", " - "), 1)],
         [("DOCENTE", guia["docente"] or "-", 3)],
-        [("ESTUDIANTE", (est.get("nombres") or "-") + (f" ({contacto})" if contacto else ""), 3)],
+        [("ESTUDIANTE", (est.get("nombres") or "-") + (f" — C.I. {est['cedula']}" if est.get("cedula") else ""), 3)],
         [("FECHA LÍMITE DE ENTREGA", fecha_entrega_texto(guia.get("fecha_entrega")), 3)],
     ]
 
@@ -358,7 +372,12 @@ def renderizar_pdf(guia: Dict[str, Any]) -> bytes:
     _seccion(pdf, "II. OBJETIVO:", lambda: _escribir(pdf, guia["objetivo"]))
     _seccion(pdf, "III. MODALIDAD Y DURACIÓN:", lambda: _escribir(
         pdf, f"**Modalidad:** {guia['modalidad']} · **Duración:** {guia['duracion']}"))
-    _seccion(pdf, "IV. INSTRUCCIONES:", lambda: _escribir(pdf, guia["indicaciones"]))
+    def instrucciones():
+        _escribir(pdf, guia["instrucciones_intro"])
+        pdf.ln(0.6)
+        for i, paso in enumerate(guia["instrucciones_pasos"], 1):
+            _item(pdf, f"{i}.", paso)
+    _seccion(pdf, "IV. INSTRUCCIONES:", instrucciones)
 
     def recursos():
         _item(pdf, "-", f"**Entorno de desarrollo:** {guia['entorno']}.")
@@ -379,6 +398,10 @@ def renderizar_pdf(guia: Dict[str, Any]) -> bytes:
             for i, paso in enumerate(ejemplo["pasos"], 1):
                 _item(pdf, f"{i}.", paso)
             _escribir(pdf, f"**Resultado:** {ejemplo['resultado']}")
+        if guia.get("referencia"):
+            fuente, detalle = guia["referencia"]
+            pdf.ln(0.8)
+            _escribir(pdf, f"**Libro / referencia recomendada:** {fuente}, {detalle}")
     _seccion(pdf, "VI. FUNDAMENTACIÓN Y EJEMPLO RESUELTO:", fundamentacion)
 
     def actividades():

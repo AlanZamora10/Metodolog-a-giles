@@ -1,4 +1,4 @@
-/** Vista previa del informe académico del curso, descarga en Markdown e impresión/PDF. */
+/** Informe académico del curso con formato institucional UTA - FISEI (blanco y negro): vista previa, .md e impresión/PDF. */
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,9 +7,8 @@ import { endpoints } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useCurso } from '../context/CursoContext';
 import { CursoRequerido } from '../components/layout/CursoRequerido';
-import { DesgloseEstados } from '../components/charts/Graficos';
-import { Aviso, NivelBadge } from '../components/ui/ui';
-import { REGLAS } from '../utils/academico';
+import { Aviso } from '../components/ui/ui';
+import { NIVELES, REGLAS } from '../utils/academico';
 import { fecha, fechaHora, nota } from '../utils/formato';
 import { nombreCurso } from '../utils/nombres';
 
@@ -64,7 +63,6 @@ function Informe() {
       <div className="page-head no-print">
         <div>
           <h1>Informe del curso</h1>
-          <p>Generado por el middleware con datos sincronizados; sin texto inventado.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn" onClick={recargarCurso} disabled={cargandoCurso}>
@@ -80,61 +78,73 @@ function Informe() {
       </div>
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <article className="card informe stagger-1" aria-label="Vista previa del informe">
-        <header className="informe-head">
-          <div>
-            <div className="muted small">Universidad Técnica de Ambato · FISEI · Ingeniería de Software</div>
-            <h1 style={{ marginTop: 4 }}>Informe académico — {nombreCurso(r.curso.fullname)}</h1>
+      {/* Documento institucional sobrio (UTA - FISEI): negro sobre blanco y bordes finos, igual en pantalla e impresión */}
+      <article className="card informe informe-oficial stagger-1" aria-label="Vista previa del informe">
+        <header className="informe-cabecera">
+          <img src="/uta-escudo-azul.png" alt="Escudo de la Universidad Técnica de Ambato" className="informe-escudo" />
+          <div className="informe-titulos">
+            <p className="informe-universidad">UNIVERSIDAD TÉCNICA DE AMBATO</p>
+            <p className="informe-facultad">Facultad de Ingeniería en Sistemas, Electrónica e Industrial · Carrera de Software</p>
+            <h1>Informe académico — {nombreCurso(r.curso.fullname)}</h1>
           </div>
-          <dl className="informe-meta">
-            <dt>Período</dt>
-            <dd>
-              {r.periodo.nombre} ({r.periodo.codigo})
-            </dd>
-            <dt>Vigencia</dt>
-            <dd>
-              {fecha(r.periodo.inicio)} – {fecha(r.periodo.fin)}
-            </dd>
-            <dt>Docente</dt>
-            <dd>{usuario?.nombres}</dd>
-            <dt>Sincronizado</dt>
-            <dd>{fechaHora(r.fecha_sincronizacion)}</dd>
-            <dt>Generado</dt>
-            <dd>{fechaHora(r.generado_en)}</dd>
-          </dl>
         </header>
+
+        <table className="informe-tabla informe-datos">
+          <tbody>
+            <tr>
+              <th scope="row">Asignatura</th>
+              <td>
+                {nombreCurso(r.curso.fullname)} ({r.curso.shortname})
+              </td>
+              <th scope="row">Docente</th>
+              <td>{usuario?.nombres}</td>
+            </tr>
+            <tr>
+              <th scope="row">Período</th>
+              <td>
+                {r.periodo.nombre} ({r.periodo.codigo})
+              </td>
+              <th scope="row">Vigencia</th>
+              <td>
+                {fecha(r.periodo.inicio)} – {fecha(r.periodo.fin)}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Sincronizado</th>
+              <td>{fechaHora(r.fecha_sincronizacion)}</td>
+              <th scope="row">Emitido</th>
+              <td>{fechaHora(r.generado_en)}</td>
+            </tr>
+          </tbody>
+        </table>
 
         <section>
           <h2>1. Métricas del curso</h2>
-          <div className="metricas-mini">
-            <div>
-              <span>Estudiantes</span>
-              <b>{m.total_estudiantes}</b>
-            </div>
-            <div>
-              <span>Promedio</span>
-              <b>{nota(m.promedio)}</b>/10
-            </div>
-            <div>
-              <span>Mediana</span>
-              <b>{nota(m.mediana)}</b>
-            </div>
-            <div>
-              <span>Mín. – Máx.</span>
-              <b>
-                {nota(m.nota_minima)} – {nota(m.nota_maxima)}
-              </b>
-            </div>
-            <div>
-              <span>Desv. estándar</span>
-              <b>{nota(m.desviacion_estandar)}</b>
-            </div>
-            <div>
-              <span>Aprobación</span>
-              <b>{m.porcentaje_aceptables.toFixed(1)} %</b>
-            </div>
-          </div>
-          <div className="grid grid-3" style={{ marginTop: 14 }}>
+          <table className="informe-tabla informe-metricas">
+            <thead>
+              <tr>
+                <th>Estudiantes</th>
+                <th>Promedio</th>
+                <th>Mediana</th>
+                <th>Mín. – Máx.</th>
+                <th>Desv. estándar</th>
+                <th>Aprobación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{m.total_estudiantes}</td>
+                <td>{nota(m.promedio)} / 10</td>
+                <td>{nota(m.mediana)}</td>
+                <td>
+                  {nota(m.nota_minima)} – {nota(m.nota_maxima)}
+                </td>
+                <td>{nota(m.desviacion_estandar)}</td>
+                <td>{m.porcentaje_aceptables.toFixed(1)} %</td>
+              </tr>
+            </tbody>
+          </table>
+          <div className="informe-columnas">
             <TablaSimple
               titulo="Nivel"
               filas={[
@@ -159,23 +169,64 @@ function Informe() {
         </section>
 
         <section>
-          <h2>2. Distribución de estados de las actividades</h2>
-          <p className="muted small" style={{ marginBottom: 10 }}>
-            {d.total_registros} registros de calificación · {d.estudiantes_con_cero} estudiante(s) con nota cero ·{' '}
-            {d.estudiantes_sin_entrega} sin entrega · {d.estudiantes_con_pendiente} con pendientes
-          </p>
-          <DesgloseEstados conteo={{ calificada: d.calificado, cero: d.cero, sin_entrega: d.sin_entrega, pendiente: d.pendiente }} />
+          <h2>2. Estado de las actividades</h2>
+          <table className="informe-tabla">
+            <thead>
+              <tr>
+                <th>Estado</th>
+                <th className="right">Registros</th>
+                <th className="right">Estudiantes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Calificado</td>
+                <td className="right">{d.calificado}</td>
+                <td className="right">—</td>
+              </tr>
+              <tr>
+                <td>Nota 0</td>
+                <td className="right">{d.cero}</td>
+                <td className="right">{d.estudiantes_con_cero}</td>
+              </tr>
+              <tr>
+                <td>Sin entrega</td>
+                <td className="right">{d.sin_entrega}</td>
+                <td className="right">{d.estudiantes_sin_entrega}</td>
+              </tr>
+              <tr>
+                <td>Pendiente de revisión</td>
+                <td className="right">{d.pendiente}</td>
+                <td className="right">{d.estudiantes_con_pendiente}</td>
+              </tr>
+            </tbody>
+          </table>
         </section>
 
         <section>
           <h2>3. Alertas tempranas</h2>
-          <p>
-            Nota crítica: <b>{r.alertas.r1_activas}</b> · Descenso sostenido: <b>{r.alertas.r2_activas}</b> · Abiertas: {r.alertas.abiertas} · En
-            atención: {r.alertas.atendidas} · Publicadas: {r.alertas.publicadas} · Cerradas: {r.alertas.cerradas} · Resueltas:{' '}
-            {r.alertas.resueltas}
-          </p>
+          <table className="informe-tabla">
+            <tbody>
+              <tr>
+                <th scope="row">Nota crítica</th>
+                <td className="right">{r.alertas.r1_activas}</td>
+                <th scope="row">Descenso sostenido</th>
+                <td className="right">{r.alertas.r2_activas}</td>
+              </tr>
+              <tr>
+                <th scope="row">Abiertas / en atención</th>
+                <td className="right">
+                  {r.alertas.abiertas} / {r.alertas.atendidas}
+                </td>
+                <th scope="row">Publicadas / cerradas / resueltas</th>
+                <td className="right">
+                  {r.alertas.publicadas} / {r.alertas.cerradas} / {r.alertas.resueltas}
+                </td>
+              </tr>
+            </tbody>
+          </table>
           {r.estudiantes_prioritarios.length > 0 && (
-            <table className="tabla" style={{ marginTop: 10 }}>
+            <table className="informe-tabla" style={{ marginTop: 10 }}>
               <thead>
                 <tr>
                   <th>Estudiante prioritario</th>
@@ -190,11 +241,9 @@ function Informe() {
                     <td>
                       <Link to={`/estudiantes/${e.id_number}`}>{e.nombres}</Link>
                     </td>
-                    <td className="right num">{nota(e.nota_final)}</td>
-                    <td>
-                      <NivelBadge nivel={e.nivel_riesgo} />
-                    </td>
-                    <td className="small">{e.regla_alerta ? REGLAS[e.regla_alerta] ?? e.regla_alerta : '—'}</td>
+                    <td className="right">{nota(e.nota_final)}</td>
+                    <td>{NIVELES[e.nivel_riesgo]?.etiqueta ?? e.nivel_riesgo}</td>
+                    <td>{e.regla_alerta ? REGLAS[e.regla_alerta] ?? e.regla_alerta : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -219,11 +268,6 @@ function Informe() {
             ))}
           </ul>
         </section>
-
-        <footer className="muted small" style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>
-          EduMonitor AI · Informe determinista calculado a partir del libro de calificaciones de Moodle UTA. Las alertas son señales para
-          revisión docente, no calificaciones definitivas.
-        </footer>
       </article>
     </>
   );
@@ -231,7 +275,7 @@ function Informe() {
 
 function TablaSimple({ titulo, filas }: { titulo: string; filas: string[][] }) {
   return (
-    <table className="tabla">
+    <table className="informe-tabla">
       <thead>
         <tr>
           <th>{titulo}</th>
@@ -242,7 +286,7 @@ function TablaSimple({ titulo, filas }: { titulo: string; filas: string[][] }) {
         {filas.map(([a, b]) => (
           <tr key={a}>
             <td>{a}</td>
-            <td className="right num">{b}</td>
+            <td className="right">{b}</td>
           </tr>
         ))}
       </tbody>

@@ -9,6 +9,34 @@ import { iniciales, nota } from '../utils/formato';
 import { nombreCurso } from '../utils/nombres';
 
 const COMPONENTE: Record<string, string> = { ACD: 'Examen', TAREAS: 'Tarea', PAE: 'APE' };
+const PARCIALES: Record<number, string> = { 1: 'Primer Parcial', 2: 'Segundo Parcial' };
+/** Orden de lectura: evaluaciones, luego prácticas APE y luego tareas, para comparar unidad con unidad. */
+const GRUPOS: { componente: string; titulo: string }[] = [
+  { componente: 'ACD', titulo: 'Evaluaciones' },
+  { componente: 'PAE', titulo: 'Prácticas APE' },
+  { componente: 'TAREAS', titulo: 'Tareas' },
+];
+
+type ActividadFicha = ReturnType<typeof actividadesEnCorte>[number];
+
+/** Actividades agrupadas por parcial y, dentro de cada uno, por componente; cada grupo ordenado por unidad. */
+function agruparActividades(actividades: ActividadFicha[]) {
+  const parciales = [...new Set(actividades.map((a) => a.parcial))].sort((a, b) => a - b);
+  return parciales.map((parcial) => ({
+    parcial,
+    titulo: PARCIALES[parcial] ?? `Parcial ${parcial}`,
+    grupos: [...GRUPOS, ...[...new Set(actividades.map((a) => a.componente))]
+      .filter((c) => !GRUPOS.some((g) => g.componente === c))
+      .map((c) => ({ componente: c, titulo: COMPONENTE[c] ?? c }))]
+      .map((g) => ({
+        ...g,
+        actividades: actividades
+          .filter((a) => a.parcial === parcial && a.componente === g.componente)
+          .sort((a, b) => a.unidad - b.unidad || a.id_number.localeCompare(b.id_number, 'es', { numeric: true })),
+      }))
+      .filter((g) => g.actividades.length > 0),
+  }));
+}
 
 /** Ficha individual del estudiante. */
 export function EstudianteDetallePage() {
@@ -25,6 +53,7 @@ function Ficha() {
   const e = datos!.estudiantes.find((x) => x.id_number.toUpperCase() === (idNumber ?? '').toUpperCase());
 
   const actividades = useMemo(() => (e ? actividadesEnCorte(e, corte) : []), [e, corte]);
+  const grupos = useMemo(() => agruparActividades(actividades), [actividades]);
   const evolucion = useMemo(
     () =>
       actividades.map((a) => ({
@@ -61,8 +90,10 @@ function Ficha() {
           </div>
           <div>
             <h1>{e.nombres}</h1>
-            <p>
-              {e.cedula ? `C.I. ${e.cedula}` : e.id_number} · {e.email} · {nombreCurso(datos!.fullname)}
+            <p className="perfil-meta" data-testid="perfil-meta">
+              <span>{e.cedula ? `C.I. ${e.cedula}` : e.id_number}</span>
+              {e.email && <span>{e.email}</span>}
+              <span>{nombreCurso(datos!.fullname)}</span>
             </p>
           </div>
         </div>
@@ -157,38 +188,46 @@ function Ficha() {
       <section className="card">
         <div className="card-head">
           <h2>Calificaciones por actividad</h2>
-          <p>Sincronizadas desde el libro de calificaciones de Moodle UTA</p>
+          <p>Por parcial y por tipo de actividad, en orden de unidad</p>
         </div>
         <div className="table-wrap" style={{ marginTop: 10 }}>
-          <table className="tabla">
+          <table className="tabla tabla-agrupada">
             <thead>
               <tr>
                 <th>Código</th>
                 <th>Actividad</th>
-                <th>Componente</th>
                 <th>Unidad</th>
-                <th>Parcial</th>
                 <th className="right">Nota</th>
                 <th>Estado</th>
               </tr>
             </thead>
-            <tbody>
-              {actividades.map((a) => (
-                <tr key={a.id_number}>
-                  <td className="mono">{a.id_number}</td>
-                  <td>{a.nombre}</td>
-                  <td>{COMPONENTE[a.componente] ?? a.componente}</td>
-                  <td>U{a.unidad}</td>
-                  <td>P{a.parcial}</td>
-                  <td className="right num">
-                    <strong>{a.nota === null ? '—' : a.nota.toFixed(2)}</strong>
-                  </td>
-                  <td>
-                    <EstadoDeActividad actividad={a} />
-                  </td>
+            {grupos.map((p) => (
+              <tbody key={p.parcial} data-testid={`parcial-${p.parcial}`}>
+                <tr className="fila-parcial">
+                  <th colSpan={5} scope="colgroup">
+                    {p.titulo}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
+                {p.grupos.map((g) => [
+                  <tr key={`${p.parcial}-${g.componente}`} className="fila-grupo">
+                    <td colSpan={5}>{g.titulo}</td>
+                  </tr>,
+                  ...g.actividades.map((a) => (
+                    <tr key={a.id_number}>
+                      <td className="mono">{a.id_number}</td>
+                      <td>{a.nombre}</td>
+                      <td>Unidad {a.unidad}</td>
+                      <td className="right num">
+                        <strong>{a.nota === null ? '—' : a.nota.toFixed(2)}</strong>
+                      </td>
+                      <td>
+                        <EstadoDeActividad actividad={a} />
+                      </td>
+                    </tr>
+                  )),
+                ])}
+              </tbody>
+            ))}
           </table>
         </div>
       </section>

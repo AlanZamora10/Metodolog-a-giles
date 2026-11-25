@@ -1000,6 +1000,12 @@ def recursos_unidad(shortname: str, unidad: int) -> List[Tuple[str, str]]:
     return [*RECURSOS.get(sigla_curso(shortname), {}).get(unidad, []), aula]
 
 
+def referencia_unidad(shortname: str, unidad: int) -> Optional[Tuple[str, str]]:
+    """Libro o referencia recomendada para la unidad: el primer libro de sus fuentes (o la primera fuente)."""
+    fuentes = RECURSOS.get(sigla_curso(shortname), {}).get(unidad, [])
+    return next((f for f in fuentes if "«" in f[0]), fuentes[0] if fuentes else None)
+
+
 # Plantilla institucional UTA (guía práctica / tarea): objetivo de cada unidad y entorno de desarrollo de la materia.
 OBJETIVOS: Dict[str, Dict[int, str]] = {
     "POO": {

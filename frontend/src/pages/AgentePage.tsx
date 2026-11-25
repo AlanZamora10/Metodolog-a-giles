@@ -6,7 +6,9 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ChatResponse, HerramientaUsada, PropuestaRefuerzo } from '../api/types';
+import { ApiError } from '../api/client';
+import { endpoints } from '../api/endpoints';
+import type { AdjuntoChat, ChatResponse, HerramientaUsada, PropuestaRefuerzo } from '../api/types';
 import { useChat, type MensajeChat } from '../context/ChatContext';
 import { useCurso } from '../context/CursoContext';
 import { Markdown } from '../components/ui/Markdown';
@@ -20,6 +22,9 @@ export const NOMBRES_HERRAMIENTAS: Record<string, string> = {
   generar_resumen: 'Resumen del curso',
   analizar_actividades: 'Rendimiento por actividad',
   proponer_refuerzo: 'Propuesta de refuerzo',
+  listar_estudiantes: 'Nómina del curso',
+  perfil_docente: 'Perfil del docente',
+  generar_guia_pdf: 'Guía oficial de refuerzo (PDF)',
 };
 
 const FUENTES: Record<string, string> = {
@@ -174,6 +179,7 @@ function Mensaje({ m }: { m: MensajeChat }) {
     <div className={`msg ${m.rol}`}>
       <div className="burbuja">
         {m.rol === 'agente' && m.detalle?.formato === 'markdown' ? <Markdown texto={m.texto} /> : m.texto}
+        {m.detalle?.adjuntos?.map((a) => <Adjunto key={a.url} a={a} />)}
       </div>
       {propuesta && <AccionPropuesta p={propuesta} />}
       <div className="msg-meta">
@@ -181,6 +187,64 @@ function Mensaje({ m }: { m: MensajeChat }) {
         <span>· {fechaHora(m.fecha)}</span>
       </div>
       {m.detalle && m.detalle.herramientas.length > 0 && <Auditoria r={m.detalle} />}
+    </div>
+  );
+}
+
+/**
+ * Archivo adjunto a la respuesta (guía oficial en PDF): se pide con el JWT (un enlace directo no llevaría la
+ * cabecera Authorization) y se abre en otra pestaña o se descarga sin salir del Agente IA.
+ */
+export function Adjunto({ a }: { a: AdjuntoChat }) {
+  const [cargando, setCargando] = useState<'abrir' | 'descargar' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function obtener(modo: 'abrir' | 'descargar') {
+    setCargando(modo);
+    setError(null);
+    // La pestaña se abre en el mismo clic (si se abre tras la descarga, el navegador la bloquea)
+    const pestana = modo === 'abrir' ? window.open('', '_blank') : null;
+    try {
+      const resp = await endpoints.archivo(a.url);
+      const url = URL.createObjectURL(await resp.blob());
+      if (pestana) {
+        pestana.location.href = url;
+      } else {
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = a.nombre;
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (ex) {
+      pestana?.close();
+      setError(ex instanceof ApiError ? ex.detail : 'No se pudo obtener el PDF.');
+    } finally {
+      setCargando(null);
+    }
+  }
+
+  return (
+    <div className="adjunto-chat" data-testid="adjunto-pdf">
+      <span className="adjunto-icono" aria-hidden>
+        PDF
+      </span>
+      <span className="adjunto-nombre">{a.nombre}</span>
+      <span className="adjunto-acciones">
+        <button className="btn btn-sm" onClick={() => obtener('abrir')} disabled={cargando !== null}>
+          {cargando === 'abrir' && <span className="spinner" aria-hidden />} Abrir
+        </button>
+        <button className="btn btn-sm btn-primary" onClick={() => obtener('descargar')} disabled={cargando !== null}>
+          {cargando === 'descargar' && <span className="spinner" aria-hidden />} {a.etiqueta ?? 'Descargar PDF'}
+        </button>
+      </span>
+      {error && (
+        <span className="adjunto-error" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

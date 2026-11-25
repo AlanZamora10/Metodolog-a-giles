@@ -87,8 +87,8 @@ def limpiar_llamadas(llamadas: List[Dict[str, Any]], cursos: List[Dict[str, Any]
             if curso:
                 params.pop(clave)
                 params.setdefault("course_id", curso)
-        if llamada.get("herramienta") == "proponer_refuerzo" and not params.get("student_query"):
-            continue  # sin estudiante real no hay refuerzo que proponer
+        if llamada.get("herramienta") in ("proponer_refuerzo", "generar_guia_pdf") and not params.get("student_query"):
+            continue  # sin estudiante real no hay refuerzo ni guía PDF que generar
         limpias.append({**llamada, "parametros": params})
     return limpias
 
@@ -129,6 +129,7 @@ async def planificar(mensaje: str, herramientas: List[Dict[str, Any]], cursos: L
     sistema = (
         "Asistente académico de EduMonitor AI. Elige herramientas y parámetros; no inventes datos. "
         "Todos los cursos o totales: sin course_id. Refuerzo: proponer_refuerzo(student_query). "
+        "Guía en PDF de un estudiante: generar_guia_pdf(student_query). "
         "Un nombre de materia es un curso (course_id), nunca un estudiante. "
         "Nota con umbral (menor/mayor a X, entre X y Y): obtener_calificaciones(operador, umbral). "
         f"Cursos: {contexto or 'ninguno'}." + (f" Curso activo: {course_id}." if course_id else "")

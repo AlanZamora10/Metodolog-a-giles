@@ -38,7 +38,7 @@ def test_es_una_guia_de_refuerzo_sin_rubrica_ni_tarjetas():
     guia = _guia()
     assert "rubrica" not in guia and not hasattr(guia_pdf, "RUBRICA")
     assert "diagnostico" not in guia and not hasattr(guia_pdf, "_tarjetas")
-    assert set(guia) >= {"estudiante", "materia", "unidad_titulo", "docente", "objetivo", "indicaciones",
+    assert set(guia) >= {"estudiante", "materia", "unidad_titulo", "docente", "objetivo", "instrucciones_pasos",
                          "temas", "ejemplo", "ejercicios", "recursos", "entorno"}
 
 
@@ -52,47 +52,77 @@ def test_datos_esenciales_del_estudiante_y_la_unidad():
 
 
 def test_las_notas_reales_que_motivan_el_refuerzo():
-    assert _guia()["motivo"] == ("tu promedio en la unidad es 5.94/10; las actividades con menor resultado fueron "
-                                 "Evaluación (5.50), Tarea 4 (6.00) y Tarea 3 (6.00); tu nota ponderada actual es "
-                                 "6.45/10 (en riesgo)")   # sólo actividades de la unidad, máx. 3
+    assert _guia()["motivo"] == ("promedio de la unidad 5.94/10; actividades más bajas: Evaluación (5.50), Tarea 4 "
+                                 "(6.00) y Tarea 3 (6.00); nota ponderada actual 6.45/10 (en riesgo)")   # máx. 3
     assert _guia(registro=None)["motivo"] is None
 
 
-def test_instrucciones_directas_del_docente_con_notas_y_entrega():
-    texto = indicaciones_estudiante("Carlos Andrés Mendoza Paredes", 2, "Herencia y polimorfismo",
-                                    ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"],
-                                    datetime(2026, 11, 22, 23, 59), motivo="tu promedio en la unidad es 5.94/10")
-    assert texto == ("Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo): tu promedio en la "
-                     "unidad es 5.94/10. Repasa herencia, sobrescritura y clases abstractas y polimorfismo con la "
-                     "fundamentación y el ejemplo de la sección VI, resuelve las actividades de la sección VII y sube un "
-                     "único archivo PDF (o tu código comprimido en .zip) en la tarea de Moodle UTA hasta el 22/11/2026 a "
-                     "las 23:59.")
+def test_instrucciones_en_pasos_cortos_motivo_repaso_y_entrega():
+    intro, pasos = guia_pdf.instrucciones_estudiante(
+        "Carlos Andrés Mendoza Paredes", 2, "Herencia y polimorfismo",
+        ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"], datetime(2026, 11, 22, 23, 59),
+        motivo="promedio de la unidad 5.94/10")
+    assert intro == "Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo)."
+    assert pasos == [
+        "**Motivo académico:** promedio de la unidad 5.94/10.",
+        "**Qué repasar:** herencia, sobrescritura y clases abstractas y polimorfismo, con la fundamentación y el "
+        "ejemplo resuelto de la sección VI.",
+        "**Entrega:** resuelve las actividades de la sección VII y sube un único archivo PDF (o tu código comprimido "
+        "en .zip) en la tarea de Moodle UTA hasta el 22/11/2026 a las 23:59.",
+    ]
     for robotico in ("Estimado/a", "se ha identificado", "EduMonitor", "IA", "Hola"):
-        assert robotico not in texto
-    # Siglas al inicio del subtema se conservan
-    assert "Repasa SQL avanzado" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
-    assert "hasta la fecha indicada en la tarea" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
+        assert all(robotico not in t for t in [intro, *pasos])
+    # Siglas al inicio del subtema se conservan; sin fecha se remite a la tarea
+    _, pasos_sql = guia_pdf.instrucciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
+    assert "SQL avanzado" in pasos_sql[1] and "hasta la fecha indicada en la tarea" in pasos_sql[2]
+    assert pasos_sql[0].startswith("**Motivo académico:** reforzar los contenidos de la Unidad 2")
 
 
-@pytest.mark.parametrize("instrucciones, empieza, contiene", [
-    # Textos que no escribió el docente (borrador en tercera persona o de versiones anteriores): se regeneran con notas
-    ("El estudiante Carlos Mendoza presenta dificultades en Unidad 2.", "Carlos, este refuerzo", None),
-    ("Estimado/a Carlos, se ha identificado que necesitas reforzar los temas de herencia.", "Carlos, este refuerzo", None),
-    ("Hola Carlos, revisando tus calificaciones de la Unidad 2, te comparto esta guía.", "Carlos, este refuerzo", None),
-    ("Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo). Repasa...", "Carlos, este refuerzo",
-     "tu promedio en la unidad es 5.94/10"),
-    ("", "Carlos, este refuerzo", None),
-    # Indicación propia del docente: se conserva como observación tras el párrafo con las notas
-    ("Resuelva la guía.", "Carlos, este refuerzo", "**Observación del docente:** Resuelva la guía."),
-    # El docente ya le escribe al estudiante: se respeta su texto
-    ("Estimado Carlos, revisa la herencia múltiple.", "Estimado Carlos, revisa", None),
+def test_texto_para_moodle_numerado_y_sin_marcas():
+    texto = indicaciones_estudiante("Carlos Andrés", 2, "Herencia y polimorfismo", ["Herencia"],
+                                    datetime(2026, 11, 22, 23, 59), motivo="promedio de la unidad 5.94/10")
+    lineas = texto.split("\n")
+    assert lineas[0] == "Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo)."
+    assert [ln[:3] for ln in lineas[1:]] == ["1. ", "2. ", "3. "] and "**" not in texto
+
+
+@pytest.mark.parametrize("instrucciones, observacion", [
+    # Textos que no escribió el docente (borrador en tercera persona o de versiones anteriores): se descartan
+    ("El estudiante Carlos Mendoza presenta dificultades en Unidad 2.", None),
+    ("Estimado/a Carlos, se ha identificado que necesitas reforzar los temas de herencia.", None),
+    ("Hola Carlos, revisando tus calificaciones de la Unidad 2, te comparto esta guía.", None),
+    ("Carlos, este refuerzo corresponde a la Unidad 2 (Herencia y polimorfismo).\n1. Motivo...", None),
+    ("", None),
+    # Lo que escribió el propio docente se conserva como un paso más («Observación del docente»)
+    ("Resuelva la guía.", "Resuelva la guía."),
+    ("Estimado Carlos, revisa la herencia múltiple.", "Estimado Carlos, revisa la herencia múltiple."),
 ])
-def test_instrucciones_respetan_lo_que_escribio_el_docente(instrucciones, empieza, contiene):
-    indicaciones = _guia(instrucciones=instrucciones)["indicaciones"]
-    assert indicaciones.startswith(empieza)
-    assert "presenta dificultades" not in indicaciones and "se ha identificado" not in indicaciones
-    if contiene:
-        assert contiene in indicaciones
+def test_instrucciones_respetan_lo_que_escribio_el_docente(instrucciones, observacion):
+    guia = _guia(instrucciones=instrucciones)
+    assert guia["instrucciones_intro"].startswith("Carlos, este refuerzo corresponde a la Unidad 2")
+    assert guia["observacion"] == observacion
+    pasos = guia["instrucciones_pasos"]
+    assert pasos[0].startswith("**Motivo académico:** promedio de la unidad 5.94/10")
+    if observacion:
+        assert len(pasos) == 4 and pasos[-1] == f"**Observación del docente:** {observacion}"
+    else:
+        assert len(pasos) == 3
+    assert not any("presenta dificultades" in p or "se ha identificado" in p for p in pasos)
+
+
+def test_referencia_recomendada_al_pie_de_la_fundamentacion():
+    assert _guia()["referencia"] == ("Deitel y Deitel, «Cómo programar en Java», 10.ª ed., Pearson",
+                                     "caps. 9 y 10: herencia, clases abstractas y polimorfismo.")
+    # Se prefiere un libro aunque no sea la primera fuente de la unidad
+    assert ca.referencia_unidad("SOF-MA-A", 2)[0] == "Schwaber y Sutherland, «La Guía Scrum» (2020)"
+    assert ca.referencia_unidad("SOF-XYZ-A", 1) is None
+    import inspect
+    assert "**Libro / referencia recomendada:**" in inspect.getsource(guia_pdf.renderizar_pdf)
+
+
+@pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
+def test_cada_unidad_tiene_referencia_recomendada(sigla):
+    assert all(ca.referencia_unidad(f"SOF-{sigla}-A", u) for u in (1, 2, 3, 4))
 
 
 def test_material_y_recursos_con_fuentes_reales_y_el_aula_virtual():
@@ -155,7 +185,7 @@ def test_tabla_de_datos_generales_institucional():
         [("NIVEL", "Cuarto", 1), ("CICLO ACADÉMICO", "Julio - Diciembre 2026", 1),
          ("ASIGNATURA", "Programación orientada a objetos - Paralelo A", 1)],
         [("DOCENTE", "Roberto Patricio Gómez Salazar", 3)],
-        [("ESTUDIANTE", "Carlos Andrés Mendoza Paredes (C.I. 1804923199 · cmendoza3199@uta.edu.ec)", 3)],
+        [("ESTUDIANTE", "Carlos Andrés Mendoza Paredes — C.I. 1804923199", 3)],   # sin correo
         [("FECHA LÍMITE DE ENTREGA", "22/11/2026 a las 23:59", 3)],
     ]
     assert guia_pdf.fecha_entrega_texto(None) == "La indicada en la tarea de Moodle UTA"
@@ -175,7 +205,7 @@ def test_tema_objetivo_y_modalidad():
     guia = _guia()
     assert guia["objetivo"] == ("Diseñar jerarquías de clases con herencia, clases abstractas y polimorfismo, "
                                 "reutilizando código sin romper la relación «es un».")
-    assert (guia["modalidad"], guia["duracion"]) == ("Virtual (Moodle UTA)", "2 horas no presenciales")
+    assert (guia["modalidad"], guia["duracion"]) == ("Presencial", "2 horas")
 
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
@@ -266,7 +296,8 @@ def test_materia_fuera_del_catalogo_usa_una_guia_breve():
 
 def test_sin_registro_omite_las_notas_y_tolera_texto_fuera_de_latin1():
     guia = _guia(registro=None, titulo="Refuerzo — «U2» → ≥ 7")
-    assert guia["motivo"] is None and guia["indicaciones"].startswith("Carlos, este refuerzo corresponde a la Unidad 2 (")
+    assert guia["motivo"] is None and guia["instrucciones_intro"].startswith("Carlos, este refuerzo corresponde a la Unidad 2 (")
+    assert guia["instrucciones_pasos"][0].startswith("**Motivo académico:** reforzar los contenidos")
     assert renderizar_pdf(guia).startswith(b"%PDF-")
 
 

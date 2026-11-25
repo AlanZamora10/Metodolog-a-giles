@@ -19,6 +19,7 @@ import os
 import re
 import time
 import unicodedata
+from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -79,6 +80,11 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
         "descripcion": "Datos del docente autenticado: nombre completo, correo institucional y cursos asignados. "
                        "Úsala para '¿cómo me llamo?', '¿quién soy?' o '¿qué materias doy?'.",
         "parametros": {},
+    },
+    "generar_guia_pdf": {
+        "descripcion": "Genera la guía oficial de refuerzo UTA - FISEI en PDF de un estudiante (unidad más baja) y "
+                       "devuelve el enlace de descarga. Úsala para 'dame el pdf' o 'descargar la guía de X'.",
+        "parametros": {"student_query": "string (nombre, cédula o ID U-xx)", "course_id": "integer (opcional)"},
     },
     "proponer_refuerzo": {
         "descripcion": "Analiza las falencias reales de un estudiante y redacta una propuesta de refuerzo (título, "
@@ -442,6 +448,56 @@ def proponer_refuerzo(docente: dict, student_query: Optional[str] = None,
     }
 
 
+def guia_de_estudiante(docente: dict, student_query: Optional[str],
+                       course_id: Optional[int] = None) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+    """
+    Datos para la guía oficial de refuerzo (PDF) de un estudiante del docente: curso (el indicado si está
+    matriculado; si no, el de nota más baja), unidad con el promedio más bajo y fecha de entrega (la del refuerzo
+    publicado o, si no hay, dentro del plazo sugerido). Devuelve (datos para generar_guia_pdf, curso, estudiante).
+    """
+    if not student_query:
+        raise HerramientaError("Indique el estudiante (nombre, cédula o ID U-xx) para generar la guía en PDF.")
+    filtro = _normalizar(student_query)
+    registros = [(c, e) for c in _cursos(docente, None) for e in c["estudiantes"] if _coincide(e, filtro)]
+    if course_id is not None:
+        _cursos(docente, course_id)  # valida que el curso sea del docente
+    if not registros:
+        raise HerramientaError(f"No se encontró al estudiante «{student_query}» en sus cursos.")
+    curso, e = _curso_para_refuerzo(registros, course_id)
+    unidades = {u: v for u, v in (e.get("promedios_unidad") or {}).items() if v is not None}
+    unidad = min(unidades, key=unidades.get) if unidades else "U1"
+    vence = (datetime.now() + timedelta(days=PLAZO_REFUERZO_DIAS)).replace(hour=23, minute=59, second=0, microsecond=0)
+    for alerta in repositories.list_alertas(course_id=curso["id"]):
+        refuerzo = repositories.get_refuerzo(alerta_id=alerta["id"]) if alerta["id_number"] == e["id_number"] else None
+        if refuerzo and refuerzo.get("fecha_entrega"):   # refuerzo ya publicado: su fecha real en Moodle
+            vence = datetime.fromisoformat(str(refuerzo["fecha_entrega"])).replace(tzinfo=None)
+    datos = {
+        "estudiante": {"nombres": e["nombres"], "email": e.get("email"), "id_number": e["id_number"],
+                       "cedula": e.get("cedula")},
+        "curso": curso, "unidad": f"Unidad {unidad[1:]}", "docente": docente.get("nombres") or docente["email"],
+        "titulo": f"Refuerzo Unidad {unidad[1:]} — {curso['shortname']}", "instrucciones": "",
+        "fecha_entrega": vence, "registro": e,
+    }
+    return datos, curso, e
+
+
+def generar_guia_pdf(docente: dict, student_query: Optional[str] = None,
+                     course_id: Optional[int] = None) -> Dict[str, Any]:
+    """Guía oficial UTA - FISEI del estudiante, lista para descargar desde el chat (GET /agent/guia-pdf)."""
+    from app.services import guia_pdf  # evita importación circular (guia_pdf usa _nombre_curso)
+    datos, curso, e = guia_de_estudiante(docente, student_query, course_id)
+    guia = guia_pdf.construir_guia(**datos)
+    nombre = guia_pdf.nombre_archivo(guia)
+    return {
+        "estudiante": {"id_number": e["id_number"], "nombres": e["nombres"]},
+        "curso": curso["shortname"], "curso_id": curso["id"], "curso_nombre": curso["fullname"],
+        "unidad": guia["unidad_titulo"], "fecha_entrega": datos["fecha_entrega"].isoformat(timespec="minutes"),
+        "descarga": {"tipo": "pdf", "nombre": nombre, "etiqueta": "Descargar guía PDF",
+                     "url": f"/api/v1/agent/guia-pdf?id_number={e['id_number']}&course_id={curso['id']}"},
+        "filas": 1,
+    }
+
+
 EJECUTORES: Dict[str, Callable[..., Dict[str, Any]]] = {
     "listar_cursos_autorizados": listar_cursos_autorizados,
     "obtener_calificaciones": obtener_calificaciones,
@@ -451,6 +507,7 @@ EJECUTORES: Dict[str, Callable[..., Dict[str, Any]]] = {
     "proponer_refuerzo": proponer_refuerzo,
     "listar_estudiantes": listar_estudiantes,
     "perfil_docente": perfil_docente,
+    "generar_guia_pdf": generar_guia_pdf,
 }
 _PARAMETROS_VALIDOS = {
     "listar_cursos_autorizados": set(),
@@ -461,6 +518,7 @@ _PARAMETROS_VALIDOS = {
     "proponer_refuerzo": {"student_query", "course_id"},
     "listar_estudiantes": {"course_id", "solo_conteo"},
     "perfil_docente": set(),
+    "generar_guia_pdf": {"student_query", "course_id"},
 }
 
 
@@ -595,10 +653,36 @@ def extremo_pedido(texto: str) -> Optional[str]:
     return "peor" if adjetivo in ("peor", "menor", "mas baja", "mas bajo") else "mejor"
 
 
+# Guía oficial en PDF: «perfecto dame el pdf», «descargar pdf», «genera el pdf de ese plan», «descarga la guía de X»
+_PIDE_PDF = re.compile(r"\bpdf\b|\bdescarg\w*\b.*\bguia\b")
+
+
+def estudiante_en_contexto(docente: dict) -> Optional[Dict[str, Any]]:
+    """Último estudiante consultado en el chat (30 min): «dame el pdf» se refiere a él."""
+    for log in repositories.chats_recientes(docente["email"]):
+        previo = (log.get("detalle") or {}).get("estudiante_contexto")
+        if previo:
+            return previo
+    return None
+
+
+def _estudiante_de(usadas: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Estudiante sobre el que trató la respuesta (plan de apoyo, guía PDF o calificaciones de una persona)."""
+    for u in reversed(usadas):
+        r = u["resultado"]
+        if "error" in r:
+            continue
+        if u["herramienta"] in ("proponer_refuerzo", "generar_guia_pdf"):
+            return {"nombres": r["estudiante"]["nombres"], "course_id": r["curso_id"]}
+        if u["herramienta"] == "obtener_calificaciones" and r.get("estudiante") and r["calificaciones"]:
+            filas = r["calificaciones"]
+            return {"nombres": filas[0]["nombres"], "course_id": filas[0]["curso_id"] if len(filas) == 1 else None}
+    return None
+
+
 def _intencion_directa(texto: str) -> bool:
-    return bool(_PANORAMA.search(texto) or _EN_PROBLEMAS.search(texto) or _criterio_informal(texto)
-                or extremo_pedido(texto)
-                or criterio_nota(texto) or _PERFIL.search(texto) or _CONTEO.search(texto) or _pide_lista(texto))
+    return bool(_PIDE_PDF.search(texto) or _PANORAMA.search(texto) or _EN_PROBLEMAS.search(texto)
+                or _criterio_informal(texto) or extremo_pedido(texto) or criterio_nota(texto) or _PERFIL.search(texto) or _CONTEO.search(texto) or _pide_lista(texto))
 
 
 _CURSOS = re.compile(r"\b(mis cursos|que cursos|cuales cursos|cursos tengo|lista de cursos|listar cursos|"
@@ -881,6 +965,15 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
     base = {"course_id": curso} if curso else {}
     plan: List[Tuple[str, Dict]] = []
 
+    if _PIDE_PDF.search(texto):
+        # «Dame el pdf»: del estudiante nombrado o, si no se nombra, del último consultado en la conversación
+        previo = None if estudiante else estudiante_en_contexto(docente)
+        quien = estudiante or (previo or {}).get("nombres")
+        if not quien:
+            return []
+        curso_pdf = ctx["explicito"] or (previo or {}).get("course_id") or (None if estudiante else course_id)
+        return [("generar_guia_pdf", {"student_query": quien, **({"course_id": curso_pdf} if curso_pdf else {})})]
+
     if ctx["criterio"] and not (_REFUERZO.search(texto) and estudiante):
         # Umbral explícito: sólo las matrículas que lo cumplen (todas las materias salvo que se nombre una).
         curso_umbral = ctx["explicito"] or (None if ctx["global"] else course_id)
@@ -969,6 +1062,11 @@ def _resolver_entidades(plan: List[Tuple[str, Dict]], mensaje: str, docente: dic
             params = {"student_query": estudiante}
             if ctx["explicito"] or ctx["contexto"]:
                 params["course_id"] = ctx["explicito"] or ctx["contexto"]
+        elif nombre == "generar_guia_pdf":
+            # Sólo si el mensaje pide el PDF y nombra a un estudiante real (el contexto lo resuelven las reglas)
+            if not ctx["estudiante"] or not _PIDE_PDF.search(ctx["texto"]):
+                continue
+            params = {"student_query": ctx["estudiante"], **({"course_id": ctx["explicito"]} if ctx["explicito"] else {})}
         elif nombre != "listar_cursos_autorizados":
             if ctx["curso"]:
                 params["course_id"] = ctx["curso"]
@@ -1267,6 +1365,7 @@ def _seccion_refuerzo(r: Dict[str, Any]) -> Seccion:
         lineas.append("\nEl estudiante ya tiene un refuerzo publicado para esta alerta en Moodle.")
     else:
         lineas.append("\nEl estudiante no tiene una alerta activa en este curso; la propuesta queda como referencia.")
+    lineas.append("\nSi desea la **guía oficial en PDF** para el estudiante, escriba «dame el pdf».")
     return "Propuesta de refuerzo", clave, lineas
 
 
@@ -1289,6 +1388,16 @@ def _seccion_perfil(r: Dict[str, Any]) -> Seccion:
     return "Su perfil", clave, lineas
 
 
+def _seccion_guia_pdf(r: Dict[str, Any]) -> Seccion:
+    est = r["estudiante"]
+    curso = _nombre_curso(r["curso_nombre"]).replace(", paralelo", " — Paralelo")
+    clave = (f"Listo: generé la **guía oficial de refuerzo UTA - FISEI** para **{est['nombres']}** en **{curso}** "
+             f"({r['unidad']}).")
+    return "Guía de refuerzo en PDF", clave, [
+        "Ábrala o descárguela con el botón **Descargar guía PDF** de este mensaje. Incluye el tema, el objetivo, "
+        "las instrucciones, el material de apoyo, un ejemplo resuelto y las actividades por desarrollar."]
+
+
 def _secciones(nombre: str, r: Dict[str, Any]) -> List[Seccion]:
     if "error" in r:
         return [("Aviso", f"No pude completar una de las consultas: {r['error']}", [])]
@@ -1308,6 +1417,8 @@ def _secciones(nombre: str, r: Dict[str, Any]) -> List[Seccion]:
         return [_seccion_nomina(r)]
     if nombre == "perfil_docente":
         return [_seccion_perfil(r)]
+    if nombre == "generar_guia_pdf":
+        return [_seccion_guia_pdf(r)]
     return []
 
 
@@ -1334,7 +1445,8 @@ def _respuesta_sin_herramientas(texto: str, fuente: str, docente: dict, inicio: 
         int((time.time() - inicio) * 1000),
     )
     return {"respuesta": texto, "formato": "markdown", "herramientas": [], "plan_fuente": fuente,
-            "redaccion": "determinista_sin_herramientas", "duracion_ms": int((time.time() - inicio) * 1000)}
+            "redaccion": "determinista_sin_herramientas", "adjuntos": [],
+            "duracion_ms": int((time.time() - inicio) * 1000)}
 
 
 async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None) -> Dict[str, Any]:
@@ -1355,7 +1467,11 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
             f"Mantengamos una comunicación respetuosa, {_trato_formal(docente) or 'por favor'}. "
             + _RESPUESTA_INSTITUCIONAL)
         return _respuesta_sin_herramientas(respuesta, "fuera_de_contexto", docente, inicio, {"motivo": motivo})
-    if _REFUERZO.search(ctx["texto"]) and not ctx["estudiante"]:
+    if _PIDE_PDF.search(ctx["texto"]) and not ctx["estudiante"] and not estudiante_en_contexto(docente):
+        return _respuesta_sin_herramientas(
+            "Con gusto genero la guía oficial en PDF. ¿De qué estudiante? Indíqueme su **nombre completo** o su "
+            "**cédula** (por ejemplo, «dame el pdf de Carlos Mendoza»).", "aclaracion", docente, inicio)
+    if _REFUERZO.search(ctx["texto"]) and not ctx["estudiante"] and not _PIDE_PDF.search(ctx["texto"]):
         return _respuesta_sin_herramientas(
             "Con gusto preparo un plan de apoyo. ¿Para qué estudiante? Indíqueme su **nombre completo** o su "
             "**cédula** (por ejemplo, «plan de apoyo para Carlos Mendoza»).", "aclaracion", docente, inicio)
@@ -1387,10 +1503,14 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
         usadas.append({"herramienta": nombre, "parametros": params, "resultado": resultado, "duracion_ms": duracion})
 
     respuesta = _sin_codigos(redactar(usadas), sync_service.cursos_del_docente(docente["email"]))
+    contexto_estudiante = _estudiante_de(usadas)
     repositories.insert_log(
         "AGENTE_CHAT", "EXITO", f"Consulta del docente atendida con {len(usadas)} herramienta(s).",
-        {"docente": docente["email"], "herramientas": [u["herramienta"] for u in usadas], "plan": fuente},
+        {"docente": docente["email"], "herramientas": [u["herramienta"] for u in usadas], "plan": fuente,
+         **({"estudiante_contexto": contexto_estudiante} if contexto_estudiante else {})},
         int((time.time() - inicio) * 1000),
     )
+    adjuntos = [u["resultado"]["descarga"] for u in usadas if "descarga" in u["resultado"]]
     return {"respuesta": respuesta, "formato": "markdown", "herramientas": usadas, "plan_fuente": fuente,
-            "redaccion": "determinista_desde_herramientas", "duracion_ms": int((time.time() - inicio) * 1000)}
+            "redaccion": "determinista_desde_herramientas", "adjuntos": adjuntos,
+            "duracion_ms": int((time.time() - inicio) * 1000)}
