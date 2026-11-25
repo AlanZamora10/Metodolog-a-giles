@@ -140,8 +140,8 @@ describe('RF-07 / RF-10 · Centro de alertas', () => {
   });
 });
 
-describe('Centro de alertas · tarea publicada y caída entre unidades', () => {
-  it('muestra «Ver tarea en Moodle» sólo con refuerzo publicado y rotula la caída del descenso', async () => {
+describe('Centro de alertas · tarea publicada y descenso en evaluaciones', () => {
+  it('muestra «Ver tarea en Moodle» sólo con refuerzo publicado y rotula el descenso en evaluaciones', async () => {
     iniciarSesionFalsa();
     const url = 'http://localhost:8080/mod/assign/view.php?id=165';
     mockApi({
@@ -154,8 +154,10 @@ describe('Centro de alertas · tarea publicada y caída entre unidades', () => {
     const u = userEvent.setup();
     renderApp('/alertas');
     const descenso = await screen.findByTestId('alerta-2');
-    expect(descenso).toHaveTextContent(/Caída entre unidades:?\s*-0\.79/);
-    expect(screen.getByTestId('alerta-1')).not.toHaveTextContent('Caída entre unidades');
+    expect(descenso).toHaveTextContent(/Descenso en evaluaciones:?\s*-0\.79 pts/);
+    expect(screen.getByTestId('alerta-1')).not.toHaveTextContent('Descenso en evaluaciones');
+    // subtítulo limpio: materia · paralelo
+    expect(screen.getByTestId('subtitulo-alertas')).toHaveTextContent(/^Programación orientada a objetos · Paralelo A$/);
 
     await u.click(screen.getByTestId('alerta-1'));
     const enlace = await screen.findByTestId('ver-tarea-moodle');

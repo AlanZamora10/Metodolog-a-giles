@@ -44,7 +44,6 @@ function mediana(v: number[]): number | null {
 }
 
 const nombreUnidad = (u: string) => u.replace(/^U(\d+)$/, 'Unidad $1');
-const listaNombres = (n: string[]) => (n.length <= 1 ? n.join('') : `${n.slice(0, -1).join(', ')} y ${n[n.length - 1]}`);
 
 /** Tarjeta minimalista de un hallazgo (título + líneas cortas). */
 function Hallazgo({ titulo, children, testid }: { titulo: string; children: React.ReactNode; testid: string }) {
@@ -268,27 +267,30 @@ function Dashboard() {
           <div className="hallazgos-grid">
             <Hallazgo titulo="Rendimiento general" testid="hallazgo-rendimiento">
               <p>
-                Promedio <b className="num">{r.promedio?.toFixed(2)}</b>/10 · Mediana <b className="num">{mediana(notas)?.toFixed(2)}</b>/10
+                Promedio del curso: <b className="num">{r.promedio?.toFixed(2)}/10</b>{' '}
+                <span className="muted">(Mediana: {mediana(notas)?.toFixed(2)}/10)</span>
               </p>
               <p>
-                Aprobación <b className="num">{r.tasaAprobacion?.toFixed(1)} %</b>{' '}
-                <span className="muted">({r.aprobados} de {r.evaluados} estudiantes)</span>
+                Aprobación: <b className="num">{r.tasaAprobacion?.toFixed(1)} %</b>{' '}
+                <span className="muted">
+                  ({r.aprobados} de {plural(r.evaluados, 'estudiante', 'estudiantes')})
+                </span>
               </p>
             </Hallazgo>
             <Hallazgo titulo="Evolución por unidades" testid="hallazgo-unidades">
               {unidades.length >= 2 ? (
                 <>
                   <p>
-                    {nombreUnidad(unidades[0].unidad)} <b className="num">{unidades[0].promedio.toFixed(2)}</b> →{' '}
-                    {nombreUnidad(unidades[unidades.length - 1].unidad)}{' '}
-                    <b className="num">{unidades[unidades.length - 1].promedio.toFixed(2)}</b>
+                    Inicio ({nombreUnidad(unidades[0].unidad)}): <b className="num">{unidades[0].promedio.toFixed(2)}/10</b>
+                    {' · '}
+                    Actual ({nombreUnidad(unidades[unidades.length - 1].unidad)}):{' '}
+                    <b className="num">{unidades[unidades.length - 1].promedio.toFixed(2)}/10</b>
                   </p>
                   {(() => {
                     const d = unidades[unidades.length - 1].promedio - unidades[0].promedio;
                     return (
-                      <p className={d < 0 ? 'variacion-baja' : d > 0 ? 'variacion-sube' : 'muted'}>
-                        Variación <b className="num">{d >= 0 ? '+' : ''}{d.toFixed(2)}</b>{' '}
-                        {d < 0 ? '(el grupo baja)' : d > 0 ? '(el grupo mejora)' : '(sin cambio)'}
+                      <p className={d < 0 ? 'variacion-baja' : d > 0 ? 'variacion-sube' : ''}>
+                        Variación entre unidades: <b className="num">{d > 0 ? '+' : ''}{d.toFixed(2)} pts</b>
                       </p>
                     );
                   })()}
@@ -303,26 +305,26 @@ function Dashboard() {
               )}
               {criticos.length > 0 && (
                 <p>
-                  <b>{plural(criticos.length, 'en nivel crítico', 'en nivel crítico')}</b>: {listaNombres(criticos)}
+                  <b>Nivel crítico ({criticos.length}):</b> {criticos.join(', ')}
                 </p>
               )}
               {descenso.length > 0 && (
                 <p>
-                  <b>{plural(descenso.length, 'con descenso sostenido', 'con descenso sostenido')}</b>: {listaNombres(descenso)}
+                  <b>Descenso sostenido ({descenso.length}):</b> {descenso.join(', ')}
                 </p>
               )}
             </Hallazgo>
             <Hallazgo titulo="Componentes y pendientes" testid="hallazgo-componentes">
               {menorComponente && (
                 <p>
-                  Menor promedio: <b>{menorComponente.componente}</b> <b className="num">{menorComponente.promedio.toFixed(2)}</b>/10
+                  Componente más bajo: <b>{menorComponente.componente}</b> con{' '}
+                  <b className="num">{menorComponente.promedio.toFixed(2)}/10</b>
                 </p>
               )}
               <p>
-                Nota 0: <b className="num">{estados.cero}</b> · Sin entrega: <b className="num">{estados.sin_entrega}</b>
-              </p>
-              <p className="muted">
-                {plural(estados.pendiente, 'actividad pendiente de calificar', 'actividades pendientes de calificar')}
+                Incidencias: <b className="num">{estados.cero}</b> con nota 0 · <b className="num">{estados.sin_entrega}</b> sin
+                entrega · <b className="num">{estados.pendiente}</b> {estados.pendiente === 1 ? 'pendiente' : 'pendientes'} de
+                calificar
               </p>
             </Hallazgo>
           </div>

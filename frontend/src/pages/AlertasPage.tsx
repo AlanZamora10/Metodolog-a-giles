@@ -16,7 +16,7 @@ import { CursoRequerido } from '../components/layout/CursoRequerido';
 import { Aviso, Confirmacion, EstadoAlertaBadge, NivelBadge, Spinner, Vacio } from '../components/ui/ui';
 import { REGLAS } from '../utils/academico';
 import { fecha, fechaHora, fechaISOEnDias, nota } from '../utils/formato';
-import { nombreCurso } from '../utils/nombres';
+import { partesCurso } from '../utils/nombres';
 
 type Filtro = 'activas' | 'ABIERTA' | 'ATENDIDA' | 'PUBLICADO' | 'cerradas' | 'todas';
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
@@ -228,8 +228,9 @@ function CentroAlertas() {
       <div className="page-head">
         <div>
           <h1>Centro de alertas</h1>
-          <p>
-            {nombreCurso(datos!.fullname)} · Alertas tempranas de nota crítica y descenso sostenido
+          <p data-testid="subtitulo-alertas">
+            {partesCurso(datos!.fullname).materia}
+            {partesCurso(datos!.fullname).paralelo ? ` · Paralelo ${partesCurso(datos!.fullname).paralelo}` : ''}
           </p>
         </div>
         <div className="filtros" role="group" aria-label="Filtrar por estado">
@@ -303,10 +304,10 @@ function CentroAlertas() {
                   )}
                   {a.regla === 'R2_DESCENSO' && a.pendiente !== null && (
                     <div>
-                      <dt>Caída entre unidades</dt>
+                      <dt>Descenso en evaluaciones</dt>
                       <dd className="num">
                         {a.pendiente >= 0 ? '+' : ''}
-                        {a.pendiente.toFixed(2)}
+                        {a.pendiente.toFixed(2)} pts
                       </dd>
                     </div>
                   )}

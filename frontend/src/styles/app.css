@@ -555,3 +555,11 @@ table.tabla { width: 100%; border-collapse: collapse; }
   background-size: cover; background-position: center; background-repeat: no-repeat;
 }
 .login-page.login-con-imagen .login-tarjeta { box-shadow: 0 30px 80px rgba(0, 0, 0, .35), 0 2px 8px rgba(0, 0, 0, .12); }
+
+/* Estudiantes: columnas de estado centradas y más separación horizontal entre columnas */
+.tabla-estudiantes th, .tabla-estudiantes td { padding-left: 16px; padding-right: 16px; }
+.tabla-estudiantes td.center .incidencias { align-items: center; }
+.tabla-estudiantes th.center:nth-child(-n+5), .tabla-estudiantes td.num { padding-left: 8px; padding-right: 8px; }
+.tabla-estudiantes .nombre-cell span { overflow-wrap: anywhere; }
+.tabla-estudiantes th:first-child, .tabla-estudiantes td:first-child { padding-left: 12px; }
+.tabla-estudiantes th:last-child, .tabla-estudiantes td:last-child { padding-right: 12px; }

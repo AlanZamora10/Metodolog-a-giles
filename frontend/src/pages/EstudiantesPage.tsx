@@ -136,10 +136,10 @@ function Listado() {
                 <th className="center">Tareas</th>
                 <th className="center">APE</th>
                 <th className="center">Nota final</th>
-                <th>Nivel</th>
-                <th>Tendencia</th>
-                <th>Incidencias</th>
-                <th>Alerta</th>
+                <th className="center">Nivel</th>
+                <th className="center">Tendencia</th>
+                <th className="center">Incidencias</th>
+                <th className="center">Alerta</th>
               </tr>
             </thead>
             <tbody>
@@ -161,9 +161,9 @@ function Listado() {
                   <td className="center num">
                     <strong>{nota(m?.nota_final)}</strong>
                   </td>
-                  <td>{m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted">Sin notas</span>}</td>
-                  <td className="small nowrap">{m ? <Tendencia m={m} /> : <span className="muted">Sin datos</span>}</td>
-                  <td>
+                  <td className="center">{m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted">Sin notas</span>}</td>
+                  <td className="center small nowrap">{m ? <Tendencia m={m} /> : <span className="muted">Sin datos</span>}</td>
+                  <td className="center">
                     {/* primero las incidencias reales (nota cero, sin entrega); las pendientes de calificar, en una sola etiqueta compacta */}
                     <div className="incidencias" data-testid="incidencias">
                       {estados.cero > 0 && (
@@ -184,7 +184,7 @@ function Listado() {
                       {estados.cero + estados.sin_entrega + estados.pendiente === 0 && <span className="muted small">Ninguna</span>}
                     </div>
                   </td>
-                  <td>
+                  <td className="center">
                     {e.regla_alerta ? (
                       <span className={`badge ${e.regla_alerta.startsWith('R1') ? 'nivel-critico' : 'nivel-riesgo'}`}>
                         {REGLAS[e.regla_alerta] ?? e.regla_alerta}

@@ -224,7 +224,7 @@ describe('Estudiantes · tabla ordenada', () => {
     mockApi();
     renderApp('/estudiantes');
     await screen.findByText('Carlos Andrés Mendoza Paredes');
-    for (const col of ['Exámenes', 'Tareas', 'APE', 'Nota final']) {
+    for (const col of ['Exámenes', 'Tareas', 'APE', 'Nota final', 'Nivel', 'Tendencia', 'Incidencias', 'Alerta']) {
       expect(screen.getByRole('columnheader', { name: col })).toHaveClass('center');
     }
     const tendencias = screen.getAllByTestId('tendencia');
@@ -243,12 +243,16 @@ describe('Dashboard · hallazgos en cuadrícula', () => {
     mockApi();
     renderApp('/dashboard');
     await screen.findAllByText('6.05');
-    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Promedio\s*6\.05\/10 · Mediana/);
-    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Aprobación\s*33\.3 %/);
-    expect(screen.getByTestId('hallazgo-unidades')).toHaveTextContent(/Unidad 1/);
-    expect(screen.getByTestId('hallazgo-atencion')).toHaveTextContent('Carlos Andrés Mendoza Paredes');
-    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(/Nota 0:\s*\d+ · Sin entrega:\s*\d+/);
-    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(/pendientes? de calificar/);
+    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Promedio del curso: 6\.05\/10 \(Mediana: \d\.\d{2}\/10\)/);
+    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Aprobación: 33\.3 % \(1 de 3 estudiantes\)/);
+    expect(screen.getByTestId('hallazgo-unidades')).toHaveTextContent(/Inicio \(Unidad 1\): \d\.\d{2}\/10 · Actual \(Unidad 2\): \d\.\d{2}\/10/);
+    expect(screen.getByTestId('hallazgo-unidades')).toHaveTextContent(/Variación entre unidades: -?\d\.\d{2} pts/);
+    expect(screen.getByTestId('hallazgo-unidades')).not.toHaveTextContent('→');
+    expect(screen.getByTestId('hallazgo-atencion')).toHaveTextContent(/Nivel crítico \(\d\): Carlos Andrés Mendoza Paredes/);
+    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(/Componente más bajo: .+ con \d\.\d{2}\/10/);
+    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(
+      /Incidencias: \d+ con nota 0 · \d+ sin entrega · \d+ pendientes? de calificar/,
+    );
   });
 });
 
