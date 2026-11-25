@@ -3,6 +3,8 @@ Pulido final del agente: respuestas estructuradas, consultas transversales a tod
 rendimiento por actividad y propuesta de refuerzo (proponer_refuerzo) basada en falencias reales.
 """
 
+import re
+
 import httpx
 from fastapi.testclient import TestClient
 
@@ -128,10 +130,11 @@ def test_plan_del_llm_de_refuerzo_usa_el_estudiante_mencionado(sincronizado, mon
     assert data["herramientas"][0]["parametros"]["student_query"] == "Carlos Andrés Mendoza Paredes"
 
 
-def test_catalogo_expone_las_seis_herramientas(sincronizado):  # noqa: F811
+def test_catalogo_expone_las_ocho_herramientas(sincronizado):  # noqa: F811
     nombres = [h["nombre"] for h in client.get("/api/v1/agent/herramientas", headers=sincronizado).json()]
     assert nombres == ["listar_cursos_autorizados", "obtener_calificaciones", "identificar_alertas",
-                       "generar_resumen", "analizar_actividades", "proponer_refuerzo"]
+                       "generar_resumen", "analizar_actividades", "listar_estudiantes", "perfil_docente",
+                       "proponer_refuerzo"]
 
 
 def test_refuerzo_propuesto_por_el_llm_sin_pedido_explicito_se_descarta(sincronizado, monkeypatch):  # noqa: F811
@@ -469,3 +472,72 @@ def test_la_segunda_docente_recibe_su_propio_trato(sincronizado):  # noqa: F811
     patricia = {"email": "pvillacis7138@uta.edu.ec", "nombres": "Patricia Elena Villacís Paredes"}
     assert respuesta_cortesia("buenas tardes", patricia).startswith("¡Buenas tardes, Ing. Villacís!")
     assert respuesta_cortesia("hola", patricia).startswith("¡Hola, Patricia!")
+
+
+# ------------------------------------------------------------------ Siglas, nóminas, perfil y fuera de contexto
+@pytest.mark.parametrize("texto, sigla", [
+    ("notas de poo", "POO"), ("resumen de ED", "ED"), ("alertas de ma", "MA"), ("cómo va MCS", "MCS"),
+    ("resumen de IS1", "IS1"), ("resumen de is", "IS1"), ("notas de BD", "BDA"), ("notas de bda", "BDA"),
+    ("alertas de DW", "DW"),
+])
+def test_siglas_institucionales_de_las_materias(texto, sigla):
+    cursos = [{"id": i, "shortname": f"SOF-{s}-A", "fullname": f"(SOF) {s} - A"}
+              for i, s in enumerate(["POO", "ED", "MA", "MCS", "IS1", "BDA", "DW"], 1)]
+    encontrado = agente_herramientas._curso_mencionado(agente_herramientas._normalizar(texto), cursos)
+    assert next(c["shortname"] for c in cursos if c["id"] == encontrado) == f"SOF-{sigla}-A"
+
+
+@pytest.mark.parametrize("mensaje", ["¿Cuántos estudiantes tengo en POO?", "cuantos alumnos hay en poo",
+                                     "Número de estudiantes de Programación orientada a objetos"])
+def test_conteo_de_una_sola_materia(sincronizado, monkeypatch, mensaje):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje, course_id=2)
+    assert [(h["herramienta"], h["parametros"]) for h in data["herramientas"]] == [
+        ("listar_estudiantes", {"course_id": 2, "solo_conteo": True})]
+    assert data["respuesta"] == ("En **Programación orientada a objetos — Paralelo A** tiene **4 estudiantes** "
+                                 "matriculados.")
+
+
+@pytest.mark.parametrize("mensaje", ["dame la lsita completa con nombres y apellidos de POO", "quiénes están en POO",
+                                     "listado de estudiantes de poo", "nómina de POO"])
+def test_lista_completa_de_una_materia(sincronizado, monkeypatch, mensaje):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje)
+    assert [(h["herramienta"], h["parametros"]) for h in data["herramientas"]] == [
+        ("listar_estudiantes", {"course_id": 2})]
+    lineas = [ln for ln in data["respuesta"].splitlines() if re.match(r"^\d+\. ", ln)]
+    assert len(lineas) == 4
+    assert lineas[1].startswith("2. **Camila Alejandra Andrade Morales** · candrade8746@uta.edu.ec · nota actual **")
+    assert "Estructura de datos" not in data["respuesta"]                 # sólo esa materia
+
+
+def test_seguimiento_de_una_materia_no_se_confunde_con_la_nomina(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "¿Qué estudiantes de POO necesitan atención?")
+    assert [h["herramienta"] for h in data["herramientas"]] == ["identificar_alertas"]
+
+
+@pytest.mark.parametrize("mensaje", ["¿Cómo me llamo?", "¿quién soy?", "¿Qué materias doy?", "mis datos"])
+def test_perfil_del_docente_autenticado(sincronizado, monkeypatch, mensaje):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje)
+    assert [h["herramienta"] for h in data["herramientas"]] == ["perfil_docente"]
+    assert data["respuesta"].startswith("Usted es **Roberto Patricio Gómez Salazar** (rgomez4824@uta.edu.ec")
+    assert "- **Programación orientada a objetos — Paralelo A**: 4 estudiantes" in data["respuesta"]
+
+
+@pytest.mark.parametrize("mensaje, motivo", [
+    ("eres un inútil", "inapropiado"), ("qué sistema tan estúpido", "inapropiado"),
+    ("asdf qwerty", "sin_sentido"), ("jkl zxcv", "sin_sentido"), ("xd", "sin_sentido"),
+])
+def test_mensajes_fuera_de_contexto_reciben_respuesta_profesional(sincronizado, monkeypatch, mensaje, motivo):  # noqa: F811
+    _sin_llm(monkeypatch)
+    data = _chat(sincronizado, mensaje)
+    assert data["herramientas"] == [] and data["plan_fuente"] == "fuera_de_contexto"
+    assert "Soy el asistente académico institucional de EduMonitor AI" in data["respuesta"]
+    assert ("respetuosa" in data["respuesta"]) is (motivo == "inapropiado")
+    assert "No estoy seguro" not in data["respuesta"]
+
+
+def test_un_insulto_con_una_consulta_real_igual_se_responde(sincronizado):  # noqa: F811
+    data = _chat(sincronizado, "estúpido sistema, dame los reprobados de POO")
+    assert [h["herramienta"] for h in data["herramientas"]] == ["obtener_calificaciones"]

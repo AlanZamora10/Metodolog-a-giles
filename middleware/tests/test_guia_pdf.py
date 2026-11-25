@@ -58,32 +58,61 @@ def test_diagnostico_en_cuatro_tarjetas_metricas():
     ]
 
 
-def test_indicaciones_en_segunda_persona_con_los_subtemas_de_la_unidad():
+def test_indicaciones_con_tono_cercano_de_profesor_y_los_subtemas_de_la_unidad():
     texto = indicaciones_estudiante("Carlos Andrés Mendoza Paredes", 2, "Herencia y polimorfismo",
                                     ["Herencia", "Sobrescritura y clases abstractas", "Polimorfismo"],
                                     datetime(2026, 11, 22, 23, 59))
-    assert texto.startswith("Estimado/a Carlos, se ha identificado que necesitas reforzar los temas de herencia, "
-                            "sobrescritura y clases abstractas y polimorfismo de la Unidad 2 (Herencia y polimorfismo).")
-    assert "antes del 22/11/2026" in texto and "El estudiante" not in texto
+    assert texto == ("Hola Carlos, revisando tus calificaciones de la Unidad 2 (Herencia y polimorfismo), te comparto "
+                     "esta guía de apoyo para fortalecer herencia, sobrescritura y clases abstractas y polimorfismo antes "
+                     "de tu actividad de recuperación. Revisa primero los conceptos y el material recomendado, analiza el "
+                     "ejemplo paso a paso y sube tus ejercicios resueltos en Moodle hasta el 22/11/2026.")
+    for robotico in ("Estimado/a", "se ha identificado", "EduMonitor", "IA"):
+        assert robotico not in texto
     # Siglas al inicio del subtema se conservan
-    assert "temas de SQL avanzado" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
+    assert "fortalecer SQL avanzado" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
+    assert "hasta la fecha indicada en la tarea" in indicaciones_estudiante("Ana", 2, "SQL", ["SQL avanzado"])
 
 
 @pytest.mark.parametrize("instrucciones, empieza, contiene", [
-    # Borrador antiguo en tercera persona: se reemplaza por el mensaje al estudiante
-    ("El estudiante Carlos Mendoza presenta dificultades en Unidad 2.", "Estimado/a Carlos", None),
-    ("", "Estimado/a Carlos", None),
-    # Indicación propia del docente: se conserva como nota tras el mensaje con los subtemas
-    ("Resuelva la guía.", "Estimado/a Carlos", "Nota de tu docente: Resuelva la guía."),
+    # Textos que no escribió el docente (borrador en tercera persona o mensaje de una versión anterior): se reemplazan
+    ("El estudiante Carlos Mendoza presenta dificultades en Unidad 2.", "Hola Carlos, revisando", None),
+    ("Estimado/a Carlos, se ha identificado que necesitas reforzar los temas de herencia.", "Hola Carlos, revisando", None),
+    ("", "Hola Carlos, revisando", None),
+    # Indicación propia del docente: se conserva como observación tras el mensaje con los subtemas
+    ("Resuelva la guía.", "Hola Carlos, revisando", "Observación de tu docente: Resuelva la guía."),
     # El docente ya le escribe al estudiante: se respeta su texto
     ("Estimado Carlos, revisa la herencia múltiple.", "Estimado Carlos, revisa", None),
 ])
 def test_indicaciones_respetan_lo_que_escribio_el_docente(instrucciones, empieza, contiene):
     indicaciones = _guia(instrucciones=instrucciones)["indicaciones"]
     assert indicaciones.startswith(empieza)
-    assert "presenta dificultades" not in indicaciones
+    assert "presenta dificultades" not in indicaciones and "se ha identificado" not in indicaciones
     if contiene:
         assert contiene in indicaciones
+
+
+def test_donde_consultar_y_reforzar_con_fuentes_reales_y_el_aula_virtual():
+    recursos = _guia()["recursos"]
+    assert len(recursos) == 3
+    assert recursos[0] == ("Deitel y Deitel, «Cómo programar en Java», 10.ª ed., Pearson",
+                           "caps. 9 y 10: herencia, clases abstractas y polimorfismo.")
+    assert recursos[-1] == ("Aula virtual de la materia (Moodle UTA)",
+                            "recurso «Unidad 2 - Material de clase (PDF)» en la sección Primer Parcial.")
+    assert ca.recursos_unidad("SOF-BDA-B", 4)[-1][1].endswith("en la sección Segundo Parcial.")
+
+
+@pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
+def test_cada_unidad_tiene_dos_fuentes_ademas_del_aula_virtual(sigla):
+    assert sorted(ca.RECURSOS[sigla]) == [1, 2, 3, 4]
+    for unidad, fuentes in ca.RECURSOS[sigla].items():
+        assert len(fuentes) == 2 and all(f and d for f, d in fuentes), (sigla, unidad)
+
+
+def test_encabezado_institucional_sin_rastros_de_ia():
+    import inspect
+    fuente = inspect.getsource(guia_pdf._GuiaPDF) + inspect.getsource(guia_pdf.renderizar_pdf)
+    assert "GUÍA DE REFUERZO ACADÉMICO · UTA - FISEI" in fuente
+    assert "EduMonitor" not in fuente
 
 
 def test_material_al_grano_un_ejemplo_y_hasta_tres_ejercicios():
@@ -135,3 +164,8 @@ def test_sin_registro_omite_el_diagnostico_y_tolera_texto_fuera_de_latin1():
     guia = _guia(registro=None, titulo="Refuerzo — «U2» → ≥ 7")
     assert guia["diagnostico"] == []
     assert renderizar_pdf(guia).startswith(b"%PDF-")
+
+
+def test_el_titulo_muestra_la_materia_y_no_el_codigo_del_curso():
+    guia = _guia(titulo="Refuerzo: Refuerzo Didáctico Guiado (Unidad 2) — SOF-POO-A")
+    assert guia["titulo"] == "Refuerzo: Refuerzo Didáctico Guiado (Unidad 2) — Programación orientada a objetos — Paralelo A"

@@ -74,15 +74,15 @@ class crear_tarea extends external_api {
         if (!$estudiante || !is_enrolled($context, $estudiante, '', true)) {
             throw new \invalid_parameter_exception('El estudiante no está matriculado (activo) en el curso.');
         }
-        if ($p['fechaentrega'] <= time()) {
-            throw new \invalid_parameter_exception('La fecha de entrega debe ser futura.');
-        }
-
-        // Idempotencia: el mismo código no crea una segunda tarea
+        // Idempotencia: el mismo código no crea una segunda tarea (volver a publicar sólo actualiza su guía PDF,
+        // aunque la fecha de entrega ya haya pasado; la fecha de la tarea existente no se modifica)
         $existente = $DB->get_record('course_modules', ['course' => $course->id, 'idnumber' => $p['codigo']]);
         if ($existente) {
             $seccion = $DB->get_field('course_sections', 'section', ['id' => $existente->section]);
             return [(int)$existente->id, (int)$seccion, true];
+        }
+        if ($p['fechaentrega'] <= time()) {
+            throw new \invalid_parameter_exception('La fecha de entrega debe ser futura.');
         }
 
         $seccion = self::seccion_refuerzos($course);

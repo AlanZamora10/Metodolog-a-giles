@@ -99,3 +99,15 @@ def test_respuesta_sin_llamadas_estructuradas_devuelve_plan_vacio(monkeypatch):
 def test_una_consulta_real_no_es_trivial():
     for mensaje in ("hola, ¿cómo van mis cursos?", "notas de Carlos", "", "¿qué tal va POO?"):
         assert not chat_planner.es_trivial(mensaje), mensaje
+
+
+def test_siglas_institucionales_se_convierten_en_curso():
+    cursos = [{"id": 5, "shortname": "SOF-IS1-A", "fullname": "(SOF) INGENIERIA DE SOFTWARE I - A"},
+              {"id": 6, "shortname": "SOF-BDA-B", "fullname": "(SOF) BASES DE DATOS AVANZADAS - B"},
+              {"id": 7, "shortname": "SOF-DW-A", "fullname": "(SOF) DESARROLLO WEB - A"}]
+    llamadas = chat_planner.limpiar_llamadas([
+        {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "IS"}},
+        {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "bd"}},
+        {"herramienta": "obtener_calificaciones", "parametros": {"estudiante": "dw"}},
+    ], cursos)
+    assert [ll["parametros"] for ll in llamadas] == [{"course_id": 5}, {"course_id": 6}, {"course_id": 7}]

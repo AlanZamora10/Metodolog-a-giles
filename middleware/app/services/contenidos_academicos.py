@@ -8,7 +8,7 @@ docente (no lo genera el modelo de lenguaje), por lo que no puede inventar datos
 Claves: la sigla del curso en Moodle (SOF-POO-A => "POO") y el número de unidad (1 a 4).
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 Unidad = Dict[str, Any]
 
@@ -903,3 +903,98 @@ def contenido_unidad(shortname: str, unidad: int) -> Optional[Unidad]:
     if not materia:
         return None
     return materia.get(unidad) or materia.get(min(materia, key=lambda u: abs(u - unidad)))
+
+
+# Dónde consultar y reforzar: 2 fuentes reconocidas por unidad (libros base de la asignatura o documentación
+# oficial). La guía agrega además el material de clase de la unidad publicado en el aula virtual de Moodle UTA.
+_DEITEL = "Deitel y Deitel, «Cómo programar en Java», 10.ª ed., Pearson"
+_CORMEN = "Cormen, Leiserson, Rivest y Stein, «Introduction to Algorithms», 3.ª ed., MIT Press"
+_SOMMERVILLE = "Sommerville, «Ingeniería de Software», 9.ª ed., Pearson"
+_PRO_GIT = "Chacon y Straub, «Pro Git», 2.ª ed. (git-scm.com/book/es/v2)"
+_ELMASRI = "Elmasri y Navathe, «Fundamentos de Sistemas de Bases de Datos», 5.ª ed., Pearson"
+_MDN = "MDN Web Docs (developer.mozilla.org/es)"
+
+RECURSOS: Dict[str, Dict[int, List[Tuple[str, str]]]] = {
+    "POO": {
+        1: [(_DEITEL, "caps. 3 y 8: clases, objetos, constructores y encapsulamiento."),
+            ("The Java Tutorials, Oracle", "lección «Classes and Objects» (docs.oracle.com/javase/tutorial/java/javaOO).")],
+        2: [(_DEITEL, "caps. 9 y 10: herencia, clases abstractas y polimorfismo."),
+            ("The Java Tutorials, Oracle", "lección «Interfaces and Inheritance» (docs.oracle.com/javase/tutorial/java/IandI).")],
+        3: [(_DEITEL, "caps. 10 y 16: interfaces y colecciones genéricas."),
+            ("The Java Tutorials, Oracle", "ruta «Collections» (docs.oracle.com/javase/tutorial/collections).")],
+        4: [(_DEITEL, "cap. 11: manejo de excepciones."),
+            ("The Java Tutorials, Oracle", "lección «Exceptions» (docs.oracle.com/javase/tutorial/essential/exceptions).")],
+    },
+    "ED": {
+        1: [(_CORMEN, "caps. 2 y 3: análisis de algoritmos y notación asintótica."),
+            ("VisuAlgo (visualgo.net/es)", "animaciones de búsqueda y ordenamiento paso a paso.")],
+        2: [(_CORMEN, "cap. 10: pilas, colas y listas enlazadas."),
+            ("Documentación de Java SE", "interfaz Deque y clase LinkedList (docs.oracle.com/javase/8/docs/api).")],
+        3: [(_CORMEN, "cap. 12: árboles binarios de búsqueda."),
+            ("VisuAlgo (visualgo.net/es/bst)", "inserción, eliminación y recorridos de un ABB animados.")],
+        4: [(_CORMEN, "caps. 22 y 7: recorridos BFS y DFS; quicksort (merge sort en el cap. 2)."),
+            ("VisuAlgo (visualgo.net/es)", "módulos de recorridos de grafos y de ordenamiento.")],
+    },
+    "MA": {
+        1: [("Manifiesto por el Desarrollo Ágil de Software", "valores y 12 principios (agilemanifesto.org/iso/es)."),
+            (_SOMMERVILLE, "cap. 3: desarrollo ágil de software.")],
+        2: [("Schwaber y Sutherland, «La Guía Scrum» (2020)", "roles, eventos y artefactos (scrumguides.org)."),
+            (_SOMMERVILLE, "cap. 3: gestión ágil de proyectos con Scrum.")],
+        3: [("Cohn, «User Stories Applied», Addison-Wesley (2004)", "redacción de historias y criterios INVEST."),
+            ("Cohn, «Agile Estimating and Planning», Prentice Hall (2005)", "puntos de historia y Planning Poker.")],
+        4: [("Anderson, «Kanban», Blue Hole Press (2010)", "flujo visual y límites de trabajo en curso (WIP)."),
+            ("Atlassian Agile Coach (atlassian.com/es/agile)", "tableros Kanban, burndown y velocidad.")],
+    },
+    "MCS": {
+        1: [(_PRO_GIT, "caps. 1 y 2: control de versiones y fundamentos de Git."),
+            (_SOMMERVILLE, "cap. 25: gestión de configuración.")],
+        2: [(_PRO_GIT, "cap. 3: ramificaciones, fusiones y resolución de conflictos."),
+            ("Tutoriales de Git de Atlassian", "comparación de flujos de trabajo (atlassian.com/es/git/tutorials).")],
+        3: [("Versionado Semántico 2.0.0", "reglas MAYOR.MENOR.PARCHE (semver.org/lang/es)."),
+            ("Documentación de GitHub Actions", "pipelines de integración continua (docs.github.com/es/actions).")],
+        4: [(_SOMMERVILLE, "cap. 25: gestión de cambios, versiones y entregas."),
+            (_PRO_GIT, "sección 2.6: etiquetado de versiones (git tag).")],
+    },
+    "IS1": {
+        1: [(_SOMMERVILLE, "cap. 2: procesos de software y modelos de ciclo de vida."),
+            ("Pressman, «Ingeniería del Software: un enfoque práctico», 7.ª ed., McGraw-Hill",
+             "capítulos de modelos de proceso.")],
+        2: [(_SOMMERVILLE, "cap. 4: ingeniería de requerimientos."),
+            ("Norma ISO/IEC/IEEE 29148", "características de un requisito bien escrito y verificable.")],
+        3: [(_SOMMERVILLE, "cap. 5: modelado del sistema con UML."),
+            ("Booch, Rumbaugh y Jacobson, «El Lenguaje Unificado de Modelado», Addison-Wesley",
+             "casos de uso, clases y secuencia.")],
+        4: [(_SOMMERVILLE, "caps. 6 y 8: diseño arquitectónico y pruebas de software."),
+            ("Pressman, «Ingeniería del Software: un enfoque práctico», 7.ª ed., McGraw-Hill",
+             "capítulos de estrategias y técnicas de prueba.")],
+    },
+    "BDA": {
+        1: [(_ELMASRI, "capítulos de dependencias funcionales y normalización."),
+            ("Silberschatz, Korth y Sudarshan, «Fundamentos de Bases de Datos», McGraw-Hill",
+             "diseño de bases de datos relacionales.")],
+        2: [("Documentación de SQL Server", "referencia de Transact-SQL (learn.microsoft.com/es-es/sql/t-sql)."),
+            (_ELMASRI, "capítulos de SQL: consultas complejas, vistas y procedimientos.")],
+        3: [(_ELMASRI, "capítulos de procesamiento de transacciones y control de concurrencia."),
+            ("Documentación de SQL Server", "guía de bloqueo y versiones de fila de transacciones (learn.microsoft.com).")],
+        4: [("Documentación de SQL Server", "guía de arquitectura y diseño de índices (learn.microsoft.com)."),
+            ("Winand, «Use The Index, Luke!» (use-the-index-luke.com)", "índices y planes de ejecución explicados.")],
+    },
+    "DW": {
+        1: [(_MDN, "área de aprendizaje de HTML y CSS (developer.mozilla.org/es/docs/Learn)."),
+            (_MDN, "guías de CSS Flexbox y CSS Grid Layout.")],
+        2: [(_MDN, "guía de JavaScript e introducción al DOM."),
+            ("Haverbeke, «Eloquent JavaScript», 3.ª ed. (eloquentjavascript.net)", "cap. 14: The Document Object Model.")],
+        3: [(_MDN, "HTTP: métodos de petición y códigos de estado (developer.mozilla.org/es/docs/Web/HTTP)."),
+            ("Fielding, tesis doctoral (2000)", "cap. 5: estilo arquitectónico REST.")],
+        4: [("OWASP Top 10 (owasp.org/Top10)", "riesgos de seguridad web más comunes: inyección, XSS y otros."),
+            ("Documentación oficial de React (es.react.dev)", "componentes, estado y buenas prácticas.")],
+    },
+}
+
+
+def recursos_unidad(shortname: str, unidad: int) -> List[Tuple[str, str]]:
+    """Fuentes de la unidad + el material de clase publicado en el aula virtual del curso (Moodle UTA)."""
+    seccion = "Primer Parcial" if unidad <= 2 else "Segundo Parcial"
+    aula = ("Aula virtual de la materia (Moodle UTA)",
+            f"recurso «Unidad {unidad} - Material de clase (PDF)» en la sección {seccion}.")
+    return [*RECURSOS.get(sigla_curso(shortname), {}).get(unidad, []), aula]

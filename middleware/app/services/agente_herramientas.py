@@ -68,6 +68,17 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
                        "a mayor. Úsala para '¿qué actividades tienen menor rendimiento?'.",
         "parametros": {"course_id": "integer (opcional)"},
     },
+    "listar_estudiantes": {
+        "descripcion": "Nómina de UN curso: cantidad de estudiantes matriculados o lista completa con nombre, "
+                       "correo institucional y nota actual. Úsala para '¿cuántos estudiantes tengo en POO?' o "
+                       "'lista de estudiantes de ED'.",
+        "parametros": {"course_id": "integer", "solo_conteo": "boolean (opcional)"},
+    },
+    "perfil_docente": {
+        "descripcion": "Datos del docente autenticado: nombre completo, correo institucional y cursos asignados. "
+                       "Úsala para '¿cómo me llamo?', '¿quién soy?' o '¿qué materias doy?'.",
+        "parametros": {},
+    },
     "proponer_refuerzo": {
         "descripcion": "Analiza las falencias reales de un estudiante y redacta una propuesta de refuerzo (título, "
                        "objetivo, tarea y criterios de evaluación) lista para el Centro de Alertas.",
@@ -167,6 +178,33 @@ def listar_cursos_autorizados(docente: dict) -> Dict[str, Any]:
         "totales": {"cursos": len(cursos), "matriculas": sum(c["total_estudiantes"] for c in cursos),
                     "estudiantes_unicos": len(unicos),
                     "criticos": sum(c["criticos"] for c in cursos), "en_riesgo": sum(c["en_riesgo"] for c in cursos)},
+        "filas": len(cursos),
+    }
+
+
+def listar_estudiantes(docente: dict, course_id: Optional[int] = None, solo_conteo: Any = False) -> Dict[str, Any]:
+    """Nómina de un solo curso del docente (cantidad o lista completa con correo y nota actual)."""
+    if not course_id:
+        raise HerramientaError("indique la materia (por ejemplo, POO o Estructura de datos).")
+    [curso] = _cursos(docente, course_id)
+    estudiantes = sorted(curso["estudiantes"], key=lambda e: _normalizar(e["nombres"] or ""))
+    return {
+        "curso": {"id": curso["id"], "shortname": curso["shortname"], "fullname": curso["fullname"]},
+        "total": len(estudiantes),
+        "solo_conteo": str(solo_conteo).lower() in ("1", "true", "si", "sí"),
+        "estudiantes": [{"id_number": e["id_number"], "nombres": e["nombres"], "email": e.get("email"),
+                         "nota_final": e["nota_final"], "nivel_riesgo": e["nivel_riesgo"]} for e in estudiantes],
+        "filas": len(estudiantes),
+    }
+
+
+def perfil_docente(docente: dict) -> Dict[str, Any]:
+    """Perfil del docente autenticado con sus cursos asignados (datos de la sesión y de la sincronización)."""
+    cursos = sync_service.cursos_del_docente(docente["email"])
+    return {
+        "nombres": docente.get("nombres"), "email": docente.get("email"), "cedula": docente.get("cedula"),
+        "cursos": [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"],
+                    "total_estudiantes": len(c["estudiantes"])} for c in cursos],
         "filas": len(cursos),
     }
 
@@ -405,6 +443,8 @@ EJECUTORES: Dict[str, Callable[..., Dict[str, Any]]] = {
     "generar_resumen": generar_resumen,
     "analizar_actividades": analizar_actividades,
     "proponer_refuerzo": proponer_refuerzo,
+    "listar_estudiantes": listar_estudiantes,
+    "perfil_docente": perfil_docente,
 }
 _PARAMETROS_VALIDOS = {
     "listar_cursos_autorizados": set(),
@@ -413,6 +453,8 @@ _PARAMETROS_VALIDOS = {
     "generar_resumen": {"course_id"},
     "analizar_actividades": {"course_id"},
     "proponer_refuerzo": {"student_query", "course_id"},
+    "listar_estudiantes": {"course_id", "solo_conteo"},
+    "perfil_docente": set(),
 }
 
 
@@ -480,9 +522,57 @@ def _criterio_informal(texto: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+# Nómina de una materia («lista completa de POO», «quiénes están en ED»; tolera «lsita», «listdo»)
+_NOMINA = re.compile(r"\b(quien(es)? (esta|estan|son|hay|forman|conforman|integran) (en|de)|nomina|nombres y apellidos|"
+                     r"nombre completo|matriculados|integrantes)\b")
+# Si la frase pide seguimiento (riesgo, alertas...), no es una nómina aunque mencione «estudiantes de POO»
+_NO_ES_NOMINA = re.compile(r"\b(riesgo|atencion|alerta\w*|mal|critic\w*|reprob\w*|problema\w*|ayuda|dificultad\w*|"
+                           r"refuerzo|resumen|actividad\w*)\b")
+_CONTEO = re.compile(r"\b(cuant[oa]s (estudiantes|alumnos|matriculados|personas|chicos)|numero de (estudiantes|alumnos)|"
+                     r"cantidad de (estudiantes|alumnos)|total de (estudiantes|alumnos))\b")
+_PALABRAS_LISTA = ("lista", "listado", "listar", "listame", "nomina", "enlista")
+# Perfil del docente autenticado
+_PERFIL = re.compile(r"\b(como me llamo|cual es mi nombre|mi nombre|quien soy( yo)?|mis datos|mi perfil|"
+                     r"que (materias|cursos|asignaturas) (doy|dicto|imparto|tengo asignad\w*|enseno)|"
+                     r"(materias|cursos|asignaturas) (que )?(doy|dicto|imparto))\b")
+# Lenguaje inapropiado: respuesta breve y profesional
+_INSULTOS = {"inutil", "idiota", "estupido", "estupida", "tonto", "tonta", "imbecil", "basura", "mierda", "maldito",
+             "maldita", "pendejo", "pendeja", "carajo", "verga", "puta", "puto", "porqueria", "callate", "odio",
+             "baboso", "babosa", "burro", "inservible", "mamon", "huevon", "cojudo", "gil"}
+_TECLADO = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
+_RESPUESTA_INSTITUCIONAL = ("Soy el asistente académico institucional de EduMonitor AI. Puedo ayudarle con sus "
+                            "**cursos**, las **notas** de sus estudiantes o las **alertas tempranas**. "
+                            "¿Qué necesita consultar?")
+
+
+def _pide_lista(texto: str) -> bool:
+    """«lista», «listado» o «nómina», tolerando una letra cambiada u omitida («lsita», «listdo»)."""
+    if _NO_ES_NOMINA.search(texto):
+        return False
+    if _NOMINA.search(texto):
+        return True
+    return any(w == p or (len(w) >= 4 and w[0] == p[0] and SequenceMatcher(None, w, p).ratio() >= 0.75)
+               for w in re.findall(r"[a-z]+", texto) for p in _PALABRAS_LISTA)
+
+
+def fuera_de_contexto(texto: str) -> Optional[str]:
+    """'inapropiado' (insultos), 'sin_sentido' (texto aleatorio) o None (texto normalizado)."""
+    palabras = re.findall(r"[a-z]+", texto)
+    if any(p in _INSULTOS for p in palabras) or re.search(r"\b(no sirves|no sirve para nada|eres un asco)\b", texto):
+        return "inapropiado"
+    if re.search(r"\d", texto) or not palabras:
+        return None
+
+    def rara(p: str) -> bool:
+        return (not re.search(r"[aeiou]", p) or bool(re.search(r"[^aeiou\s]{4,}", p))
+                or (len(p) >= 3 and any(p in fila for fila in _TECLADO)))
+
+    return "sin_sentido" if all(rara(p) for p in palabras) else None
+
+
 def _intencion_directa(texto: str) -> bool:
     return bool(_PANORAMA.search(texto) or _EN_PROBLEMAS.search(texto) or _criterio_informal(texto)
-                or criterio_nota(texto))
+                or criterio_nota(texto) or _PERFIL.search(texto) or _CONTEO.search(texto) or _pide_lista(texto))
 
 
 _CURSOS = re.compile(r"\b(mis cursos|que cursos|cuales cursos|cursos tengo|lista de cursos|listar cursos|"
@@ -642,10 +732,23 @@ def _paralelo(c: Dict[str, Any]) -> Optional[str]:
     return m.group(1) if m else None
 
 
+# Siglas institucionales de las materias (sin importar mayúsculas ni tildes) -> sigla del código del curso
+SIGLAS_MATERIAS = {"poo": "POO", "ed": "ED", "ma": "MA", "mcs": "MCS", "is1": "IS1", "is": "IS1", "isi": "IS1",
+                   "bda": "BDA", "bd": "BDA", "dw": "DW"}
+
+
+def _sigla_de(c: Dict[str, Any]) -> str:
+    partes = [p for p in (c.get("shortname") or "").upper().split("-") if p and p != "SOF"]
+    return partes[0] if partes else ""
+
+
 def _curso_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[int]:
-    """Curso nombrado por su código (SOF-POO-A), sigla (POO) o nombre de la materia, con su paralelo si se indica."""
-    candidatos = []
+    """Curso nombrado por su código (SOF-POO-A), sigla (POO, IS, BD...) o nombre de la materia, con su paralelo."""
+    siglas = {SIGLAS_MATERIAS[w] for w in re.findall(r"[a-z0-9]+", texto) if w in SIGLAS_MATERIAS}
+    candidatos = [c for c in cursos if _sigla_de(c) in siglas]
     for c in cursos:
+        if c in candidatos:
+            continue
         codigo = _normalizar(c["shortname"])
         partes = [p for p in codigo.split("-") if p and p != "sof"]
         abreviatura = partes[0] if partes else codigo
@@ -757,6 +860,12 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
         curso_umbral = ctx["explicito"] or (None if ctx["global"] else course_id)
         return [("obtener_calificaciones", {**({"course_id": curso_umbral} if curso_umbral else {}),
                                             **ctx["criterio"]})]
+    if _PERFIL.search(texto):
+        return [("perfil_docente", {})]
+    if ctx["explicito"] and not estudiante and (_CONTEO.search(texto) or _pide_lista(texto)):
+        # Nómina de UNA materia: «¿cuántos estudiantes tengo en POO?» (sólo la cifra) o «lista completa de ED»
+        conteo = bool(_CONTEO.search(texto)) and not _pide_lista(texto)
+        return [("listar_estudiantes", {"course_id": ctx["explicito"], **({"solo_conteo": True} if conteo else {})})]
     if _PANORAMA.search(texto) and not estudiante:
         # «¿Cómo van mis cursos?», «resumen general»: panorama de una materia nombrada o de todas
         return [("generar_resumen", {"course_id": ctx["explicito"]} if ctx["explicito"] else {})]
@@ -1067,6 +1176,24 @@ def _seccion_refuerzo(r: Dict[str, Any]) -> Seccion:
     return "Propuesta de refuerzo", clave, lineas
 
 
+def _seccion_nomina(r: Dict[str, Any]) -> Seccion:
+    curso = _nombre_curso(r["curso"]["fullname"]).replace(", paralelo", " — Paralelo")
+    if r["solo_conteo"]:
+        return ("Estudiantes", f"En **{curso}** tiene **{r['total']} estudiantes** matriculados.", [])
+    lineas = [f"{i}. **{e['nombres']}** · {e.get('email') or 'sin correo'} · nota actual **{e['nota_final']:.2f}/10** "
+              f"({NIVEL_TEXTO.get(e['nivel_riesgo'], e['nivel_riesgo'])})" for i, e in enumerate(r["estudiantes"], 1)]
+    return (f"Estudiantes de {curso}", f"Estudiantes matriculados en **{curso}** ({r['total']}):", lineas)
+
+
+def _seccion_perfil(r: Dict[str, Any]) -> Seccion:
+    cedula = f", C.I. {r['cedula']}" if r.get("cedula") else ""
+    clave = (f"Usted es **{r['nombres']}** ({r['email']}{cedula}), docente de la FISEI. Tiene **{len(r['cursos'])} "
+             f"curso(s)** asignados en el período Julio a Diciembre 2026:")
+    lineas = [f"- **{_nombre_curso(c['fullname']).replace(', paralelo', ' — Paralelo')}**: "
+              f"{c['total_estudiantes']} estudiantes" for c in r["cursos"]]
+    return "Su perfil", clave, lineas
+
+
 def _secciones(nombre: str, r: Dict[str, Any]) -> List[Seccion]:
     if "error" in r:
         return [("Aviso", f"No pude completar una de las consultas: {r['error']}", [])]
@@ -1082,6 +1209,10 @@ def _secciones(nombre: str, r: Dict[str, Any]) -> List[Seccion]:
         return [_seccion_actividades(r)]
     if nombre == "proponer_refuerzo":
         return [_seccion_refuerzo(r)]
+    if nombre == "listar_estudiantes":
+        return [_seccion_nomina(r)]
+    if nombre == "perfil_docente":
+        return [_seccion_perfil(r)]
     return []
 
 
@@ -1123,6 +1254,12 @@ async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None
         texto = respuesta_cortesia(mensaje, docente, previas)
         return _respuesta_sin_herramientas(texto, "cortesia", docente, inicio, {"cortesia": tipo})
     ctx = _contexto(mensaje, docente, course_id)
+    motivo = fuera_de_contexto(ctx["texto"])
+    if motivo and not planificar_por_reglas(mensaje, docente, course_id):
+        respuesta = _RESPUESTA_INSTITUCIONAL if motivo == "sin_sentido" else (
+            f"Mantengamos una comunicación respetuosa, {_trato_formal(docente) or 'por favor'}. "
+            + _RESPUESTA_INSTITUCIONAL)
+        return _respuesta_sin_herramientas(respuesta, "fuera_de_contexto", docente, inicio, {"motivo": motivo})
     if _REFUERZO.search(ctx["texto"]) and not ctx["estudiante"]:
         return _respuesta_sin_herramientas(
             "Con gusto preparo un plan de apoyo. ¿Para qué estudiante? Indíqueme su **nombre completo** o su "

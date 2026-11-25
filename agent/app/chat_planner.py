@@ -47,11 +47,21 @@ def _nombre_materia(fullname: str) -> str:
     return f"{nombre} (paralelo {paralelo.group(1)})" if paralelo else nombre
 
 
+# Siglas institucionales de las materias -> sigla del código del curso (SOF-IS1-A, SOF-BDA-B...)
+SIGLAS_MATERIAS = {"poo": "poo", "ed": "ed", "ma": "ma", "mcs": "mcs", "is1": "is1", "is": "is1", "isi": "is1",
+                   "bda": "bda", "bd": "bda", "dw": "dw"}
+
+
 def _curso_de(valor: str, cursos: List[Dict[str, Any]]) -> Optional[int]:
     """Id del curso si el valor nombra una materia (código, sigla o nombre); None si no."""
     texto = _normalizar(valor)
     if not texto:
         return None
+    siglas_texto = {SIGLAS_MATERIAS[w] for w in re.findall(r"[a-z0-9]+", texto) if w in SIGLAS_MATERIAS}
+    for c in cursos:
+        partes = [p for p in _normalizar(c.get("shortname", "")).split("-") if p and p != "sof"]
+        if partes and partes[0] in siglas_texto:
+            return c["id"]
     for c in cursos:
         codigo = _normalizar(c.get("shortname", ""))
         siglas = [p for p in codigo.split("-") if len(p) > 1 and p != "sof"]

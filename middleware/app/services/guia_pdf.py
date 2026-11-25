@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fpdf import FPDF, FontFace
 
-from app.services.contenidos_academicos import contenido_unidad, sigla_curso
+from app.services.contenidos_academicos import contenido_unidad, recursos_unidad, sigla_curso
 
 LOGO = Path(__file__).resolve().parent.parent / "recursos" / "uta-logo-azul.png"
 AZUL = (0, 47, 108)
@@ -83,29 +83,31 @@ def _lista(items: List[str]) -> str:
 
 def indicaciones_estudiante(nombres: str, numero: int, titulo_unidad: str, subtemas: List[str],
                             fecha_entrega: Optional[datetime] = None) -> str:
-    """Mensaje directo y motivador al estudiante (segunda persona) que nombra los subtemas de la unidad."""
+    """Mensaje cercano del profesor al estudiante, que nombra los subtemas de la unidad a fortalecer."""
     nombre = (nombres or "").split()[0] if nombres else ""
-    plazo = f" antes del {fecha_entrega.strftime('%d/%m/%Y')}" if fecha_entrega else ""
+    plazo = f"hasta el {fecha_entrega.strftime('%d/%m/%Y')}" if fecha_entrega else "hasta la fecha indicada en la tarea"
     # Subtemas a mitad de frase en minúscula, salvo siglas («SQL avanzado», «HTML y CSS»)
     temas = _lista([t if len(t) > 1 and t[1].isupper() else t[:1].lower() + t[1:] for t in subtemas])
-    return (f"Estimado/a {nombre}, se ha identificado que necesitas reforzar los temas de {temas} de la Unidad "
-            f"{numero} ({titulo_unidad}). Repasa los conceptos clave y el ejemplo resuelto de esta guía, resuelve los "
-            f"ejercicios de práctica y sube tu desarrollo en la tarea de Moodle UTA{plazo}. "
-            "¡Con constancia lo vas a lograr!")
+    return (f"Hola {nombre}, revisando tus calificaciones de la Unidad {numero} ({titulo_unidad}), te comparto esta "
+            f"guía de apoyo para fortalecer {temas} antes de tu actividad de recuperación. Revisa primero los "
+            "conceptos y el material recomendado, analiza el ejemplo paso a paso y sube tus ejercicios resueltos en "
+            f"Moodle {plazo}.")
 
 
-# Borradores antiguos redactados en tercera persona para el docente («El estudiante X presenta dificultades...»)
-_TERCERA_PERSONA = re.compile(r"^\s*(el|la) (estudiante|alumn[oa])\b", re.IGNORECASE)
+# Textos que no escribió el docente: borradores en tercera persona («El estudiante X presenta dificultades...») o
+# mensajes generados por versiones anteriores de la guía. Se reemplazan por el mensaje actual.
+_TEXTO_GENERADO = re.compile(r"^\s*((el|la) (estudiante|alumn[oa])\b|estimado/a \S+, se ha identificado|"
+                             r"hola \S+, revisando tus calificaciones)", re.IGNORECASE)
 
 
 def _indicaciones(instrucciones: str, generadas: str) -> str:
-    """Indicaciones al estudiante: las del docente si ya le hablan a él; si no, el mensaje con los subtemas."""
+    """Indicaciones al estudiante: el mensaje del profesor con los subtemas y, si las hay, sus observaciones."""
     texto = (instrucciones or "").strip()
-    if not texto or _TERCERA_PERSONA.match(texto):
+    if not texto or _TEXTO_GENERADO.match(texto):
         return generadas
     if texto.lower().startswith(("estimado", "estimada", "hola")):
-        return texto
-    return f"{generadas}\n\nNota de tu docente: {texto}"
+        return texto   # el docente ya le escribió directamente al estudiante
+    return f"{generadas}\n\nObservación de tu docente: {texto}"
 
 
 def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad: Optional[str],
@@ -140,11 +142,13 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
     temas = contenido["temas"][:MAX_TEMAS]
     generadas = indicaciones_estudiante(estudiante.get("nombres") or "", numero, contenido["titulo"],
                                         [t for t, _ in temas], fecha_entrega)
+    materia = _materia(curso.get("fullname", ""), curso.get("shortname", ""))
     return {
-        "titulo": titulo,
+        # En el PDF el estudiante ve el nombre de la materia, no el código interno del curso (SOF-ED-B)
+        "titulo": titulo.replace(curso["shortname"], materia) if curso.get("shortname") else titulo,
         "estudiante": {"nombres": estudiante.get("nombres"), "cedula": estudiante.get("cedula"),
                        "email": estudiante.get("email"), "id_number": estudiante.get("id_number")},
-        "materia": _materia(curso.get("fullname", ""), curso.get("shortname", "")),
+        "materia": materia,
         "sigla": sigla_curso(curso.get("shortname", "")),
         "unidad": numero,
         "unidad_titulo": f"Unidad {numero}: {contenido['titulo']}",
@@ -154,6 +158,7 @@ def construir_guia(*, estudiante: Dict[str, Any], curso: Dict[str, Any], unidad:
         "indicaciones": _indicaciones(instrucciones, generadas),
         "diagnostico": _diagnostico(registro, numero, debiles) if registro else [],
         "temas": temas,
+        "recursos": recursos_unidad(curso.get("shortname", ""), numero),
         "ejemplo": {**ejemplo, "pasos": ejemplo["pasos"][:MAX_PASOS]} if ejemplo else None,
         "ejercicios": contenido["ejercicios"][:MAX_EJERCICIOS],
     }
@@ -176,7 +181,7 @@ class _GuiaPDF(FPDF):
         self.set_x(80)
         self.set_font("helvetica", "", 7.5)
         self.set_text_color(*GRIS)
-        self.cell(115, 4, _texto("Guía de estudio · EduMonitor AI"), align="R", new_x="LMARGIN", new_y="NEXT")
+        self.cell(115, 4, _texto("GUÍA DE REFUERZO ACADÉMICO · UTA - FISEI"), align="R", new_x="LMARGIN", new_y="NEXT")
         self.set_draw_color(*DORADO)
         self.set_line_width(0.6)
         self.line(15, 23, 195, 23)
@@ -192,21 +197,21 @@ class _GuiaPDF(FPDF):
 def _titulo_seccion(pdf: FPDF, texto: str) -> None:
     if pdf.get_y() > 262:
         pdf.add_page()
-    pdf.ln(2.5)
+    pdf.ln(1.6)
     pdf.set_font("helvetica", "B", 10.5)
     pdf.set_text_color(*AZUL)
-    pdf.cell(0, 6, _texto(texto), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5.6, _texto(texto), new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(*TEXTO)
 
 
-def _parrafo(pdf: FPDF, texto: str, tam: float = 9.5, estilo: str = "", alto: float = 4.8) -> None:
+def _parrafo(pdf: FPDF, texto: str, tam: float = 9.5, estilo: str = "", alto: float = 4.5) -> None:
     pdf.set_font("helvetica", estilo, tam)
     pdf.multi_cell(0, alto, _texto(texto), new_x="LMARGIN", new_y="NEXT")
 
 
 def _tarjetas(pdf: FPDF, tarjetas: List[Tuple[str, str]]) -> None:
     """Cuadrícula 2x2 de tarjetas métricas con borde suave: etiqueta pequeña y valor destacado."""
-    ancho, alto, sep = 88.5, 15.5, 3
+    ancho, alto, sep = 88.5, 14, 2.5
     x0 = pdf.l_margin
     for i, (etiqueta, valor) in enumerate(tarjetas):
         if i % 2 == 0:
@@ -233,19 +238,19 @@ def _tarjetas(pdf: FPDF, tarjetas: List[Tuple[str, str]]) -> None:
 
 def _vinieta(pdf: FPDF, marca: str, texto: str) -> None:
     pdf.set_font("helvetica", "B", 9.5)
-    pdf.cell(6, 4.8, _texto(marca))
+    pdf.cell(6, 4.5, _texto(marca))
     pdf.set_font("helvetica", "", 9.5)
-    pdf.multi_cell(0, 4.8, _texto(texto), new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(0.6)
+    pdf.multi_cell(0, 4.5, _texto(texto), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(0.3)
 
 
 def renderizar_pdf(guia: Dict[str, Any]) -> bytes:
     pdf = _GuiaPDF(format="A4")
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(True, margin=15)
-    pdf.set_title(_texto(f"Guía de estudio - {guia['titulo']}"))
+    pdf.set_title(_texto(f"Guía de refuerzo académico - {guia['titulo']}"))
     pdf.set_author("Universidad Técnica de Ambato · FISEI")
-    pdf.set_creator("EduMonitor AI")
+    pdf.set_creator("Universidad Técnica de Ambato · FISEI")
     pdf.alias_nb_pages()
     pdf.add_page()
 
@@ -289,10 +294,20 @@ def renderizar_pdf(guia: Dict[str, Any]) -> bytes:
     _titulo_seccion(pdf, "Conceptos clave")
     for tema, explicacion in guia["temas"]:
         pdf.set_font("helvetica", "B", 9.5)
-        pdf.write(4.8, _texto(f"{tema}: "))
+        pdf.write(4.5, _texto(f"{tema}: "))
         pdf.set_font("helvetica", "", 9.5)
-        pdf.write(4.8, _texto(explicacion))
-        pdf.ln(6)
+        pdf.write(4.5, _texto(explicacion))
+        pdf.ln(5.4)
+
+    if guia.get("recursos"):
+        _titulo_seccion(pdf, "Dónde consultar y reforzar")
+        for fuente, detalle in guia["recursos"]:
+            pdf.set_font("helvetica", "B", 9.5)
+            pdf.cell(6, 4.5, "-")
+            pdf.set_font("helvetica", "", 9.5)
+            # Celda multilínea: las líneas siguientes quedan alineadas con el texto, no con el margen
+            pdf.multi_cell(0, 4.5, _texto(f"**{fuente}:** {detalle}"), markdown=True, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(0.8)
 
     ejemplo = guia.get("ejemplo")
     if ejemplo:
