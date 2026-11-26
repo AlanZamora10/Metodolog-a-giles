@@ -120,9 +120,13 @@ def test_referencia_recomendada_al_pie_de_la_fundamentacion():
     assert "**Libro / referencia recomendada:**" in inspect.getsource(guia_pdf.renderizar_pdf)
 
 
+# Unidades de cada materia: 4 (Primer y Segundo Parcial); Cálculo (Telecomunicaciones) tiene 2 en su documento
+_UNIDADES = {sigla: [1, 2] if sigla == "CAL" else [1, 2, 3, 4] for sigla in ca.CONTENIDOS}
+
+
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
 def test_cada_unidad_tiene_referencia_recomendada(sigla):
-    assert all(ca.referencia_unidad(f"SOF-{sigla}-A", u) for u in (1, 2, 3, 4))
+    assert all(ca.referencia_unidad(f"SOF-{sigla}-A", u) for u in _UNIDADES[sigla])
 
 
 def test_material_y_recursos_con_fuentes_reales_y_el_aula_virtual():
@@ -139,7 +143,7 @@ def test_material_y_recursos_con_fuentes_reales_y_el_aula_virtual():
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
 def test_cada_unidad_tiene_dos_fuentes_ademas_del_aula_virtual(sigla):
-    assert sorted(ca.RECURSOS[sigla]) == [1, 2, 3, 4]
+    assert sorted(ca.RECURSOS[sigla]) == _UNIDADES[sigla]
     for unidad, fuentes in ca.RECURSOS[sigla].items():
         assert len(fuentes) == 2 and all(f and d for f, d in fuentes), (sigla, unidad)
 
@@ -210,7 +214,7 @@ def test_tema_objetivo_y_modalidad():
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
 def test_cada_materia_tiene_objetivo_en_infinitivo_y_entorno(sigla):
-    assert sorted(ca.OBJETIVOS[sigla]) == [1, 2, 3, 4]
+    assert sorted(ca.OBJETIVOS[sigla]) == _UNIDADES[sigla]
     for objetivo in ca.OBJETIVOS[sigla].values():
         assert not objetivo.endswith(".") and re.match(r"^[A-ZÁÉÍÓÚ][a-záéíóúñ]+(ar|er|ir)\b", objetivo), objetivo
         assert "falencias" not in objetivo
@@ -268,13 +272,13 @@ def test_el_codigo_se_imprime_en_courier_sin_comillas_ni_acentos_graves(monkeypa
 
 
 def test_catalogo_incluye_las_materias_de_ambos_docentes():
-    assert set(ca.CONTENIDOS) == {"POO", "ED", "MA", "MCS", "IS1", "BDA", "DW"}
+    assert set(ca.CONTENIDOS) == {"POO", "ED", "MA", "MCS", "IS1", "BDA", "DW", "CAL"}
     assert ca.contenido_unidad("SOF-BDA-B", 1)["titulo"] == "Modelo relacional y normalización"
 
 
 @pytest.mark.parametrize("sigla", sorted(ca.CONTENIDOS))
 def test_cada_guia_del_catalogo_ocupa_como_maximo_dos_paginas(sigla):
-    assert sorted(ca.CONTENIDOS[sigla]) == [1, 2, 3, 4]
+    assert sorted(ca.CONTENIDOS[sigla]) == _UNIDADES[sigla]
     for unidad in ca.CONTENIDOS[sigla]:
         pdf = renderizar_pdf(_guia(curso={"shortname": f"SOF-{sigla}-A", "fullname": f"(SOF) {sigla} - A"},
                                    unidad=f"Unidad {unidad}",

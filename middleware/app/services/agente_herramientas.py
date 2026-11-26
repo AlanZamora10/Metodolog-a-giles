@@ -121,7 +121,8 @@ def _normalizar(texto: str) -> str:
 
 _TILDES = {"programacion": "programación", "metodologias": "metodologías", "agiles": "ágiles",
            "configuracion": "configuración", "informatica": "informática", "ingenieria": "ingeniería",
-           "analisis": "análisis", "logica": "lógica", "matematica": "matemática", "computacion": "computación"}
+           "analisis": "análisis", "logica": "lógica", "matematica": "matemática", "computacion": "computación",
+           "calculo": "cálculo"}
 
 
 _ROMANOS = {"i", "ii", "iii", "iv", "v", "vi"}  # materias seriadas: «Ingeniería de software I»
@@ -913,7 +914,7 @@ def _paralelo(c: Dict[str, Any]) -> Optional[str]:
 
 # Siglas institucionales de las materias (sin importar mayúsculas ni tildes) -> sigla del código del curso
 SIGLAS_MATERIAS = {"poo": "POO", "ed": "ED", "ma": "MA", "mcs": "MCS", "is1": "IS1", "is": "IS1", "isi": "IS1",
-                   "bda": "BDA", "bd": "BDA", "dw": "DW"}
+                   "bda": "BDA", "bd": "BDA", "dw": "DW", "cal": "CAL", "calculo": "CAL"}
 
 
 def _sigla_de(c: Dict[str, Any]) -> str:

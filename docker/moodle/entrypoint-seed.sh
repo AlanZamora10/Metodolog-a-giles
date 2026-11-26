@@ -11,6 +11,7 @@
 #   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --seed-only   # siembra completa
 #   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --tema-only   # sólo identidad visual
 #   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --plugin-only # plugin + avisos de refuerzos
+#   docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --calculo-only # sólo el curso Cálculo (TEL)
 # ==============================================================================
 set -u
 
@@ -50,6 +51,10 @@ run_seed() {
     else
         echo "[EduMonitor AI] ERROR: la siembra falló (ver salida anterior)."
     fi
+    # Curso Cálculo (Telecomunicaciones): unidades, tareas y aportes del documento del curso
+    if [[ -f "$SEED_DIR/seed_calculo.php" ]] && ! "$PHP_BIN" "$SEED_DIR/seed_calculo.php"; then
+        echo "[EduMonitor AI] ERROR: la siembra del curso Cálculo falló (ver salida anterior)."
+    fi
 
     # La siembra corre como root: devolver cachés y archivos al usuario de Apache.
     chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
@@ -70,6 +75,15 @@ if [[ "${1:-}" == "--plugin-only" ]]; then
     install_plugin
     "$PHP_BIN" "$SEED_DIR/registrar_ws.php"
     "$PHP_BIN" "$MOODLE_DIR/local/edumonitor/cli/notificar_publicados.php"
+    "$PHP_BIN" "$MOODLE_DIR/admin/cli/purge_caches.php" >/dev/null 2>&1 || true
+    chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
+    exit 0
+fi
+
+if [[ "${1:-}" == "--calculo-only" ]]; then
+    # Sólo el curso Cálculo (no toca los demás cursos, usuarios ni calificaciones)
+    "$PHP_BIN" "$SEED_DIR/seed_calculo.php"
+    chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
     "$PHP_BIN" "$MOODLE_DIR/admin/cli/purge_caches.php" >/dev/null 2>&1 || true
     chown -R daemon:root "$MOODLEDATA_DIR" 2>/dev/null || true
     exit 0

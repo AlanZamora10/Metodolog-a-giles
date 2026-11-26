@@ -43,6 +43,20 @@ docker exec moodle_lms php /opt/edumonitor_seed/seed.php --cursos=SOF-IS1-A,SOF-
 
 Categorías: `FISEI` → `SOFTWARE` → `Julio a Diciembre 2026`.
 
+### Curso Cálculo (Telecomunicaciones)
+`seed_calculo.php` crea `SOF-CAL-A` «(TEL) CALCULO - A» (docente `rgomez`) en `FISEI` → `TELECOMUNICACIONES` →
+`Julio a Diciembre 2026`, a partir del documento de unidades y aportes del curso:
+- **U.1 Derivada** (Derivada, Reglas de derivación, Derivación implícita, Aplicaciones de la derivada) y
+  **U.2 Integral Indefinida** (Integral indefinida, Métodos de integración, Aplicaciones, Integrales irracionales).
+- Tarea 1 → `U1-T1`, Tarea 2 → `U1-T2` (la mayoría de sus temas es de la U.1), Tarea 3 → `U2-T3`.
+- 10 estudiantes (`U-29`…`U-38` = Estudiante 1…10 del documento) con sus notas de aportes exactas.
+- Sólo tiene Tareas: el middleware pondera sobre los componentes que el curso evaluó (nota = promedio de tareas).
+
+Se ejecuta al final de la siembra automática; para aplicarlo solo:
+```bash
+docker exec moodle_lms bash /opt/edumonitor_seed/entrypoint-seed.sh --calculo-only
+```
+
 ## Estructura de cada curso
 - **Informativo**: foro de novedades (con aviso de bienvenida), avisos, Sílabo (PDF), Programa Analítico (PDF) y enlace institucional.
 - **Primer Parcial** (Unidades 1–2) y **Segundo Parcial** (Unidades 3–4), cada uno con:

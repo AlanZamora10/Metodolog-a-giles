@@ -14,6 +14,11 @@ Cada componente es el promedio (sobre 10) de sus actividades calificadas:
   - sin nota + "PENDIENTE"        -> no cuenta (pendiente de revisión)
   - sin nota y sin comentario     -> no cuenta (aún no evaluada)
 
+Componentes del curso: la ponderación 40/30/30 se aplica sobre los componentes que el curso ya evaluó (al menos una
+nota que cuenta en algún estudiante). Si un curso aún no registra, p. ej., Exámenes ni APE (sólo aportes de tareas),
+la nota se reparte entre los componentes evaluados (100 % Tareas) en lugar de sumar 0 por lo que no existe. Dentro de
+un componente evaluado por el curso, el estudiante sin notas que cuenten sigue aportando 0.00.
+
 Tendencia (R2): pendiente de regresión lineal sobre el promedio de cada unidad evaluada (U1, U2, ...).
 
 Material de clase: también se leen los recursos de archivo PDF publicados en cada sección del aula virtual
@@ -80,7 +85,36 @@ def _promedio(valores: List[float]) -> Optional[float]:
     return round(sum(valores) / len(valores), 2) if valores else None
 
 
-def metricas(actividades: List[Dict[str, Any]]) -> Dict[str, Any]:
+_PESOS = {"ACD": GradeCalculator.PESO_AUTONOMO, "TAREAS": GradeCalculator.PESO_TAREAS, "PAE": GradeCalculator.PESO_PAE}
+
+
+def nota_ponderada(promedios: Dict[str, Optional[float]], evaluados: Optional[set] = None) -> float:
+    """
+    Nota 40/30/30. `evaluados` = componentes que el curso ya calificó: los demás no pesan y sus pesos se reparten
+    proporcionalmente. Sin `evaluados` (o con los tres) es exactamente la fórmula oficial.
+    """
+    if not evaluados or set(evaluados) >= set(COMPONENTES):
+        return GradeCalculator.calculate_weighted_grade(
+            autonomo=promedios["ACD"] or 0.0, tareas=promedios["TAREAS"] or 0.0, pae=promedios["PAE"] or 0.0)
+    peso_total = sum(_PESOS[c] for c in evaluados)
+    return round(sum(_PESOS[c] * (promedios[c] or 0.0) for c in evaluados) / peso_total, 2)
+
+
+def componentes_evaluados(listas_gradeitems: List[List[Dict[str, Any]]]) -> Dict[Optional[int], set]:
+    """Componentes con al menos una nota que cuenta en el curso: total (clave None) y por parcial."""
+    evaluados: Dict[Optional[int], set] = {None: set()}
+    for items in listas_gradeitems:
+        for item in items or []:
+            clasif = _clasificar(item)
+            if not clasif or _estado_actividad(item)[1] is None:
+                continue
+            comp, unidad = clasif
+            evaluados[None].add(comp)
+            evaluados.setdefault(parcial_de_unidad(unidad), set()).add(comp)
+    return evaluados
+
+
+def metricas(actividades: List[Dict[str, Any]], evaluados: Optional[set] = None) -> Dict[str, Any]:
     """Componentes, nota ponderada, nivel, promedios por unidad y tendencia de un conjunto de actividades."""
     valores: Dict[str, List[float]] = {c: [] for c in COMPONENTES}
     por_unidad: Dict[int, List[float]] = {}
@@ -91,12 +125,9 @@ def metricas(actividades: List[Dict[str, Any]]) -> Dict[str, Any]:
         por_unidad.setdefault(a["unidad"], []).append(a["nota"])
 
     promedios = {c: _promedio(v) for c, v in valores.items()}
-    # Un componente sin ninguna actividad que cuente aporta 0.00 a la nota ponderada.
-    nota_final = GradeCalculator.calculate_weighted_grade(
-        autonomo=promedios["ACD"] or 0.0,
-        tareas=promedios["TAREAS"] or 0.0,
-        pae=promedios["PAE"] or 0.0,
-    )
+    # Un componente evaluado por el curso pero sin actividades que cuenten para el estudiante aporta 0.00;
+    # uno que el curso aún no evaluó no pesa (ver `nota_ponderada`).
+    nota_final = nota_ponderada(promedios, evaluados)
     unidades = {f"U{u}": _promedio(por_unidad[u]) for u in sorted(por_unidad)}
     tendencia = GradeCalculator.calculate_trend(list(unidades.values()))
     return {
@@ -121,8 +152,13 @@ def cedula_de(user: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def construir_estudiante(user: Dict[str, Any], gradeitems: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Convierte un usuario de Moodle + sus ítems de calificación en el registro analítico."""
+def construir_estudiante(user: Dict[str, Any], gradeitems: List[Dict[str, Any]],
+                         evaluados: Optional[Dict[Optional[int], set]] = None) -> Dict[str, Any]:
+    """
+    Convierte un usuario de Moodle + sus ítems de calificación en el registro analítico. `evaluados` son los
+    componentes que el curso ya calificó (ver `componentes_evaluados`); sin él se usan los tres.
+    """
+    evaluados = evaluados or {}
     estados: Dict[str, str] = {}
     actividades: List[Dict[str, Any]] = []
 
@@ -148,10 +184,11 @@ def construir_estudiante(user: Dict[str, Any], gradeitems: List[Dict[str, Any]])
             estados[comp] = estado
 
     actividades.sort(key=lambda a: a["id_number"])
-    m = metricas(actividades)
+    m = metricas(actividades, evaluados.get(None))
     contadas = [a for a in actividades if a["nota"] is not None]
     parciales_evaluados = sorted({a["parcial"] for a in contadas}) or [1]
-    por_parcial = {p: metricas([a for a in actividades if a["parcial"] == p]) for p in parciales_evaluados}
+    por_parcial = {p: metricas([a for a in actividades if a["parcial"] == p], evaluados.get(p))
+                   for p in parciales_evaluados}
 
     return {
         "moodle_id": user.get("id"),
@@ -261,6 +298,7 @@ def _construir_curso(curso_moodle: Dict[str, Any], usuarios: List[Dict[str, Any]
                      usergrades: Dict[Any, List[Dict[str, Any]]]) -> Dict[str, Any]:
     docentes = [u for u in usuarios if _roles(u) & TEACHER_ROLES]
     alumnos = [u for u in usuarios if _roles(u) & STUDENT_ROLES]
+    evaluados = componentes_evaluados([usergrades.get(u["id"], []) for u in alumnos])
     return {
         "id": curso_moodle["id"],
         "shortname": curso_moodle.get("shortname"),
@@ -268,7 +306,7 @@ def _construir_curso(curso_moodle: Dict[str, Any], usuarios: List[Dict[str, Any]
         "docentes": [(u.get("email") or "").lower() for u in docentes],
         "docente_titular": docentes[0].get("fullname") if docentes else None,
         "estudiantes": sorted(
-            (construir_estudiante(u, usergrades.get(u["id"], [])) for u in alumnos),
+            (construir_estudiante(u, usergrades.get(u["id"], []), evaluados) for u in alumnos),
             key=lambda e: e["id_number"],
         ),
     }
@@ -367,14 +405,14 @@ async def sincronizar(client: Optional[MoodleClient] = None) -> Dict[str, Any]:
 @database.on_ready
 def cargar_desde_bd(engine) -> None:
     """Al arrancar, reconstruye SYNC_STATE desde la base para que el panel sobreviva a un reinicio."""
-    cursos = [
-        {
+    cursos = []
+    for c in repositories.load_sync(engine):
+        evaluados = componentes_evaluados([u["gradeitems"] for u in c["usuarios"]])
+        cursos.append({
             "id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"], "docentes": c["docentes"],
-            "estudiantes": sorted((construir_estudiante(u["user"], u["gradeitems"]) for u in c["usuarios"]),
+            "estudiantes": sorted((construir_estudiante(u["user"], u["gradeitems"], evaluados) for u in c["usuarios"]),
                                   key=lambda e: e["id_number"]),
-        }
-        for c in repositories.load_sync(engine)
-    ]
+        })
     if not cursos:
         return
     materiales = repositories.load_materiales(engine)

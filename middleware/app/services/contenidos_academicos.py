@@ -6,6 +6,7 @@ temas, un ejemplo resuelto paso a paso y ejercicios propuestos. Es contenido det
 docente (no lo genera el modelo de lenguaje), por lo que no puede inventar datos del estudiante.
 
 Claves: la sigla del curso en Moodle (SOF-POO-A => "POO") y el número de unidad (1 a 4).
+Cálculo (Telecomunicaciones, primer nivel; SOF-CAL-A => "CAL") tiene 2 unidades: Derivada e Integral indefinida.
 """
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -888,6 +889,80 @@ CONTENIDOS: Dict[str, Dict[int, Unidad]] = {
             ],
         },
     },
+    # ------------------------------------------------------------------ Cálculo (Telecomunicaciones, primer nivel)
+    # Notación imprimible en la guía PDF (latin-1): x^3, e^x, raíz(x), «integral de f(x) dx», dy/dx.
+    "CAL": {
+        1: {
+            "titulo": "Derivada",
+            "temas": [
+                ("Definición e interpretación de la derivada",
+                 "La derivada es el límite de [f(x + h) - f(x)] / h cuando h tiende a 0: la razón de cambio "
+                 "instantánea. Es la pendiente de la recta tangente y, si f es la posición, la velocidad. Derivable "
+                 "implica continua, pero no al revés."),
+                ("Reglas de derivación",
+                 "Potencia, producto, cociente y regla de la cadena para funciones compuestas; derivadas de funciones "
+                 "trigonométricas, trigonométricas inversas, exponenciales y logarítmicas."),
+                ("Derivación implícita y paramétrica",
+                 "Si F(x, y) = 0 se derivan ambos lados respecto de x tratando y como función de x y se despeja dy/dx. "
+                 "Con x(t), y(t): dy/dx = (dy/dt) / (dx/dt). Así se obtienen las rectas tangente y normal."),
+                ("Aplicaciones de la derivada",
+                 "Puntos críticos, intervalos de crecimiento y decrecimiento, máximos y mínimos, gráficas de "
+                 "funciones y problemas de optimización geométricos y mecánicos."),
+            ],
+            "ejemplo": {
+                "enunciado": "Halle la recta tangente a la circunferencia x^2 + y^2 = 25 en el punto (3, 4).",
+                "pasos": [
+                    "Derivar implícitamente respecto de x: 2x + 2y·(dy/dx) = 0.",
+                    "Despejar la derivada: dy/dx = -x / y.",
+                    "Evaluar en (3, 4): la pendiente es m = -3/4.",
+                    "Escribir la recta punto-pendiente: y - 4 = -(3/4)(x - 3).",
+                    "Simplificar: 3x + 4y - 25 = 0.",
+                ],
+                "resultado": "La recta tangente es 3x + 4y = 25; la normal tiene pendiente 4/3 y es y = (4/3)x.",
+            },
+            "ejercicios": [
+                "Derive f(x) = (3x^2 - 1)·sen(2x) aplicando la regla del producto y la de la cadena.",
+                "Calcule dy/dx si x^3 + y^3 = 6xy y obtenga la recta tangente en el punto (3, 3).",
+                "Encuentre los intervalos de crecimiento y los extremos de f(x) = x^3 - 6x^2 + 9x + 1.",
+                "Un rectángulo tiene 40 cm de perímetro: halle sus dimensiones para que el área sea máxima.",
+            ],
+        },
+        2: {
+            "titulo": "Integral indefinida",
+            "temas": [
+                ("Antiderivada e integral indefinida",
+                 "F es antiderivada de f si F'(x) = f(x); la integral indefinida de f(x) dx es F(x) + C. Las fórmulas "
+                 "básicas invierten las reglas de derivación: la integral de x^n dx es x^(n+1) / (n+1) + C, n distinto "
+                 "de -1."),
+                ("Métodos de integración",
+                 "Sustitución (cambio de variable), trinomios cuadrados perfectos, integrales trigonométricas, por "
+                 "partes (u·v menos la integral de v du), Hermite-Ostrogradski y racionales de senos y cosenos."),
+                ("Aplicaciones de la integral indefinida",
+                 "De la aceleración se obtienen la velocidad y la posición en el movimiento rectilíneo y vertical (la "
+                 "constante sale de las condiciones iniciales); en economía, el costo total desde el costo marginal."),
+                ("Integrales irracionales",
+                 "Las fórmulas de reducción expresan una integral con exponente n en función de otra con exponente "
+                 "menor, hasta llegar a una integral inmediata."),
+            ],
+            "ejemplo": {
+                "enunciado": "Calcule la integral de x·e^x dx.",
+                "pasos": [
+                    "Elegir u = x (se simplifica al derivar) y dv = e^x dx.",
+                    "Obtener du = dx y v = e^x.",
+                    "Aplicar partes: u·v menos la integral de v du = x·e^x menos la integral de e^x dx.",
+                    "Integrar lo que queda: x·e^x - e^x + C.",
+                    "Verificar derivando: la derivada de x·e^x - e^x es e^x + x·e^x - e^x = x·e^x.",
+                ],
+                "resultado": "La integral de x·e^x dx es e^x·(x - 1) + C.",
+            },
+            "ejercicios": [
+                "Calcule la integral de 2x·(x^2 + 1)^5 dx por sustitución.",
+                "Calcule la integral de x^2·cos(x) dx aplicando dos veces integración por partes.",
+                "Calcule la integral de dx / (x^2 + 4x + 13) completando el trinomio cuadrado perfecto.",
+                "Una piedra se lanza hacia arriba a 20 m/s desde 5 m de altura (g = 9.8 m/s^2): obtenga v(t) y s(t).",
+            ],
+        },
+    },
 }
 
 
@@ -913,6 +988,7 @@ _SOMMERVILLE = "Sommerville, «Ingeniería de Software», 9.ª ed., Pearson"
 _PRO_GIT = "Chacon y Straub, «Pro Git», 2.ª ed. (git-scm.com/book/es/v2)"
 _ELMASRI = "Elmasri y Navathe, «Fundamentos de Sistemas de Bases de Datos», 5.ª ed., Pearson"
 _MDN = "MDN Web Docs (developer.mozilla.org/es)"
+_STEWART = "Stewart, «Cálculo de una variable: trascendentes tempranas», 8.ª ed., Cengage"
 
 RECURSOS: Dict[str, Dict[int, List[Tuple[str, str]]]] = {
     "POO": {
@@ -944,6 +1020,12 @@ RECURSOS: Dict[str, Dict[int, List[Tuple[str, str]]]] = {
             ("Cohn, «Agile Estimating and Planning», Prentice Hall (2005)", "puntos de historia y Planning Poker.")],
         4: [("Anderson, «Kanban», Blue Hole Press (2010)", "flujo visual y límites de trabajo en curso (WIP)."),
             ("Atlassian Agile Coach (atlassian.com/es/agile)", "tableros Kanban, burndown y velocidad.")],
+    },
+    "CAL": {
+        1: [(_STEWART, "caps. 2 a 4: definición de la derivada, reglas de derivación y aplicaciones."),
+            ("Khan Academy en español (es.khanacademy.org)", "unidades «Derivadas» y «Aplicaciones de la derivada».")],
+        2: [(_STEWART, "caps. 4.9 y 7: antiderivadas y técnicas de integración."),
+            ("Khan Academy en español (es.khanacademy.org)", "unidad «Integrales» y técnicas de integración.")],
     },
     "MCS": {
         1: [(_PRO_GIT, "caps. 1 y 2: control de versiones y fundamentos de Git."),
@@ -1054,6 +1136,12 @@ OBJETIVOS: Dict[str, Dict[int, str]] = {
         3: "Garantizar la consistencia de los datos mediante transacciones y mecanismos de control de concurrencia",
         4: "Crear índices adecuados y analizar planes de ejecución para optimizar el rendimiento de las consultas",
     },
+    "CAL": {
+        1: "Calcular derivadas de funciones reales aplicando sus reglas, la derivación implícita y paramétrica, y "
+           "utilizarlas para analizar gráficas y resolver problemas de optimización",
+        2: "Calcular integrales indefinidas con el método de integración adecuado y aplicarlas a problemas de "
+           "movimiento y de economía",
+    },
     "DW": {
         1: "Construir páginas web semánticas y adaptables con HTML y CSS (Flexbox y Grid)",
         2: "Programar la interacción de una página con JavaScript, manipulando el DOM y gestionando eventos",
@@ -1071,6 +1159,7 @@ ENTORNOS: Dict[str, str] = {
     "IS1": "herramienta de modelado UML (draw.io, StarUML o Visual Paradigm Community)",
     "BDA": "SQL Server 2022 con SQL Server Management Studio (SSMS) o Azure Data Studio",
     "DW": "Visual Studio Code, un navegador con herramientas de desarrollador y Node.js (versión LTS)",
+    "CAL": "GeoGebra (geogebra.org/calculator) para verificar gráficas y una calculadora científica",
 }
 
 def objetivo_unidad(shortname: str, unidad: int) -> Optional[str]:

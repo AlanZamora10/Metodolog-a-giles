@@ -252,7 +252,7 @@ _ACADEMICO = re.compile(
     r"course\w*|alert\w*|risk|guide|assignment\w*|unit|class\w*|teacher|support|revisar|revisemos|consultar|"
     r"seguimiento|review|check|ranking|aprob\w*|reprob\w*|jalad\w*|jalando|ganando|perdiendo|puntaje\w*|entrega\w*|"
     r"asistencia|faltas|rendimiento|desempeno|calificar|pendiente\w*|ponderad\w*|semestre|ciclo|score\w*|average|"
-    r"passing|failing|attendance|leaderboard)\b")
+    r"passing|failing|attendance|leaderboard|calculo|cal)\b")
 _CALCULO = re.compile(r"\d\s*[-+*/x^%]\s*\d|\b(raiz cuadrada|square root|derivada|integral de|factorial)\b")
 _SOLO_CALCULO = re.compile(r"^(cuanto (es|da|son)|what is|whats|calcula|calculate|solve|resuelve|how much is)?"
                            r"[\s\d+\-*/x^%().,=?]+$")
