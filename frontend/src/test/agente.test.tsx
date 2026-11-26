@@ -271,3 +271,37 @@ describe('Guía oficial en PDF desde el Agente IA', () => {
     expect(screen.getAllByText((texto) => texto.includes('Guía oficial de refuerzo (PDF)')).length).toBeGreaterThan(0);
   });
 });
+
+describe('CoraIA · bienvenida y tablas en las respuestas', () => {
+  it('saluda en español por defecto y menciona que responde en el idioma de la pregunta', async () => {
+    iniciarSesionFalsa();
+    mockApi();
+    renderApp('/agente');
+    const bienvenida = await screen.findByTestId('bienvenida');
+    expect(bienvenida).toHaveTextContent(/^¡Hola(, \S+)?! Soy CoraIA, el asistente académico de la UTA - FISEI\./);
+    expect(bienvenida).toHaveTextContent('respondo en el idioma de su pregunta');
+    expect(bienvenida).not.toHaveTextContent(/Hello|I'm CoraIA/);
+  });
+
+  it('renderiza tablas Markdown con cabecera única y celdas numéricas centradas', () => {
+    render(
+      <Markdown
+        texto={
+          '**Carlos** (C.I. 1804923199) · promedio **3.96/10**\n\n' +
+          '| Materia | Exámenes | Promedio | Nivel |\n|---|---|---|---|\n' +
+          '| Programación orientada a objetos — Paralelo A | 3.50 | **3.41** | Crítico |\n' +
+          '| Estructura de datos — Paralelo B | 4.00 | **3.87** | Crítico |'
+        }
+      />,
+    );
+    const tabla = screen.getByRole('table');
+    expect(within(tabla).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Materia', 'Exámenes', 'Promedio', 'Nivel']);
+    const filas = within(tabla).getAllByRole('row').slice(1);
+    expect(filas).toHaveLength(2);
+    const celdas = within(filas[0]).getAllByRole('cell');
+    expect(celdas[1]).toHaveClass('num');
+    expect(celdas[2].querySelector('strong')).toHaveTextContent('3.41');
+    expect(celdas[3]).not.toHaveClass('num');
+    expect(screen.queryByText(/\|---/)).not.toBeInTheDocument();
+  });
+});

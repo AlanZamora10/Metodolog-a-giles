@@ -179,7 +179,7 @@ describe('Buscador por cédula y nombre completo', () => {
     const u = userEvent.setup();
     renderApp('/estudiantes');
     await screen.findByText('Carlos Andrés Mendoza Paredes');
-    expect(screen.getByText('Carlos Andrés Mendoza Paredes').closest('article')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes').closest('[role="row"]')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
 
     const buscar = screen.getByPlaceholderText(/cédula o nombre completo/i);
     await u.type(buscar, '1804923199');
@@ -218,23 +218,32 @@ describe('Login con correo institucional', () => {
   });
 });
 
-describe('Estudiantes · tarjetas minimalistas', () => {
-  it('una tarjeta por estudiante: identidad, 4 notas con etiqueta y estado (nivel, tendencia, incidencias, alerta)', async () => {
+describe('Estudiantes · cuadrícula con cabecera única', () => {
+  it('una sola cabecera (con PROMEDIO) y una fila de 9 celdas por estudiante, sin etiquetas repetidas', async () => {
     iniciarSesionFalsa();
     mockApi();
     renderApp('/estudiantes');
     await screen.findByText('Carlos Andrés Mendoza Paredes');
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    const tarjetas = screen.getAllByTestId('tarjeta-estudiante');
-    expect(tarjetas.length).toBe(screen.getAllByTestId('datos-estudiante').length);
+    const tabla = screen.getByRole('table', { name: 'Estudiantes del curso' });
+    expect(within(tabla).getAllByRole('columnheader').map((c) => c.textContent)).toEqual([
+      'Estudiante', 'Exámenes', 'Tareas', 'APE', 'Promedio', 'Nivel', 'Tendencia', 'Incidencias', 'Alerta',
+    ]);
+    const filas = screen.getAllByTestId('fila-estudiante');
+    expect(filas.length).toBe(screen.getAllByTestId('datos-estudiante').length);
+    // las etiquetas de columna sólo aparecen una vez (en la cabecera)
+    expect(within(tabla).getAllByText('Exámenes')).toHaveLength(1);
+    expect(screen.queryByText('Final')).not.toBeInTheDocument();
 
-    const carlos = screen.getByText('Carlos Andrés Mendoza Paredes').closest('article') as HTMLElement;
-    expect(within(carlos).getByRole('link', { name: 'Carlos Andrés Mendoza Paredes' })).toHaveAttribute('href', '/estudiantes/U-04');
-    const etiquetas = Array.from(carlos.querySelectorAll('.est-notas dt')).map((d) => d.textContent);
-    expect(etiquetas).toEqual(['Exámenes', 'Tareas', 'APE', 'Final']);
-    expect(within(carlos).getByTestId('tendencia').textContent).toMatch(/^(↗ Sube|↘ Baja|→ Estable) \([+-]\d\.\d{2}\)$/);
-    // incidencias reales en una sola línea; las pendientes, como texto discreto
-    expect(within(carlos).getByTestId('incidencias')).toHaveTextContent(/^1 nota cero · 1 sin entrega( · \d+ sin calificar)?$/);
+    const carlos = screen.getByText('Carlos Andrés Mendoza Paredes').closest('[role="row"]') as HTMLElement;
+    const celdas = within(carlos).getAllByRole('cell');
+    expect(celdas).toHaveLength(9);
+    expect(within(celdas[0]).getByRole('link', { name: 'Carlos Andrés Mendoza Paredes' })).toHaveAttribute('href', '/estudiantes/U-04');
+    for (const i of [1, 2, 3, 4]) expect(celdas[i].textContent).toMatch(/^\d+\.\d{2}$|^—$/);
+    expect(celdas[4]).toHaveClass('celda-promedio');
+    expect(within(celdas[6]).getByTestId('tendencia').textContent).toMatch(/^(↗ Sube|↘ Baja|→ Estable) \([+-]\d\.\d{2}\)$/);
+    // incidencias reales en rojo; las pendientes, como texto discreto
+    expect(celdas[7]).toHaveTextContent(/^1 nota cero · 1 sin entrega(\d+ sin calificar)?$/);
+    expect(celdas[7].querySelector('.incidencias-criticas')).toHaveTextContent('1 nota cero · 1 sin entrega');
     expect(within(carlos).getByText('Nota crítica', { selector: '.badge' })).toBeInTheDocument();
     expect(screen.getAllByText('Sin alertas').length).toBeGreaterThan(0);
     expect(document.body.textContent).not.toMatch(/Pendiente de calificación|\(s\)/);

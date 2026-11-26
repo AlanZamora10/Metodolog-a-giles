@@ -131,22 +131,29 @@ function Listado() {
 
       </section>
 
-      {/* Una tarjeta por estudiante: identidad · calificaciones · estado */}
-      <div className="lista-estudiantes stagger-2" role="list" aria-label="Estudiantes del curso">
+      {/* Cuadrícula minimalista: cabecera única y celdas con divisores finos (semántica de tabla para lectores de pantalla) */}
+      <div className="cuadricula-estudiantes stagger-2" role="table" aria-label="Estudiantes del curso">
+        <div className="cuadricula-fila cuadricula-cabecera" role="row">
+          {['Estudiante', 'Exámenes', 'Tareas', 'APE', 'Promedio', 'Nivel', 'Tendencia', 'Incidencias', 'Alerta'].map((t) => (
+            <div key={t} role="columnheader">
+              {t}
+            </div>
+          ))}
+        </div>
         {filas.map(({ e, m, estados }) => {
           const criticas = [
             estados.cero > 0 ? plural(estados.cero, 'nota cero', 'notas cero') : null,
             estados.sin_entrega > 0 ? `${estados.sin_entrega} sin entrega` : null,
           ].filter(Boolean);
           return (
-            <article
+            <div
               key={e.id_number}
-              role="listitem"
-              className="est-card"
-              data-testid="tarjeta-estudiante"
+              role="row"
+              className="cuadricula-fila"
+              data-testid="fila-estudiante"
               onClick={() => navegar(`/estudiantes/${e.id_number}`)}
             >
-              <div className="est-identidad">
+              <div role="cell" className="celda-estudiante">
                 <Link to={`/estudiantes/${e.id_number}`} onClick={(ev) => ev.stopPropagation()}>
                   {e.nombres}
                 </Link>
@@ -154,55 +161,34 @@ function Listado() {
                   {e.cedula ? `C.I. ${e.cedula}` : 'C.I. —'} · {e.email}
                 </span>
               </div>
-
-              <dl className="est-notas">
-                <div>
-                  <dt>Exámenes</dt>
-                  <dd className="num">{nota(m?.acd)}</dd>
-                </div>
-                <div>
-                  <dt>Tareas</dt>
-                  <dd className="num">{nota(m?.tareas)}</dd>
-                </div>
-                <div>
-                  <dt>APE</dt>
-                  <dd className="num">{nota(m?.pae)}</dd>
-                </div>
-                <div className="est-final">
-                  <dt>Final</dt>
-                  <dd className="num">{nota(m?.nota_final)}</dd>
-                </div>
-              </dl>
-
-              <div className="est-estado">
-                <div className="est-estado-linea">
-                  {m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted small">Sin notas</span>}
-                  {m && <Tendencia m={m} />}
-                  <span className="est-alerta">
-                    {e.regla_alerta ? (
-                      <span className={`badge ${e.regla_alerta.startsWith('R1') ? 'nivel-critico' : 'nivel-riesgo'}`}>
-                        {REGLAS[e.regla_alerta] ?? e.regla_alerta}
-                      </span>
-                    ) : (
-                      <span className="sin-alertas">Sin alertas</span>
-                    )}
-                  </span>
-                </div>
-                <div className="est-incidencias" data-testid="incidencias">
-                  {criticas.length > 0 && <span className="incidencias-criticas">{criticas.join(' · ')}</span>}
-                  {criticas.length > 0 && estados.pendiente > 0 && <span className="sep"> · </span>}
-                  {estados.pendiente > 0 && <span className="pendientes-compacto">{estados.pendiente} sin calificar</span>}
-                  {criticas.length === 0 && estados.pendiente === 0 && <span className="pendientes-compacto">Sin incidencias</span>}
-                </div>
+              <div role="cell" className="num">{nota(m?.acd)}</div>
+              <div role="cell" className="num">{nota(m?.tareas)}</div>
+              <div role="cell" className="num">{nota(m?.pae)}</div>
+              <div role="cell" className="num celda-promedio">{nota(m?.nota_final)}</div>
+              <div role="cell">{m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted small">Sin notas</span>}</div>
+              <div role="cell">{m ? <Tendencia m={m} /> : <span className="muted small">Sin datos</span>}</div>
+              <div role="cell" className="celda-incidencias" data-testid="incidencias">
+                {criticas.length > 0 && <span className="incidencias-criticas">{criticas.join(' · ')}</span>}
+                {estados.pendiente > 0 && <span className="pendientes-compacto">{estados.pendiente} sin calificar</span>}
+                {criticas.length === 0 && estados.pendiente === 0 && <span className="pendientes-compacto">Sin incidencias</span>}
               </div>
-            </article>
+              <div role="cell">
+                {e.regla_alerta ? (
+                  <span className={`badge ${e.regla_alerta.startsWith('R1') ? 'nivel-critico' : 'nivel-riesgo'}`}>
+                    {REGLAS[e.regla_alerta] ?? e.regla_alerta}
+                  </span>
+                ) : (
+                  <span className="sin-alertas">Sin alertas</span>
+                )}
+              </div>
+            </div>
           );
         })}
         {filas.length === 0 && <p className="muted est-vacio">Ningún estudiante coincide con la búsqueda.</p>}
-        <p className="small muted est-conteo">
-          Mostrando {filas.length} de {datos!.estudiantes.length} estudiantes.
-        </p>
       </div>
+      <p className="small muted est-conteo">
+        Mostrando {filas.length} de {datos!.estudiantes.length} estudiantes.
+      </p>
     </>
   );
 }

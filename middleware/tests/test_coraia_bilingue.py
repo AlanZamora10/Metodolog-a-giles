@@ -159,17 +159,20 @@ def test_ficha_de_estudiante_ordenada_sin_codigo_interno(sincronizado, monkeypat
     texto = data["respuesta"]
     assert "**Carlos Andrés Mendoza Paredes** (C.I. 1804923199) · " in texto
     assert "(U-04)" not in texto and "SOF-POO-A" not in texto
-    assert "**Programación orientada a objetos — Paralelo A**" in texto
-    assert "Promedio: **" in texto and "Exámenes: " in texto and "| Tareas: " in texto and "| APE: " in texto
-    assert "Tendencia: " in texto
-    assert texto.count("pendiente de calificación") <= 1          # las pendientes se agrupan en un conteo
+    # indicadores por asignatura en una tabla Markdown (cabecera única, sin viñetas repetidas)
+    assert "| Materia | Exámenes | Tareas | APE | Promedio | Nivel | Tendencia | Incidencias |" in texto
+    assert "|---|---|---|---|---|---|---|---|" in texto
+    fila = next(l for l in texto.splitlines() if l.startswith("| Programación orientada a objetos — Paralelo A |"))
+    assert "U1-T2 nota 0, U2-T4 sin entrega" in fila and "| Crítico |" in fila
+    assert "\n- " not in texto and "Promedio: **" not in texto
 
 
 def test_ficha_de_estudiante_en_ingles(sincronizado, monkeypatch):  # noqa: F811
     _sin_llm(monkeypatch)
     texto = _chat(sincronizado, "grades of Carlos Mendoza")["respuesta"]
     assert "**Carlos Andrés Mendoza Paredes** (ID 1804923199) · " in texto and "(U-04)" not in texto
-    assert "Average: **" in texto and "Exams: " in texto and "| Assignments: " in texto and "Trend: " in texto
+    assert "| Course | Exams | Assignments | APE | Average | Level | Trend | Issues |" in texto
+    assert "U1-T2 grade 0, U2-T4 not submitted" in texto and "| Critical |" in texto
 
 
 def test_resumen_de_incidencias_agrupa_las_pendientes():

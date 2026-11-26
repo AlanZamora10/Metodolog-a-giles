@@ -192,3 +192,29 @@ body#page-login-index {
   #page-login-index .uta-portada,
   #page-login-index .loginform > * { animation: none !important; }
 }
+
+/* ---------- Login compacto y centrado verticalmente (sin scroll en escritorio) ---------- */
+#page-login-index #page { padding-top: 0 !important; }
+#page-login-index .login-wrapper {
+  min-height: calc(100vh - 6px); padding: .75rem 1rem !important;
+  display: flex; align-items: center; justify-content: center;
+}
+#page-login-index .login-container { margin: 0 auto !important; padding: 0 2rem 1rem; }
+#page-login-index .login-container::before { height: 84px; margin: 0 -2rem 1rem; background-position: center 14px; background-size: 200px auto; }
+#page-login-index .login-container::after { margin-top: .8rem; padding-top: .6rem; }
+#page-login-index .loginform::before { font-size: 1.05rem; margin-bottom: .3rem; }
+#page-login-index .login-heading.mb-4 { margin-bottom: 1rem !important; }
+#page-login-index .login-form .form-group { margin-bottom: .65rem; }
+#page-login-index .login-form .form-control { height: 42px; font-size: 1rem; }
+#page-login-index .login-form-submit .btn, #page-login-index #loginbtn { height: 42px; }
+#page-login-index .login-form-forgotpassword { margin-bottom: .2rem; }
+#page-login-index .uta-volver { margin-top: 0; }
+/* Acceso de invitados: no aplica al flujo institucional UTA */
+#page-login-index .loginform > .login-divider:has(+ h2.login-heading),
+#page-login-index .loginform > h2.login-heading,
+#page-login-index #guestlogin { display: none !important; }
+/* Idioma y aviso de cookies: una fila compacta y centrada */
+#page-login-index .loginform > .login-divider { margin: .6rem 0; }
+#page-login-index .loginform > .d-flex { justify-content: center; align-items: center; font-size: .8rem; }
+#page-login-index .loginform > .d-flex .divider { margin: 0 .6rem !important; }
+#page-login-index .loginform > .d-flex .btn { padding: .15rem .6rem; font-size: .78rem; border-radius: 6px; }

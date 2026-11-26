@@ -1,7 +1,7 @@
 /**
  * Renderizador Markdown mínimo y seguro para las respuestas del agente (sin innerHTML).
  * Soporta: "### título", viñetas "- " (con un nivel de anidación "  - "), listas "1. ",
- * párrafos, **negritas** y *cursivas*.
+ * tablas "| a | b |" (con fila separadora "|---|"), párrafos, **negritas** y *cursivas*.
  */
 
 import type { ReactNode } from 'react';
@@ -25,7 +25,13 @@ type Bloque =
   | { tipo: 'h'; texto: string }
   | { tipo: 'p'; texto: string }
   | { tipo: 'ul'; items: { texto: string; hijos: string[] }[] }
-  | { tipo: 'ol'; items: string[] };
+  | { tipo: 'ol'; items: string[] }
+  | { tipo: 'tabla'; cabecera: string[]; filas: string[][] };
+
+const celdas = (linea: string) => linea.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+const SEPARADOR = /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/;
+/** Celda numérica («3.41», «**3.41**», «6.25/10», «57.1 %», «-0.29 pts», «—»): se centra con cifras tabulares. */
+const NUMERICA = /^(\*\*)?[+-]?\d+(\.\d+)?(\*\*)?(\s*(\/10|%|pts))?$|^—$/;
 
 export function parsearMarkdown(fuente: string): Bloque[] {
   const bloques: Bloque[] = [];
@@ -37,6 +43,12 @@ export function parsearMarkdown(fuente: string): Bloque[] {
       continue;
     }
     let m: RegExpMatchArray | null;
+    if (/^\s*\|.*\|\s*$/.test(linea)) {
+      if (SEPARADOR.test(linea.trim())) continue;
+      if (ultimo?.tipo === 'tabla') ultimo.filas.push(celdas(linea));
+      else bloques.push({ tipo: 'tabla', cabecera: celdas(linea), filas: [] });
+      continue;
+    }
     if ((m = linea.match(/^#{1,4}\s+(.*)$/))) {
       bloques.push({ tipo: 'h', texto: m[1] });
     } else if ((m = linea.match(/^\s{2,}[-*]\s+(.*)$/)) && ultimo?.tipo === 'ul') {
@@ -63,6 +75,33 @@ export function Markdown({ texto }: { texto: string }) {
         const k = `b${i}`;
         if (b.tipo === 'h') return <h4 key={k}>{enLinea(b.texto, k)}</h4>;
         if (b.tipo === 'p') return <p key={k}>{enLinea(b.texto, k)}</p>;
+        if (b.tipo === 'tabla')
+          return (
+            <div key={k} className="md-tabla-wrap">
+              <table className="md-tabla">
+                <thead>
+                  <tr>
+                    {b.cabecera.map((c, j) => (
+                      <th key={j} scope="col" className={j > 0 ? 'centro' : undefined}>
+                        {enLinea(c, `${k}-h${j}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.filas.map((fila, j) => (
+                    <tr key={j}>
+                      {fila.map((c, n) => (
+                        <td key={n} className={n === 0 ? undefined : NUMERICA.test(c) ? 'centro num' : 'centro'}>
+                          {enLinea(c, `${k}-${j}-${n}`)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
         if (b.tipo === 'ol')
           return (
             <ol key={k}>

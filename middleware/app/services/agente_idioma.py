@@ -54,6 +54,28 @@ def resumen_incidencias(incidencias: List[str], textos: Dict[str, str], pendient
     return " · ".join(partes)
 
 
+def incidencias_compactas(incidencias: List[str], textos: Dict[str, str], sin_calificar: str) -> str:
+    """Celda de tabla: «U1-T2 nota 0, U2-T4 sin entrega · 5 sin calificar» (sin paréntesis ni frases largas)."""
+    reales, pendientes = [], 0
+    for i in incidencias:
+        codigo, _, tipo = i.partition(" ")
+        if tipo == "PENDIENTE":
+            pendientes += 1
+        else:
+            reales.append(f"{codigo} {textos.get(tipo, tipo.lower())}")
+    partes = [", ".join(reales)] if reales else []
+    if pendientes:
+        partes.append(f"{pendientes} {sin_calificar}")
+    return " · ".join(partes) or "—"
+
+
+def tabla_markdown(cabecera: List[str], filas: List[List[str]]) -> List[str]:
+    """Tabla Markdown (GFM) lista para el chat; las barras verticales del contenido se escapan."""
+    limpiar = lambda v: str(v).replace("|", "/")  # noqa: E731
+    return (["| " + " | ".join(cabecera) + " |", "|" + "|".join(["---"] * len(cabecera)) + "|"]
+            + ["| " + " | ".join(limpiar(v) for v in fila) + " |" for fila in filas])
+
+
 def plural(n: int, singular: str, plural_: str) -> str:
     return f"{n} {singular if n == 1 else plural_}"
 
@@ -340,15 +362,14 @@ def _calificaciones(r):
                       else f"**critical in {criticos} of {n} courses**")
             clave = (f"**{nombre}**{cedula} · Enrolled in **{n} courses** with an overall average of "
                      f"**{promedio:.2f}/10** ({estado}).")
-        lineas = []
-        for f in sorted(filas, key=lambda x: x["nota_final"]):
-            lineas.append(f"- **{curso_en(f['curso_nombre'])}**")
-            lineas.append(f"  - Average: **{f['nota_final']:.2f}/10 ({_nivel(f).capitalize()})** · "
-                          f"Exams: {_f(f['acd'])} | Assignments: {_f(f['tareas'])} | APE: {_f(f['pae'])} · Trend: "
-                          f"{TENDENCIA_EN.get(f['tendencia'], (f['tendencia'] or '—').lower())}")
-            if f["incidencias"]:
-                lineas.append("  - Issues: " + resumen_incidencias(
-                    f["incidencias"], INCIDENCIA_EN, ("activity pending grading", "activities pending grading")))
+        # Indicadores por asignatura en una tabla compacta (sin listas repetitivas)
+        lineas = tabla_markdown(
+            ["Course", "Exams", "Assignments", "APE", "Average", "Level", "Trend", "Issues"],
+            [[curso_en(f["curso_nombre"]), _f(f["acd"]), _f(f["tareas"]), _f(f["pae"]), f"**{f['nota_final']:.2f}**",
+              _nivel(f).capitalize(), TENDENCIA_EN.get(f["tendencia"], (f["tendencia"] or "—").lower()).capitalize(),
+              incidencias_compactas(f["incidencias"], {"SIN_ENTREGA": "not submitted", "NOTA_0": "grade 0"},
+                                    "pending grading")]
+             for f in sorted(filas, key=lambda x: x["nota_final"])])
         return f"Grades of {nombre}", clave, lineas
     por_curso: Dict[str, List[Dict[str, Any]]] = {}
     for f in filas:
