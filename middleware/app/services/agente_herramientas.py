@@ -27,6 +27,7 @@ import httpx
 
 from app import repositories
 from app.services import agente_idioma as idioma
+from app.services import agente_nlu as nlu
 from app.services import reporte_service, sync_service
 
 logger = logging.getLogger("edumonitor.agente")
@@ -35,6 +36,9 @@ AGENT_HOST = os.getenv("AGENT_HOST") or os.getenv("AGENT_URL", "http://agent:800
 AGENT_TIMEOUT_SECONDS = float(os.getenv("AGENT_INFERENCE_TIMEOUT_SECONDS", "10.0"))
 # Presupuesto del plan del LLM en el chat: si Ollama no responde a tiempo se usan las reglas (respuesta en segundos)
 AGENT_CHAT_TIMEOUT_SECONDS = float(os.getenv("AGENT_CHAT_TIMEOUT_SECONDS", "6.0"))
+# Respuesta abierta con datos reales (RAG): Ollama redacta SÓLO con los datos consultados; si no responde a
+# tiempo, CoraIA pide precisar la consulta (nunca se queda esperando indefinidamente).
+AGENT_RAG_TIMEOUT_SECONDS = float(os.getenv("AGENT_RAG_TIMEOUT_SECONDS", "28.0"))
 # Mensajes de hasta 5 palabras con intención clara se resuelven sin esperar al LLM
 MAX_PALABRAS_RAPIDAS = 5
 MAX_HERRAMIENTAS_POR_MENSAJE = 4
@@ -55,7 +59,11 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
         "parametros": {"course_id": "integer (opcional)", "estudiante": "string (opcional)",
                        "operador": "< | <= | > | >= | entre (opcional)", "umbral": "number (opcional)",
                        "umbral_max": "number (opcional, sólo con entre)",
-                       "extremo": "peor | mejor (opcional: el estudiante con la menor o la mayor nota)"},
+                       "extremo": "peor | mejor (opcional: el estudiante con la menor o la mayor nota)",
+                       "ranking": "desc | asc | mejora | retroceso (opcional: estudiantes ordenados por promedio o "
+                                  "por su variación entre la primera y la última unidad)",
+                       "componente": "acd | tareas | pae (opcional: ordenar por Exámenes, Tareas o APE)",
+                       "nivel": "CRITICO | EN_RIESGO | ACEPTABLE (opcional: sólo los estudiantes de ese nivel)"},
     },
     "identificar_alertas": {
         "descripcion": "Alertas tempranas activas (nota crítica o descenso sostenido entre unidades) de un curso o de "
@@ -68,8 +76,9 @@ CATALOGO: Dict[str, Dict[str, Any]] = {
     },
     "analizar_actividades": {
         "descripcion": "Rendimiento por actividad (promedio, notas cero, sin entrega, pendientes), ordenado de menor "
-                       "a mayor. Úsala para '¿qué actividades tienen menor rendimiento?'.",
-        "parametros": {"course_id": "integer (opcional)"},
+                       "a mayor. Úsala para '¿qué actividades tienen menor rendimiento?'; con solo_pendientes, las "
+                       "entregas que faltan por calificar.",
+        "parametros": {"course_id": "integer (opcional)", "solo_pendientes": "boolean (opcional)"},
     },
     "listar_estudiantes": {
         "descripcion": "Nómina de UN curso: cantidad de estudiantes matriculados o lista completa con nombre, "
@@ -257,10 +266,18 @@ def texto_criterio(criterio: Dict[str, Any]) -> str:
 
 def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estudiante: Optional[str] = None,
                            operador: Optional[str] = None, umbral: Any = None,
-                           umbral_max: Any = None, extremo: Optional[str] = None) -> Dict[str, Any]:
-    """`extremo` = 'peor' | 'mejor': ordena para destacar al estudiante con la menor o la mayor nota."""
+                           umbral_max: Any = None, extremo: Optional[str] = None,
+                           ranking: Optional[str] = None, componente: Optional[str] = None,
+                           nivel: Optional[str] = None) -> Dict[str, Any]:
+    """
+    `extremo` = 'peor' | 'mejor': ordena para destacar al estudiante con la menor o la mayor nota.
+    `ranking` = 'desc' | 'asc': todos los estudiantes ordenados por nota final (de mejor a peor o al revés).
+    """
     filtro = _normalizar(estudiante) if estudiante else None
     extremo = extremo if extremo in ("peor", "mejor") else None
+    ranking = ranking if ranking in ("desc", "asc", "incidencias", "mejora", "retroceso") else None
+    componente = componente if componente in ("acd", "tareas", "pae") else None
+    nivel = nivel if nivel in ("CRITICO", "EN_RIESGO", "ACEPTABLE") else None
     criterio = _criterio_valido(operador, umbral, umbral_max)
     cursos = _cursos(docente, course_id)
     resultado = []
@@ -270,6 +287,8 @@ def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estud
                 continue
             if criterio and not _cumple(e["nota_final"], criterio):
                 continue
+            if nivel and e["nivel_riesgo"] != nivel:
+                continue
             resultado.append({
                 "curso_id": c["id"], "curso": c["shortname"], "curso_nombre": c["fullname"],
                 "id_number": e["id_number"], "nombres": e["nombres"], "cedula": e.get("cedula"),
@@ -278,15 +297,30 @@ def obtener_calificaciones(docente: dict, course_id: Optional[int] = None, estud
                 "promedios_unidad": e.get("promedios_unidad") or {},
                 "incidencias": [f"{a['id_number']} {_incidencia(a)}" for a in e["actividades"] if _incidencia(a)],
             })
+            tipos = [_incidencia(a) for a in e["actividades"]]
+            resultado[-1].update(ceros=tipos.count("NOTA_0"), sin_entrega=tipos.count("SIN_ENTREGA"),
+                                 pendientes=tipos.count("PENDIENTE"))
+            # Variación entre la primera y la última unidad con nota (para «quién mejoró / empeoró más»)
+            unidades = sorted((u, v) for u, v in (e.get("promedios_unidad") or {}).items() if v is not None)
+            resultado[-1]["variacion"] = (
+                {"desde": unidades[0][0], "hasta": unidades[-1][0], "inicio": unidades[0][1], "fin": unidades[-1][1],
+                 "delta": round(unidades[-1][1] - unidades[0][1], 2)} if len(unidades) >= 2 else None)
     if filtro and not resultado and not criterio:
         raise HerramientaError(f"no encontré a «{estudiante}» entre sus estudiantes. Pruebe con su nombre "
                                "completo o su cédula.")
-    if criterio or extremo == "peor":
-        resultado.sort(key=lambda f: (f["nota_final"], f["nombres"]))
-    elif extremo == "mejor":
-        resultado.sort(key=lambda f: (-f["nota_final"], f["nombres"]))
+    valor = (lambda f: f[componente] if f[componente] is not None else -1.0) if componente else (lambda f: f["nota_final"])
+    if ranking in ("mejora", "retroceso"):
+        resultado = [f for f in resultado if f["variacion"]]
+        signo = -1 if ranking == "mejora" else 1
+        resultado.sort(key=lambda f: (signo * f["variacion"]["delta"], f["nombres"]))
+    elif criterio or extremo == "peor" or ranking == "asc" or nivel:
+        resultado.sort(key=lambda f: (valor(f) if valor(f) >= 0 else 99, f["nombres"]))
+    elif extremo == "mejor" or ranking == "desc":
+        resultado.sort(key=lambda f: (-valor(f), f["nombres"]))
+    elif ranking == "incidencias":
+        resultado.sort(key=lambda f: (-(f["sin_entrega"] + f["ceros"]), -f["sin_entrega"], f["nota_final"], f["nombres"]))
     return {"calificaciones": resultado, "filas": len(resultado), "estudiante": estudiante, "criterio": criterio,
-            "extremo": extremo,
+            "extremo": extremo, "ranking": ranking, "componente": componente, "nivel": nivel,
             "cursos_consultados": [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"]}
                                    for c in cursos]}
 
@@ -316,8 +350,11 @@ def generar_resumen(docente: dict, course_id: Optional[int] = None) -> Dict[str,
     return {"resumenes": resumenes, "filas": len(resumenes)}
 
 
-def analizar_actividades(docente: dict, course_id: Optional[int] = None) -> Dict[str, Any]:
-    """Rendimiento por actividad (promedio de las notas que cuentan e incidencias), de menor a mayor."""
+def analizar_actividades(docente: dict, course_id: Optional[int] = None, solo_pendientes: Any = False) -> Dict[str, Any]:
+    """
+    Rendimiento por actividad (promedio de las notas que cuentan e incidencias), de menor a mayor.
+    `solo_pendientes`: sólo las actividades con entregas por calificar, de más a menos pendientes.
+    """
     actividades = []
     for c in _cursos(docente, course_id):
         por_actividad: Dict[str, Dict[str, Any]] = {}
@@ -343,9 +380,17 @@ def analizar_actividades(docente: dict, course_id: Optional[int] = None) -> Dict
             fila["promedio"] = round(sum(notas) / len(notas), 2) if notas else None
             fila["bajo_aprobacion"] = sum(1 for n in notas if n < UMBRAL_APROBACION)
             actividades.append(fila)
-    actividades.sort(key=lambda f: (f["promedio"] is None, f["promedio"] if f["promedio"] is not None else 99,
-                                    f["curso"], f["actividad"]))
-    return {"actividades": actividades, "filas": len(actividades)}
+    solo_pendientes = solo_pendientes in (True, "true", "True", 1, "1")
+    if solo_pendientes:
+        actividades = [a for a in actividades if a["pendientes"]]
+        actividades.sort(key=lambda f: (-f["pendientes"], f["curso"], f["actividad"]))
+    else:
+        actividades.sort(key=lambda f: (f["promedio"] is None, f["promedio"] if f["promedio"] is not None else 99,
+                                        f["curso"], f["actividad"]))
+    cursos = _cursos(docente, course_id)
+    return {"actividades": actividades, "filas": len(actividades), "solo_pendientes": solo_pendientes,
+            "cursos_consultados": [{"id": c["id"], "shortname": c["shortname"], "fullname": c["fullname"]}
+                                   for c in cursos]}
 
 
 def _curso_para_refuerzo(registros: List[Tuple[Dict[str, Any], Dict[str, Any]]],
@@ -524,10 +569,11 @@ EJECUTORES: Dict[str, Callable[..., Dict[str, Any]]] = {
 }
 _PARAMETROS_VALIDOS = {
     "listar_cursos_autorizados": set(),
-    "obtener_calificaciones": {"course_id", "estudiante", "operador", "umbral", "umbral_max", "extremo"},
+    "obtener_calificaciones": {"course_id", "estudiante", "operador", "umbral", "umbral_max", "extremo", "ranking",
+                               "componente", "nivel"},
     "identificar_alertas": {"course_id", "regla"},
     "generar_resumen": {"course_id"},
-    "analizar_actividades": {"course_id"},
+    "analizar_actividades": {"course_id", "solo_pendientes"},
     "proponer_refuerzo": {"student_query", "course_id"},
     "listar_estudiantes": {"course_id", "solo_conteo"},
     "perfil_docente": set(),
@@ -699,6 +745,8 @@ def _estudiante_de(usadas: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
 
 def _intencion_directa(texto: str) -> bool:
     return bool(_PIDE_PDF.search(texto) or _PANORAMA.search(texto) or _EN_PROBLEMAS.search(texto)
+                or nlu.RANKING.search(texto) or nlu.PENDIENTES.search(texto) or nlu.INCIDENCIAS.search(texto)
+                or nlu.evolucion_pedida(texto) or nlu.nivel_pedido(texto)
                 or _criterio_informal(texto) or extremo_pedido(texto) or criterio_nota(texto) or _PERFIL.search(texto) or _CONTEO.search(texto) or _pide_lista(texto))
 
 
@@ -889,6 +937,9 @@ def _curso_mencionado(texto: str, cursos: List[Dict[str, Any]]) -> Optional[int]
         if (re.search(rf"\b{re.escape(abreviatura)}\b", texto)
                 or (palabras and sum(1 for p in palabras if p in texto) >= min(2, len(palabras)))):
             candidatos.append(c)
+    if not candidatos:
+        # «base de datos», «programación», «estructuras»: raíces y palabras distintivas del nombre de la materia
+        candidatos = nlu.cursos_por_nombre(texto, cursos, _normalizar)
     if len(candidatos) > 1:
         paralelo = re.search(r"\bparalelo\s+([a-z])\b", texto)
         if paralelo:
@@ -963,7 +1014,7 @@ def estudiantes_ambiguos(texto: str, cursos: List[Dict[str, Any]]) -> List[str]:
 
 def _contexto(mensaje: str, docente: dict, course_id: Optional[int]) -> Dict[str, Any]:
     """Curso explícito, alcance global, estudiante mencionado y curso efectivo de la consulta."""
-    texto = _normalizar(mensaje)
+    texto = nlu.canonizar(_normalizar(mensaje))   # sinónimos, coloquialismos y abreviaturas de materias
     cursos = sync_service.cursos_del_docente(docente["email"])
     explicito = _curso_mencionado(texto, cursos)
     estudiante = _estudiante_mencionado(texto, cursos)
@@ -995,6 +1046,31 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
         curso_pdf = ctx["explicito"] or (previo or {}).get("course_id") or (None if estudiante else course_id)
         return [("generar_guia_pdf", {"student_query": quien, **({"course_id": curso_pdf} if curso_pdf else {})})]
 
+    if nlu.PENDIENTES.search(texto) and not estudiante:
+        # «¿Qué tareas faltan por calificar?»: actividades con entregas pendientes (curso nombrado, activo o todos)
+        return [("analizar_actividades", {**base, "solo_pendientes": True})]
+    if nlu.INCIDENCIAS.search(texto) and not estudiante and not ctx["criterio"]:
+        # «¿Qué estudiante tiene más tareas sin entregar?»: conteo exacto de incidencias por estudiante
+        curso_inc = ctx["explicito"] or (None if ctx["global"] else course_id)
+        return [("obtener_calificaciones", {**({"course_id": curso_inc} if curso_inc else {}),
+                                            "ranking": "incidencias"})]
+    evolucion = nlu.evolucion_pedida(texto)
+    if evolucion and not estudiante and not ctx["criterio"]:
+        # «¿Qué estudiante mejoró más entre unidades?»: variación exacta entre la primera y la última unidad
+        curso_ev = ctx["explicito"] or (None if ctx["global"] else course_id)
+        return [("obtener_calificaciones", {**({"course_id": curso_ev} if curso_ev else {}), "ranking": evolucion})]
+    nivel = nlu.nivel_pedido(texto)
+    if nivel and not estudiante and not ctx["criterio"]:
+        # «¿Cuántos están en nivel crítico y quiénes son?»: conteo y lista de ese nivel
+        curso_nv = ctx["explicito"] or (None if ctx["global"] else course_id)
+        return [("obtener_calificaciones", {**({"course_id": curso_nv} if curso_nv else {}), "nivel": nivel})]
+    orden = nlu.orden_ranking(texto)
+    if orden and not estudiante and not ctx["criterio"]:
+        # «Dame el ranking de notas de POO»: todos los estudiantes ordenados por promedio
+        curso_ranking = ctx["explicito"] or (None if ctx["global"] else course_id)
+        componente = nlu.componente_pedido(texto)
+        return [("obtener_calificaciones", {**({"course_id": curso_ranking} if curso_ranking else {}),
+                                            "ranking": orden, **({"componente": componente} if componente else {})})]
     if ctx["criterio"] and not (_REFUERZO.search(texto) and estudiante):
         # Umbral explícito: sólo las matrículas que lo cumplen (todas las materias salvo que se nombre una).
         curso_umbral = ctx["explicito"] or (None if ctx["global"] else course_id)
@@ -1006,8 +1082,9 @@ def planificar_por_reglas(mensaje: str, docente: dict, course_id: Optional[int] 
     if extremo and not estudiante:
         # «El estudiante con la peor nota de POO»: se destaca a ese único estudiante (no el bloque de alertas)
         curso_extremo = ctx["explicito"] or (None if ctx["global"] else course_id)
+        componente = nlu.componente_pedido(texto)
         return [("obtener_calificaciones", {**({"course_id": curso_extremo} if curso_extremo else {}),
-                                            "extremo": extremo})]
+                                            "extremo": extremo, **({"componente": componente} if componente else {})})]
     if ctx["explicito"] and not estudiante and (_CONTEO.search(texto) or _pide_lista(texto)):
         # Nómina de UNA materia: «¿cuántos estudiantes tengo en POO?» (sólo la cifra) o «lista completa de ED»
         conteo = bool(_CONTEO.search(texto)) and not _pide_lista(texto)
@@ -1119,7 +1196,7 @@ def _es_estudiante(valor: str, cursos: List[Dict[str, Any]]) -> bool:
 
 async def planificar(mensaje: str, docente: dict, course_id: Optional[int]) -> Tuple[List[Tuple[str, Dict]], str]:
     """Plan del LLM (vía microservicio del agente) validado; si falla, planificador por reglas."""
-    texto = _normalizar(mensaje)
+    texto = nlu.canonizar(_normalizar(mensaje))
     if criterio_nota(texto):
         return planificar_por_reglas(mensaje, docente, course_id), "reglas_deterministas"
     # Mensajes simples: respuesta inmediata sin esperar a Ollama (con intención clara se ejecutan las reglas; sin
@@ -1183,16 +1260,128 @@ def _alcance(r: Dict[str, Any]) -> str:
     return f"en sus {len(cursos)} cursos"
 
 
+_FLECHA = {"SUBE": "↗", "BAJA": "↘", "ESTABLE": "→"}
+
+
+def _estado_tendencia(f: Dict[str, Any]) -> str:
+    """«Crítico · ↘ a la baja»."""
+    nivel = NIVEL_TEXTO.get(f["nivel_riesgo"], f["nivel_riesgo"] or "—").capitalize()
+    tendencia = TENDENCIA_TEXTO.get(f.get("tendencia") or "")
+    return f"{nivel} · {_FLECHA.get(f['tendencia'], '')} {tendencia}" if tendencia else nivel
+
+
+def _tabla_estudiantes(filas: List[Dict[str, Any]], una_materia: bool, numerar: bool = False,
+                       incidencias: bool = False) -> List[str]:
+    """Tabla compacta y ordenada: (#) | Estudiante | (Materia) | Promedio | Estado / Tendencia | (Incidencias)."""
+    cabecera = (["#"] if numerar else []) + ["Estudiante"] + ([] if una_materia else ["Materia"]) \
+        + ["Promedio", "Estado / Tendencia"] + (["Incidencias"] if incidencias else [])
+    cuerpo = []
+    for i, f in enumerate(filas, 1):
+        fila = ([str(i)] if numerar else []) + [f["nombres"]] + ([] if una_materia else [_curso_titulo(f["curso_nombre"])])
+        fila += [f"**{f['nota_final']:.2f}**", _estado_tendencia(f)]
+        if incidencias:
+            fila.append(idioma.incidencias_compactas(f["incidencias"], {"SIN_ENTREGA": "sin entrega", "NOTA_0": "nota 0"},
+                                                     "sin calificar"))
+        cuerpo.append(fila)
+    return idioma.tabla_markdown(cabecera, cuerpo)
+
+
 def _seccion_calificaciones_criterio(r: Dict[str, Any]) -> Seccion:
     filas, criterio = r["calificaciones"], texto_criterio(r["criterio"])
     if not filas:
         return ("Calificaciones", f"Ninguna matrícula tiene **{criterio}** {_alcance(r)}.", [])
-    clave = f"Encontré **{idioma.plural(len(filas), 'matrícula', 'matrículas')}** con **{criterio}** {_alcance(r)}:"
+    clave = (f"Encontré **{idioma.plural(len(filas), 'matrícula', 'matrículas')}** con **{criterio}** {_alcance(r)} "
+             "(de menor a mayor nota):")
     una_materia = len(r.get("cursos_consultados") or []) == 1
-    lineas = [f"- **{f['nombres']}**" + ("" if una_materia else f" · {_nombre_curso(f['curso_nombre'])}")
-              + f": **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])})"
-              for f in filas]
-    return f"Calificaciones con {criterio}", clave, lineas
+    return f"Calificaciones con {criterio}", clave, _tabla_estudiantes(filas, una_materia)
+
+
+def _seccion_incidencias(r: Dict[str, Any]) -> Seccion:
+    """Estudiantes con entregas faltantes o notas cero, de más a menos incidencias (datos exactos, sin LLM)."""
+    cursos = r.get("cursos_consultados") or []
+    una = len(cursos) == 1
+    alcance = f"En **{_curso_titulo(cursos[0]['fullname'])}**" if una else f"En sus {len(cursos)} cursos"
+    con = [f for f in r["calificaciones"] if f["sin_entrega"] + f["ceros"]]
+    if not con:
+        return ("Entregas faltantes", f"{alcance} ningún estudiante tiene entregas faltantes ni notas cero.", [])
+    p = con[0]
+    detalle = _lista_y([x for x in (idioma.plural(p["sin_entrega"], "entrega faltante", "entregas faltantes")
+                                     if p["sin_entrega"] else "",
+                                     idioma.plural(p["ceros"], "nota cero", "notas cero") if p["ceros"] else "") if x])
+    clave = (f"{alcance}, quien tiene más incidencias es **{p['nombres']}** ({detalle}; promedio "
+             f"**{p['nota_final']:.2f}/10**, {NIVEL_TEXTO.get(p['nivel_riesgo'], p['nivel_riesgo'])}).")
+    lineas = idioma.tabla_markdown(
+        ["Estudiante"] + ([] if una else ["Materia"]) + ["Sin entrega", "Notas cero", "Por calificar", "Promedio"],
+        [[f["nombres"]] + ([] if una else [_curso_titulo(f["curso_nombre"])])
+         + [str(f["sin_entrega"]), str(f["ceros"]), str(f["pendientes"]), f"**{f['nota_final']:.2f}**"] for f in con[:12]])
+    return "Entregas faltantes", clave, lineas
+
+
+def _alcance_titulo(r: Dict[str, Any], mayuscula: bool = False) -> str:
+    cursos = r.get("cursos_consultados") or []
+    if len(cursos) == 1:
+        return f"{'En' if mayuscula else 'en'} **{_curso_titulo(cursos[0]['fullname'])}**"
+    return f"{'En' if mayuscula else 'en'} sus {len(cursos)} cursos"
+
+
+def _seccion_evolucion(r: Dict[str, Any]) -> Seccion:
+    """Variación exacta entre la primera y la última unidad con nota (quién mejoró / empeoró más)."""
+    filas, mejora = r["calificaciones"], r["ranking"] == "mejora"
+    una = len(r.get("cursos_consultados") or []) == 1
+    alcance = _alcance_titulo(r, True)
+    if not filas:
+        return ("Evolución entre unidades", f"{alcance} aún no hay notas de dos unidades para comparar.", [])
+    p, v = filas[0], filas[0]["variacion"]
+    if (mejora and v["delta"] <= 0) or (not mejora and v["delta"] >= 0):
+        clave = (f"{alcance} ningún estudiante {'mejoró' if mejora else 'bajó'} entre la primera y la última unidad; "
+                 f"la mayor variación es de **{p['nombres']}** (**{v['delta']:+.2f} pts**).")
+    else:
+        clave = (f"{alcance}, quien más {'mejoró' if mejora else 'bajó'} entre unidades es **{p['nombres']}**: de "
+                 f"**{v['inicio']:.2f}** en {_unidad(v['desde'])} a **{v['fin']:.2f}** en {_unidad(v['hasta'])} "
+                 f"(**{v['delta']:+.2f} pts**; promedio actual **{p['nota_final']:.2f}/10**).")
+    lineas = idioma.tabla_markdown(
+        ["Estudiante"] + ([] if una else ["Materia"]) + ["Unidad inicial", "Unidad actual", "Variación", "Promedio"],
+        [[f["nombres"]] + ([] if una else [_curso_titulo(f["curso_nombre"])])
+         + [f"{_unidad(f['variacion']['desde'])}: {f['variacion']['inicio']:.2f}",
+            f"{_unidad(f['variacion']['hasta'])}: {f['variacion']['fin']:.2f}",
+            f"**{f['variacion']['delta']:+.2f} pts**", f"{f['nota_final']:.2f}"] for f in filas[:10]])
+    return "Evolución entre unidades", clave, lineas
+
+
+def _seccion_nivel(r: Dict[str, Any]) -> Seccion:
+    """Estudiantes de un nivel concreto (crítico, en riesgo o aceptable), de menor a mayor nota."""
+    filas, nivel = r["calificaciones"], NIVEL_TEXTO.get(r["nivel"], r["nivel"])
+    una = len(r.get("cursos_consultados") or []) == 1
+    alcance = _alcance_titulo(r, True)
+    if not filas:
+        return f"Nivel {nivel}", f"{alcance} no hay estudiantes en nivel **{nivel}**.", []
+    clave = f"{alcance} hay **{idioma.plural(len(filas), 'estudiante', 'estudiantes')} en nivel {nivel}**:"
+    return f"Nivel {nivel}", clave, _tabla_estudiantes(filas, una, incidencias=True)
+
+
+def _seccion_ranking(r: Dict[str, Any]) -> Seccion:
+    """Todos los estudiantes del alcance ordenados por promedio, con su posición."""
+    if r["ranking"] == "incidencias":
+        return _seccion_incidencias(r)
+    if r["ranking"] in ("mejora", "retroceso"):
+        return _seccion_evolucion(r)
+    if r.get("componente"):
+        return _seccion_ranking_componente(r)
+    filas, cursos = r["calificaciones"], r.get("cursos_consultados") or []
+    una = len(cursos) == 1
+    alcance = f"en **{_curso_titulo(cursos[0]['fullname'])}**" if una else f"en sus {len(cursos)} cursos"
+    if not filas:
+        return "Ranking de notas", f"Aún no hay calificaciones sincronizadas {alcance}.", []
+    aprobados = sum(1 for f in filas if f["nota_final"] >= UMBRAL_APROBACION)
+    primero = filas[0]
+    if r["ranking"] == "desc":
+        clave = (f"**Ranking de notas** {alcance} (de mayor a menor promedio): lidera **{primero['nombres']}** con "
+                 f"**{primero['nota_final']:.2f}/10**; aprueban **{aprobados} de {len(filas)}**.")
+    else:
+        clave = (f"**Ranking de notas** {alcance} (de menor a mayor promedio): el promedio más bajo es de "
+                 f"**{primero['nombres']}**, con **{primero['nota_final']:.2f}/10**; aprueban **{aprobados} de "
+                 f"{len(filas)}**.")
+    return "Ranking de notas", clave, _tabla_estudiantes(filas, una, numerar=True)
 
 
 def _curso_titulo(fullname: str) -> str:
@@ -1200,8 +1389,50 @@ def _curso_titulo(fullname: str) -> str:
     return _nombre_curso(fullname).replace(", paralelo", " — Paralelo")
 
 
+def _seccion_ranking_componente(r: Dict[str, Any]) -> Seccion:
+    """Ranking por un componente (Exámenes, Tareas o APE), con la nota final como referencia."""
+    comp = r["componente"]
+    nombre = f"{NOMBRE_COMPONENTE[comp]} ({PESO_COMPONENTE[comp]} %)"
+    filas = [f for f in r["calificaciones"] if f[comp] is not None]
+    una = len(r.get("cursos_consultados") or []) == 1
+    if not filas:
+        return f"Ranking de {nombre}", f"{_alcance_titulo(r, True)} aún no hay notas de {nombre}.", []
+    p = filas[0]
+    orden = "de mayor a menor" if r["ranking"] == "desc" else "de menor a mayor"
+    clave = (f"**Ranking de {nombre}** {_alcance_titulo(r)} ({orden}): "
+             f"{'lidera' if r['ranking'] == 'desc' else 'la nota más baja es de'} **{p['nombres']}** con "
+             f"**{p[comp]:.2f}/10**.")
+    lineas = idioma.tabla_markdown(
+        ["#", "Estudiante"] + ([] if una else ["Materia"]) + [NOMBRE_COMPONENTE[comp], "Promedio final", "Estado / Tendencia"],
+        [[str(i), f["nombres"]] + ([] if una else [_curso_titulo(f["curso_nombre"])])
+         + [f"**{f[comp]:.2f}**", f"{f['nota_final']:.2f}", _estado_tendencia(f)] for i, f in enumerate(filas, 1)])
+    return f"Ranking de {nombre}", clave, lineas
+
+
+def _seccion_extremo_componente(r: Dict[str, Any]) -> Seccion:
+    comp, peor = r["componente"], r["extremo"] == "peor"
+    nombre = f"{NOMBRE_COMPONENTE[comp]} ({PESO_COMPONENTE[comp]} %)"
+    filas = [f for f in r["calificaciones"] if f[comp] is not None]
+    if not filas:
+        return nombre, f"{_alcance_titulo(r, True)} aún no hay notas de {nombre}.", []
+    p = filas[0]
+    una = len(r.get("cursos_consultados") or []) == 1
+    donde = "" if una else f" en {_curso_titulo(p['curso_nombre'])}"
+    clave = (f"{_alcance_titulo(r, True)}, el estudiante con la **{'menor' if peor else 'mayor'} nota en {nombre}** es "
+             f"**{p['nombres']}**{donde}, con **{p[comp]:.2f}/10** (promedio final {p['nota_final']:.2f}/10, "
+             f"{NIVEL_TEXTO.get(p['nivel_riesgo'], p['nivel_riesgo'])}).")
+    otros = filas[1:4]
+    lineas = ([f"**Le siguen en {NOMBRE_COMPONENTE[comp]}:**"] + idioma.tabla_markdown(
+        ["Estudiante"] + ([] if una else ["Materia"]) + [NOMBRE_COMPONENTE[comp], "Promedio final"],
+        [[f["nombres"]] + ([] if una else [_curso_titulo(f["curso_nombre"])]) + [f"**{f[comp]:.2f}**", f"{f['nota_final']:.2f}"]
+         for f in otros])) if otros else []
+    return nombre, clave, lineas
+
+
 def _seccion_extremo(r: Dict[str, Any]) -> Seccion:
     """Destaca primero al único estudiante con la menor / mayor nota; debajo, otros en riesgo (o los que siguen)."""
+    if r.get("componente"):
+        return _seccion_extremo_componente(r)
     filas, peor = r["calificaciones"], r["extremo"] == "peor"
     cursos = r.get("cursos_consultados") or []
     una_materia = len(cursos) == 1
@@ -1220,15 +1451,17 @@ def _seccion_extremo(r: Dict[str, Any]) -> Seccion:
         clave = (f"{alcance}, **{len(empatados)} estudiantes** comparten la {adjetivo} calificación "
                  f"(**{primero['nota_final']:.2f}/10**, {nivel(primero)}): "
                  + _lista_y([f"**{f['nombres']}**{donde(f)}" for f in empatados]) + ".")
+    tendencia = TENDENCIA_TEXTO.get(primero.get("tendencia") or "")
+    if len(empatados) == 1 and tendencia:
+        clave += f" Tendencia: **{tendencia}**."
     restantes = filas[len(empatados):]
     if peor:
         otros = [f for f in restantes if f["nivel_riesgo"] != "ACEPTABLE"][:5]
-        titulo_otros = "También requieren seguimiento:"
+        titulo_otros = "**También requieren seguimiento** (de menor a mayor nota):"
     else:
         otros = restantes[:2]
-        titulo_otros = "Le siguen:"
-    lineas = ([titulo_otros] + [f"- {f['nombres']}{donde(f)}: **{f['nota_final']:.2f}/10** ({nivel(f)})"
-                                for f in otros]) if otros else []
+        titulo_otros = "**Le siguen:**"
+    lineas = ([titulo_otros] + _tabla_estudiantes(otros, una_materia)) if otros else []
     titulo = f"{'Menor' if peor else 'Mayor'} calificación"
     return titulo, clave, lineas
 
@@ -1241,6 +1474,10 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
     filas = r["calificaciones"]
     if r.get("extremo"):
         return _seccion_extremo(r)
+    if r.get("ranking"):
+        return _seccion_ranking(r)
+    if r.get("nivel"):
+        return _seccion_nivel(r)
     if r.get("criterio"):
         return _seccion_calificaciones_criterio(r)
     if r.get("estudiante"):
@@ -1285,10 +1522,11 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
         clave = (f"En **{curso_unico}** revisé **{len(filas)} calificaciones** ({aprobados} aprobados): "
                  f"**{len(criticos)} en nivel crítico** y {en_riesgo} en riesgo.")
         seguimiento = sorted((f for f in filas if f["nivel_riesgo"] != "ACEPTABLE"), key=lambda x: x["nota_final"])
-        lineas = [f"- {f['nombres']}: **{f['nota_final']:.2f}/10** ({NIVEL_TEXTO.get(f['nivel_riesgo'])})"
-                  + (f" · {idioma.plural(len(f['incidencias']), 'incidencia', 'incidencias')}" if f["incidencias"] else "")
-                  for f in seguimiento[:6]]
-        return "Calificaciones", clave, lineas or ["- Todos los estudiantes están aprobando."]
+        if not seguimiento:
+            return "Calificaciones", clave, ["- Todos los estudiantes están aprobando."]
+        lineas = (["**Requieren seguimiento** (de menor a mayor nota):"]
+                  + _tabla_estudiantes(seguimiento[:8], True, incidencias=True))
+        return "Calificaciones", clave, lineas
     else:
         clave = (f"Revisé **{len(filas)} calificaciones** en {len(por_curso)} cursos: **{len(criticos)} en nivel "
                  f"crítico** y {en_riesgo} en riesgo.")
@@ -1349,7 +1587,29 @@ def _seccion_resumen(r: Dict[str, Any]) -> List[Seccion]:
     return secciones or [("Resumen", "No hay cursos para resumir.", [])]
 
 
+def _seccion_pendientes(r: Dict[str, Any]) -> Seccion:
+    """Actividades con entregas por calificar, de más a menos pendientes."""
+    acts, cursos = r["actividades"], r.get("cursos_consultados") or []
+    una = len(cursos) == 1
+    alcance = f"en **{_curso_titulo(cursos[0]['fullname'])}**" if una else f"en sus {len(cursos)} cursos"
+    if not acts:
+        return "Pendientes de calificar", f"No hay entregas pendientes de calificar {alcance}.", []
+    total = sum(a["pendientes"] for a in acts)
+    clave = (f"Tiene **{idioma.plural(total, 'entrega', 'entregas')} por calificar** en "
+             f"**{idioma.plural(len(acts), 'actividad', 'actividades')}** {alcance}.")
+    nombres = {c["shortname"]: _curso_titulo(c["fullname"]) for c in cursos}
+    lineas = idioma.tabla_markdown(
+        ["Actividad", "Nombre"] + ([] if una else ["Materia"]) + ["Por calificar"],
+        [[a["actividad"], a["nombre"]] + ([] if una else [nombres.get(a["curso"], a["curso"])]) + [str(a["pendientes"])]
+         for a in acts[:15]])
+    lineas.append("\n**Sugerencia:** califíquelas en Moodle UTA y pulse **Sincronizar** para actualizar promedios y "
+                  "alertas.")
+    return "Pendientes de calificar", clave, lineas
+
+
 def _seccion_actividades(r: Dict[str, Any]) -> Seccion:
+    if r.get("solo_pendientes"):
+        return _seccion_pendientes(r)
     acts = [a for a in r["actividades"] if a["promedio"] is not None]
     if not acts:
         return "Rendimiento por actividad", "No hay actividades calificadas en el alcance consultado.", []
@@ -1528,6 +1788,203 @@ def _respuesta_dominio(docente: dict, inicio: float) -> Dict[str, Any]:
     return _respuesta_sin_herramientas(idioma.mensaje_dominio(), "fuera_de_dominio", docente, inicio)
 
 
+def _registrar_uso(nombre: str, params: Dict[str, Any], resultado: Dict[str, Any], duracion: int, fuente: str,
+                   docente: dict) -> Dict[str, Any]:
+    """RF-12: registra la invocación (con su trazabilidad) y devuelve la entrada para «Fuentes consultadas»."""
+    traza = trazabilidad(nombre, params, resultado, docente)
+    repositories.insert_log(
+        "AGENTE_HERRAMIENTA", "ADVERTENCIA" if "error" in resultado else "INFO",
+        f"El agente invocó {nombre} ({fuente}).",
+        {"herramienta": nombre, "parametros": params, "docente": docente["email"], "plan": fuente,
+         "filas": resultado.get("filas", 0), "trazabilidad": traza,
+         **({"error": resultado["error"]} if "error" in resultado else {})},
+        duracion,
+    )
+    return {"herramienta": nombre, "parametros": params, "resultado": resultado, "duracion_ms": duracion,
+            "trazabilidad": traza}
+
+
+# ----------------------------------------------------------------------------- desambiguación de materia
+def pregunta_de_materia(que: str, cursos: List[Dict[str, Any]]) -> str:
+    """«¿De qué materia desea consultar el promedio más bajo?» con la lista de cursos del docente."""
+    textos = {"peor": ("el promedio más bajo", "the lowest average"), "mejor": ("el promedio más alto", "the highest average"),
+              "desc": ("el ranking de notas", "the grade ranking"), "asc": ("el ranking de notas", "the grade ranking")}
+    es, en = textos.get(que, textos["desc"])
+    lista = "\n".join(f"- **{(idioma.curso_en(c['fullname']) if idioma.IDIOMA.get() == 'en' else _curso_titulo(c['fullname']))}**"
+                      for c in cursos)
+    return idioma.t(f"¿De qué materia desea consultar {es}?\n{lista}\n\nTambién puede escribir «en todos mis cursos».",
+                    f"Which course do you want to check {en} for?\n{lista}\n\nYou can also type «in all my courses».")
+
+
+# ----------------------------------------------------------------------------- respuesta abierta con datos reales
+# La pregunta debe referirse a datos que existen en el sistema (si no, se pide precisar en lugar de llamar al LLM)
+_DATOS_ACADEMICOS = re.compile(
+    r"\b(estudiante\w*|nota\w*|promedio\w*|calific\w*|curso\w*|materia\w*|tarea\w*|actividad\w*|examen\w*|"
+    r"evaluacion\w*|alerta\w*|riesgo|aprob\w*|reprob\w*|entrega\w*|asistencia|faltas?|unidad\w*|parcial\w*|ape|"
+    r"deber\w*|rendimiento|desempeno|puntaje\w*|ranking|poo|ed|ma|mcs|is1|bda|dw|student\w*|grade\w*|course\w*|"
+    r"assignment\w*|attendance|score\w*|average)\b")
+_DECIMAL = re.compile(r"\d+[.,]\d{1,2}")
+# Nombre propio de dos o más palabras («Carlos Andrés Mendoza Paredes»): debe existir tal cual en los datos
+_NOMBRE_PROPIO = re.compile(r"[A-ZÁÉÍÓÚÑ][a-záéíóúñü]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü]+)+")
+
+
+_PIDE_COMPONENTES = re.compile(r"\b(examen\w*|evaluacion\w*|tarea\w*|deber\w*|ape|practica\w*|componente\w*|"
+                               r"exam\w*|assignment\w*|homework)\b")
+_PIDE_UNIDADES = re.compile(r"\b(unidad\w*|mejor[oa]\w*|empeor\w*|subi\w*|baj[oa]\w*|evolucion\w*|progres\w*|"
+                            r"tendencia\w*|avanz\w*|unit\w*|improv\w*|declin\w*|trend\w*)\b")
+_PIDE_ALERTAS = re.compile(r"\b(alerta\w*|riesgo|critic\w*|descenso|refuerzo\w*|alert\w*|risk)\b")
+_PIDE_ACTIVIDADES = re.compile(r"\b(actividad\w*|tarea\w*|deber\w*|examen\w*|evaluacion\w*|practica\w*|entrega\w*|"
+                               r"calificar|activit\w*|assignment\w*)\b")
+
+
+def _contexto_datos(resultados: List[Tuple[str, Dict[str, Any], Dict[str, Any], int]], pregunta: str = "") -> str:
+    """
+    Datos reales en texto compacto para el LLM. Para que un modelo pequeño en CPU responda en segundos, sólo se
+    incluye lo que la pregunta necesita: siempre nota final, nivel, tendencia e incidencias de cada estudiante;
+    componentes, promedios por unidad, alertas y actividades únicamente si la pregunta los menciona.
+    """
+    componentes, unidades = bool(_PIDE_COMPONENTES.search(pregunta)), bool(_PIDE_UNIDADES.search(pregunta))
+    partes: List[str] = []
+    for nombre, _, r, _ in resultados:
+        if nombre == "identificar_alertas" and not _PIDE_ALERTAS.search(pregunta):
+            continue
+        if nombre == "analizar_actividades" and not _PIDE_ACTIVIDADES.search(pregunta):
+            continue
+        if nombre == "obtener_calificaciones":
+            por_curso: Dict[str, List[Dict[str, Any]]] = {}
+            for f in r["calificaciones"]:
+                por_curso.setdefault(f["curso_nombre"], []).append(f)
+            varios = len(por_curso) > 1
+            for curso, filas in por_curso.items():
+                filas = sorted(filas, key=lambda x: x["nota_final"])
+                promedio = sum(f["nota_final"] for f in filas) / len(filas)
+                aprobados = sum(1 for f in filas if f["nota_final"] >= UMBRAL_APROBACION)
+                partes.append(f"CURSO {_curso_titulo(curso)}: {len(filas)} estudiantes, promedio del grupo "
+                              f"{promedio:.2f}, aprobados {aprobados}, reprobados {len(filas) - aprobados}.")
+                # Con varios cursos sólo se detallan quienes requieren seguimiento (el contexto del modelo es corto)
+                detalle = [f for f in filas if f["nivel_riesgo"] != "ACEPTABLE"] if varios else filas
+                for f in detalle:
+                    linea = (f"- {f['nombres']}: nota final {f['nota_final']:.2f}/10; nivel "
+                             f"{NIVEL_TEXTO.get(f['nivel_riesgo'], f['nivel_riesgo'])}; tendencia "
+                             f"{TENDENCIA_TEXTO.get(f.get('tendencia') or '', 'sin datos')}")
+                    if componentes:
+                        linea += f"; exámenes {_f(f['acd'])}; tareas {_f(f['tareas'])}; APE {_f(f['pae'])}"
+                    if unidades:
+                        por_unidad = {u: v for u, v in (f.get("promedios_unidad") or {}).items() if v is not None}
+                        linea += "; " + ", ".join(f"{_unidad(u)} {v:.2f}" for u, v in sorted(por_unidad.items()))
+                    partes.append(linea + f"; sin entrega {f['sin_entrega']}; notas cero {f['ceros']}; "
+                                          f"por calificar {f['pendientes']}.")
+        elif nombre == "identificar_alertas":
+            partes.append("ALERTAS TEMPRANAS ACTIVAS:" if r["alertas"] else "ALERTAS TEMPRANAS ACTIVAS: ninguna")
+            partes += [f"- {a['nombres']}: {'nota crítica' if a['regla'].startswith('R1') else 'descenso sostenido'}, "
+                       f"nota {_f(a.get('nota_final'))}, {ESTADO_ALERTA_TEXTO.get(a['estado'], a['estado'].lower())}."
+                       for a in r["alertas"][:8]]
+        elif nombre == "analizar_actividades":
+            acts = [a for a in r["actividades"] if a["promedio"] is not None][:5]
+            pendientes = sum(a["pendientes"] for a in r["actividades"])
+            partes.append(f"ACTIVIDADES CON MENOR PROMEDIO (entregas por calificar en total: {pendientes}):")
+            partes += [f"- {a['actividad']} {a['nombre']}: promedio {a['promedio']:.2f}; notas cero {a['ceros']}; "
+                       f"sin entrega {a['sin_entrega']}; por calificar {a['pendientes']}." for a in acts]
+    partes.append("NO DISPONIBLE en el sistema: asistencia, horarios, datos personales fuera de nombre y notas.")
+    return "\n".join(partes)
+
+
+def respuesta_fiel(respuesta: str, contexto: str) -> bool:
+    """Guardia anti-invención: toda cifra decimal de la respuesta debe existir en los datos entregados al LLM."""
+    texto = (respuesta or "").strip()
+    if not texto or len(texto) > 2500:
+        return False
+    cifras = {c.replace(",", ".") for c in _DECIMAL.findall(contexto)}
+    for c in _DECIMAL.findall(texto):
+        valor = c.replace(",", ".")
+        if valor not in cifras and f"{float(valor):.2f}" not in cifras:
+            return False
+    # Ningún nombre inventado o mezclado: cada nombre propio compuesto debe aparecer tal cual en los datos
+    return all(nombre in contexto for nombre in _NOMBRE_PROPIO.findall(texto))
+
+
+def datos_relacionados(ctx: Dict[str, Any], docente: dict, lengua: str, inicio: float) -> Optional[Dict[str, Any]]:
+    """
+    Repliegue honesto cuando el LLM no responde o su respuesta se descarta: en lugar de adivinar, se muestran los
+    datos reales del alcance (estudiante mencionado, curso nombrado o activo) que permiten responder la pregunta.
+    """
+    curso = ctx["explicito"] if ctx["estudiante"] else ctx["curso"]
+    if not curso and not ctx["estudiante"]:
+        return None
+    params = {**({"course_id": curso} if curso else {}), **({"estudiante": ctx["estudiante"]} if ctx["estudiante"] else {})}
+    t0 = time.time()
+    try:
+        resultado = obtener_calificaciones(docente, **params)
+    except HerramientaError:
+        return None
+    if not resultado["calificaciones"]:
+        return None
+    fuente = "datos_relacionados"
+    usadas = [_registrar_uso("obtener_calificaciones", params, resultado, int((time.time() - t0) * 1000), fuente, docente)]
+    aviso = idioma.t("No pude interpretar su pregunta con exactitud, así que no voy a adivinar. Estos son los **datos "
+                     "reales** que pueden responderla:",
+                     "I couldn't interpret your question precisely, so I won't guess. This is the **real data** that "
+                     "can answer it:")
+    texto = aviso + "\n\n" + _sin_codigos(redactar(usadas), sync_service.cursos_del_docente(docente["email"]))
+    repositories.insert_log("AGENTE_CHAT", "EXITO", "Pregunta abierta: se mostraron los datos reales relacionados.",
+                            {"docente": docente["email"], "herramientas": ["obtener_calificaciones"], "plan": fuente,
+                             "idioma": lengua}, int((time.time() - inicio) * 1000))
+    return {"respuesta": texto, "formato": "markdown", "herramientas": usadas, "plan_fuente": fuente,
+            "redaccion": "determinista_desde_herramientas", "adjuntos": [], "idioma": lengua,
+            "duracion_ms": int((time.time() - inicio) * 1000)}
+
+
+async def _llm_con_datos(pregunta: str, contexto: str, lengua: str) -> Optional[str]:
+    """Redacción con Ollama (microservicio del agente) restringida a los datos; None si no responde a tiempo."""
+    try:
+        async with httpx.AsyncClient(timeout=AGENT_RAG_TIMEOUT_SECONDS) as client:
+            resp = await client.post(f"{AGENT_HOST}/api/v1/chat/responder",
+                                     json={"pregunta": pregunta, "contexto": contexto, "idioma": lengua})
+        if resp.status_code == 200:
+            return (resp.json().get("respuesta") or "").strip() or None
+    except Exception as ex:  # agente caído, Ollama lento o respuesta inválida
+        logger.info("Respuesta abierta con LLM no disponible (%s).", ex.__class__.__name__)
+    return None
+
+
+async def responder_con_datos(mensaje: str, ctx: Dict[str, Any], docente: dict, lengua: str,
+                              inicio: float) -> Optional[Dict[str, Any]]:
+    """
+    Pregunta académica abierta sin regla exacta: consulta los datos reales del alcance (curso nombrado o activo,
+    o el estudiante mencionado) y pide al LLM que responda SÓLO con ellos. None si el LLM no responde o si su
+    respuesta cita cifras que no están en los datos (entonces CoraIA pide precisar).
+    """
+    curso = ctx["explicito"] if ctx["estudiante"] else ctx["curso"]
+    base = {"course_id": curso} if curso else {}
+    plan = [("obtener_calificaciones", {**base, **({"estudiante": ctx["estudiante"]} if ctx["estudiante"] else {})}),
+            ("identificar_alertas", base), ("analizar_actividades", base)]
+    resultados = []
+    for nombre, params in plan:
+        t0 = time.time()
+        try:
+            resultado = EJECUTORES[nombre](docente, **params)
+        except HerramientaError:
+            return None
+        resultados.append((nombre, params, resultado, int((time.time() - t0) * 1000)))
+    contexto = _contexto_datos(resultados, ctx["texto"])
+    respuesta = await _llm_con_datos(mensaje, contexto, lengua)
+    if not respuesta or not respuesta_fiel(respuesta, contexto):
+        return None
+    fuente = "ollama_rag"
+    usadas = [_registrar_uso(n, p, r, d, fuente, docente) for n, p, r, d in resultados]
+    nota = idioma.t("\n\n*Respuesta redactada por CoraIA con IA, sólo a partir de los datos sincronizados de Moodle UTA.*",
+                    "\n\n*Answer written by CoraIA with AI, using only the data synchronized from Moodle UTA.*")
+    texto = _sin_codigos(respuesta, sync_service.cursos_del_docente(docente["email"])) + nota
+    repositories.insert_log(
+        "AGENTE_CHAT", "EXITO", "Consulta abierta respondida con datos reales (LLM restringido a los datos).",
+        {"docente": docente["email"], "herramientas": [u["herramienta"] for u in usadas], "plan": fuente,
+         "idioma": lengua}, int((time.time() - inicio) * 1000),
+    )
+    return {"respuesta": texto, "formato": "markdown", "herramientas": usadas, "plan_fuente": fuente,
+            "redaccion": "llm_restringido_a_datos", "adjuntos": [], "idioma": lengua,
+            "duracion_ms": int((time.time() - inicio) * 1000)}
+
+
 async def conversar(mensaje: str, docente: dict, course_id: Optional[int] = None) -> Dict[str, Any]:
     """Atiende un mensaje del docente en español o en inglés (CoraIA responde en el mismo idioma)."""
     lengua = idioma.detectar_idioma(mensaje)
@@ -1588,30 +2045,44 @@ async def _conversar(mensaje: str, docente: dict, course_id: Optional[int], leng
             return _respuesta_sin_herramientas(
                 t(f"¿A qué estudiante se refiere: {opciones}{extra}?", f"Which student do you mean: {opciones}{extra}?"),
                 "aclaracion", docente, inicio)
+    if nlu.NO_DISPONIBLE.search(ctx["texto"]):
+        # Asistencia u horarios: CoraIA no los recibe de Moodle UTA; se dice claramente y se ofrece lo disponible
+        return _respuesta_sin_herramientas(t(
+            "La **asistencia** y los **horarios** no forman parte de los datos que CoraIA sincroniza desde Moodle UTA, "
+            "así que no puedo informarle sobre ellos. Sí puedo mostrarle las **notas**, las **entregas faltantes**, "
+            "las **tareas por calificar** o los **estudiantes en riesgo** de sus cursos.",
+            "**Attendance** and **schedules** are not part of the data CoraIA synchronizes from Moodle UTA, so I can't "
+            "report on them. I can show you the **grades**, **missing submissions**, **work pending grading** or "
+            "**at-risk students** of your courses."), "dato_no_disponible", docente, inicio)
+    # Comparación sin materia («¿cuál es el alumno más bajo?», «dame el ranking») y sin curso activo ni «todos mis
+    # cursos»: se pregunta de qué materia (con el curso activo de la interfaz se responde directamente sobre él).
+    comparativa = extremo_pedido(ctx["texto"]) or nlu.orden_ranking(ctx["texto"])
+    cursos_docente = sync_service.cursos_del_docente(docente["email"])
+    if (comparativa and not ctx["estudiante"] and not ctx["explicito"] and not ctx["global"] and not course_id
+            and not ctx["criterio"] and len(cursos_docente) > 1):
+        return _respuesta_sin_herramientas(pregunta_de_materia(comparativa, cursos_docente), "aclaracion_materia",
+                                           docente, inicio)
     plan, fuente = await planificar(consulta, docente, course_id)
     if not plan:
         if not (idioma.es_academico(ctx["texto"]) or idioma.es_academico(_normalizar(mensaje))):
             return _respuesta_dominio(docente, inicio)   # tema ajeno al seguimiento académico
+        if _DATOS_ACADEMICOS.search(ctx["texto"]) or _DATOS_ACADEMICOS.search(_normalizar(mensaje)):
+            # Pregunta abierta sobre los datos sin regla exacta: el LLM responde sólo con los datos reales
+            abierta = await responder_con_datos(mensaje, ctx, docente, lengua, inicio)
+            if abierta:
+                return abierta
+            relacionados = datos_relacionados(ctx, docente, lengua, inicio)
+            if relacionados:
+                return relacionados
         return _respuesta_sin_herramientas(ayuda_sin_intencion(docente), "aclaracion", docente, inicio)
     usadas = []
     for nombre, params in plan:
         t0 = time.time()
         try:
             resultado = EJECUTORES[nombre](docente, **params)
-            estado = "INFO"
         except HerramientaError as ex:
-            resultado, estado = {"error": str(ex), "filas": 0}, "ADVERTENCIA"
-        duracion = int((time.time() - t0) * 1000)
-        traza = trazabilidad(nombre, params, resultado, docente)
-        repositories.insert_log(
-            "AGENTE_HERRAMIENTA", estado, f"El agente invocó {nombre} ({fuente}).",
-            {"herramienta": nombre, "parametros": params, "docente": docente["email"], "plan": fuente,
-             "filas": resultado.get("filas", 0), "trazabilidad": traza,
-             **({"error": resultado["error"]} if "error" in resultado else {})},
-            duracion,
-        )
-        usadas.append({"herramienta": nombre, "parametros": params, "resultado": resultado, "duracion_ms": duracion,
-                       "trazabilidad": traza})
+            resultado = {"error": str(ex), "filas": 0}
+        usadas.append(_registrar_uso(nombre, params, resultado, int((time.time() - t0) * 1000), fuente, docente))
 
     respuesta = _sin_codigos(redactar(usadas), sync_service.cursos_del_docente(docente["email"]))
     contexto_estudiante = _estudiante_de(usadas)

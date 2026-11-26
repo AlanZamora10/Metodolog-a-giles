@@ -32,6 +32,8 @@ const FUENTES: Record<string, string> = {
   ollama_slm: 'plan del LLM local (Ollama)',
   'ollama_slm+reglas': 'plan del LLM local + reglas',
   reglas_deterministas: 'plan por reglas deterministas',
+  ollama_rag: 'respuesta redactada por el LLM local (Ollama) sólo con los datos reales consultados',
+  datos_relacionados: 'datos reales relacionados con la pregunta (sin interpretación del LLM)',
 };
 
 export interface GrupoSugerencias {

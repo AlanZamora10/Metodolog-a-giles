@@ -292,8 +292,10 @@ def test_umbral_explicito_filtra_estrictamente(sincronizado, mensaje, cumple, te
     esperadas = [x for x in _notas(sincronizado) if cumple(round(x[0], 2))]
     assert [(f["nota_final"], f["nombres"]) for f in filas] == esperadas          # sólo quienes cumplen, de menor a mayor
     assert data["respuesta"].startswith(f"Encontré **{len(esperadas)} {'matrícula' if len(esperadas) == 1 else 'matrículas'}** con **{texto}**")
-    lineas = [ln for ln in data["respuesta"].splitlines() if ln.startswith("- ")]
-    assert len(lineas) == len(esperadas)
+    # tabla ordenada: cabecera única + una fila por matrícula que cumple el criterio
+    filas_tabla = [ln for ln in data["respuesta"].splitlines() if ln.startswith("| ") and not ln.startswith("| Estudiante")]
+    assert len(filas_tabla) == len(esperadas)
+    assert "| Estudiante | Promedio | Estado / Tendencia |" in data["respuesta"]
 
 
 def test_umbral_sin_coincidencias_lo_dice_sin_listar(sincronizado):  # noqa: F811
@@ -584,8 +586,9 @@ def test_peor_estudiante_en_todos_los_cursos_indica_la_materia(sincronizado, mon
                            fila("Eva Sol", "(SOF) ESTRUCTURA DE DATOS - B", 9.0, "ACEPTABLE")]})
     assert clave == ("En sus 2 cursos, el estudiante con la **menor calificación** es **Ana Ruiz** en Estructura "
                      "de datos — Paralelo B, con **2.10/10** (crítico).")
-    assert lineas == ["También requieren seguimiento:",
-                      "- Luis Paz en Programación orientada a objetos — Paralelo A: **5.50/10** (en riesgo)"]
+    assert lineas == ["**También requieren seguimiento** (de menor a mayor nota):",
+                      "| Estudiante | Materia | Promedio | Estado / Tendencia |", "|---|---|---|---|",
+                      "| Luis Paz | Programación orientada a objetos — Paralelo A | **5.50** | En riesgo |"]
 
 
 def test_las_peores_notas_en_plural_siguen_siendo_alertas(sincronizado, monkeypatch):  # noqa: F811

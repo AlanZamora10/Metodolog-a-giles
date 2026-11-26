@@ -305,3 +305,44 @@ describe('CoraIA · bienvenida y tablas en las respuestas', () => {
     expect(screen.queryByText(/\|---/)).not.toBeInTheDocument();
   });
 });
+
+describe('CoraIA · respuesta abierta con datos reales', () => {
+  it('muestra la trazabilidad con el origen «LLM local sólo con datos reales» y el tiempo de consulta', async () => {
+    iniciarSesionFalsa();
+    mockApi({
+      'POST /api/v1/agent/chat': () =>
+        json({
+          respuesta: '**Carlos Andrés Mendoza Paredes** tiene la nota más baja: **2.65/10**.\n\n*Respuesta redactada por CoraIA con IA, sólo a partir de los datos sincronizados de Moodle UTA.*',
+          formato: 'markdown',
+          plan_fuente: 'ollama_rag',
+          duracion_ms: 4200,
+          adjuntos: [],
+          idioma: 'es',
+          herramientas: [
+            {
+              herramienta: 'obtener_calificaciones',
+              parametros: { course_id: 2 },
+              resultado: { filas: 4 },
+              duracion_ms: 12,
+              trazabilidad: {
+                herramienta: 'obtener_calificaciones',
+                parametros_validados: { curso: 'SOF-POO-A', docente_id: 1 },
+                estado: 'OK',
+                resultado: '4 registros',
+                fuente: 'Sincronizado desde Moodle UTA',
+              },
+            },
+          ],
+        }),
+    });
+    const u = userEvent.setup();
+    renderApp('/agente');
+    await u.type(await screen.findByLabelText('Mensaje para el agente'), '¿qué estudiante tiene más tareas sin entregar?');
+    await u.click(screen.getByRole('button', { name: 'Enviar' }));
+    const auditoria = await screen.findByTestId('auditoria');
+    expect(auditoria).toHaveTextContent('Fuentes consultadas / Trazabilidad');
+    expect(auditoria).toHaveTextContent('4.2 s');
+    expect(auditoria).toHaveTextContent('respuesta redactada por el LLM local (Ollama) sólo con los datos reales consultados');
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes', { selector: 'strong' })).toBeInTheDocument();
+  });
+});

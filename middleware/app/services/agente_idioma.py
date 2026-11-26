@@ -126,6 +126,10 @@ _TRADUCCIONES: List[Tuple[str, str]] = [
     (r"\bhow many (students|pupils|learners|people)\b", "cuantos estudiantes"),
     (r"\bhow many courses\b", "cuantos cursos"),
     (r"\b(who has|who got|which student has|student with|who is the student with) the (lowest|worst) "
+     r"(exams?|assignments?|homework|ape|practice) (grade|score|mark|average)\b", r"quien tiene la peor nota en \3"),
+    (r"\b(who has|who got|which student has|student with|who is the student with) the (highest|best) "
+     r"(exams?|assignments?|homework|ape|practice) (grade|score|mark|average)\b", r"quien tiene la mejor nota en \3"),
+    (r"\b(who has|who got|which student has|student with|who is the student with) the (lowest|worst) "
      r"(grade|score|mark|average)\b", "quien tiene la peor nota"),
     (r"\b(who has|who got|which student has|student with|who is the student with) the (highest|best) "
      r"(grade|score|mark|average)\b", "quien tiene la mejor nota"),
@@ -142,6 +146,24 @@ _TRADUCCIONES: List[Tuple[str, str]] = [
     (r"\bwhat (subjects|courses|classes) do i teach\b", "que materias doy"),
     (r"\b(all (of )?my courses|in total)\b", "todos mis cursos"),
     (r"\b(my courses|my subjects|my classes|what courses do i have|which courses do i have)\b", "mis cursos"),
+    # Ranking y pendientes de calificar
+    (r"\b(ranking|leaderboard|rank (the )?students|sorted by (grade|average|score)|from (highest|best) to (lowest|worst))\b",
+     "ranking"),
+    (r"\bfrom (lowest|worst) to (highest|best)\b", "de menor a mayor"),
+    (r"\b(pending grading|not (yet )?graded|ungraded|still to grade|left to grade|need(s)? grading|to be graded)\b",
+     "sin calificar"),
+    (r"\bwho is (winning|leading|on top|first)\b", "el estudiante con la mejor nota"),
+    (r"\b(improved|improving|got better)\b", "mejoro"),
+    (r"\b(declined|declining|got worse|dropped)\b", "empeoro"),
+    (r"\bat (a )?critical level\b|\bcritical level\b", "nivel critico"),
+    (r"\bexams?\b", "examenes"),
+    (r"\b(assignments?|homework)\b", "tareas"),
+    (r"\b(missing (submissions|assignments|work)|not submitted|didn'?t submit|did not submit|zero grades?)\b",
+     "sin entregar"),
+    (r"\b(lowest|worst) average\b", "la peor nota"),
+    (r"\b(highest|best) average\b", "la mejor nota"),
+    (r"\bhow many (passed|are passing)\b", "cuantos aprobados"),
+    (r"\bhow many (failed|are failing)\b", "cuantos reprobados"),
     # Seguimiento
     (r"\b(support|reinforcement|remedial|improvement|study|recovery) plan\b", "plan de apoyo"),
     (r"\bhow (are|is) (all )?my courses (doing|going)\b", "como van mis cursos"),
@@ -228,7 +250,9 @@ _ACADEMICO = re.compile(
     r"guia|pdf|promedio|parcial|unidad|tarea\w*|deber\w*|actividad\w*|examen\w*|evaluacion\w*|plan|reporte|informe|"
     r"resumen|matricul\w*|docente|paralelo|poo|ed|ma|mcs|is1|bda|dw|moodle|sincroniz\w*|apoyo|student\w*|grade\w*|"
     r"course\w*|alert\w*|risk|guide|assignment\w*|unit|class\w*|teacher|support|revisar|revisemos|consultar|"
-    r"seguimiento|review|check)\b")
+    r"seguimiento|review|check|ranking|aprob\w*|reprob\w*|jalad\w*|jalando|ganando|perdiendo|puntaje\w*|entrega\w*|"
+    r"asistencia|faltas|rendimiento|desempeno|calificar|pendiente\w*|ponderad\w*|semestre|ciclo|score\w*|average|"
+    r"passing|failing|attendance|leaderboard)\b")
 _CALCULO = re.compile(r"\d\s*[-+*/x^%]\s*\d|\b(raiz cuadrada|square root|derivada|integral de|factorial)\b")
 _SOLO_CALCULO = re.compile(r"^(cuanto (es|da|son)|what is|whats|calcula|calculate|solve|resuelve|how much is)?"
                            r"[\s\d+\-*/x^%().,=?]+$")
@@ -236,7 +260,8 @@ _CULTURA_GENERAL = re.compile(
     r"\b(capital (de|of)|presidente|president|chiste|joke|clima|weather|temperatura|receta|recipe|futbol|football|"
     r"soccer|pelicula|movie|cancion|song|poema|poem|horoscopo|noticias|news|bitcoin|precio del|price of|quien gano|"
     r"who won|traduce|translate|historia de|history of|cuentame un|tell me a|mundial|world cup|raiz cuadrada|"
-    r"square root|planeta|planet|que hora es|what time is it)\b")
+    r"square root|planeta|planet|que hora es|what time is it|partido|deporte\w*|sports?|equipo de|liga|receta\w*|"
+    r"cocina\w*|cocinar|videojuego\w*|video game\w*|musica|music)\b")
 
 
 def es_academico(texto_normalizado: str) -> bool:
@@ -309,6 +334,154 @@ def _cursos(r):
                                        for c in r["cursos"]]
 
 
+_FLECHA = {"SUBE": "↗", "BAJA": "↘", "ESTABLE": "→"}
+
+
+def _estado_tendencia_en(f: Dict[str, Any]) -> str:
+    tendencia = TENDENCIA_EN.get(f.get("tendencia") or "")
+    nivel = _nivel(f).capitalize()
+    return f"{nivel} · {_FLECHA.get(f['tendencia'], '')} {tendencia}" if tendencia else nivel
+
+
+def _tabla_en(filas: List[Dict[str, Any]], una: bool, numerar: bool = False, incidencias: bool = False) -> List[str]:
+    cabecera = (["#"] if numerar else []) + ["Student"] + ([] if una else ["Course"]) + ["Average", "Level / Trend"] \
+        + (["Issues"] if incidencias else [])
+    cuerpo = []
+    for i, f in enumerate(filas, 1):
+        fila = ([str(i)] if numerar else []) + [f["nombres"]] + ([] if una else [curso_en(f["curso_nombre"])])
+        fila += [f"**{f['nota_final']:.2f}**", _estado_tendencia_en(f)]
+        if incidencias:
+            fila.append(incidencias_compactas(f["incidencias"], {"SIN_ENTREGA": "not submitted", "NOTA_0": "grade 0"},
+                                              "pending grading"))
+        cuerpo.append(fila)
+    return tabla_markdown(cabecera, cuerpo)
+
+
+def _incidencias_en(r):
+    cursos = r.get("cursos_consultados") or []
+    una = len(cursos) == 1
+    alcance = f"In **{curso_en(cursos[0]['fullname'])}**" if una else f"Across your {len(cursos)} courses"
+    con = [f for f in r["calificaciones"] if f["sin_entrega"] + f["ceros"]]
+    if not con:
+        return "Missing submissions", f"{alcance}, no student has missing submissions or zero grades.", []
+    p = con[0]
+    detalle = _y([x for x in (plural(p["sin_entrega"], "missing submission", "missing submissions") if p["sin_entrega"]
+                              else "", plural(p["ceros"], "zero grade", "zero grades") if p["ceros"] else "") if x])
+    clave = (f"{alcance}, the student with the most issues is **{p['nombres']}** ({detalle}; average "
+             f"**{p['nota_final']:.2f}/10**, {_nivel(p)}).")
+    return "Missing submissions", clave, tabla_markdown(
+        ["Student"] + ([] if una else ["Course"]) + ["Not submitted", "Zero grades", "Pending grading", "Average"],
+        [[f["nombres"]] + ([] if una else [curso_en(f["curso_nombre"])])
+         + [str(f["sin_entrega"]), str(f["ceros"]), str(f["pendientes"]), f"**{f['nota_final']:.2f}**"] for f in con[:12]])
+
+
+def _alcance_en(r, mayuscula=False):
+    cursos = r.get("cursos_consultados") or []
+    if len(cursos) == 1:
+        return f"{'In' if mayuscula else 'in'} **{curso_en(cursos[0]['fullname'])}**"
+    return f"{'Across' if mayuscula else 'across'} your {len(cursos)} courses"
+
+
+def _unidad_en(clave):
+    return f"Unit {clave[1:]}" if clave and clave.startswith("U") else (clave or "—")
+
+
+def _evolucion_en(r):
+    filas, mejora = r["calificaciones"], r["ranking"] == "mejora"
+    una = len(r.get("cursos_consultados") or []) == 1
+    if not filas:
+        return "Progress between units", f"{_alcance_en(r, True)} there are no grades from two units to compare yet.", []
+    p, v = filas[0], filas[0]["variacion"]
+    if (mejora and v["delta"] <= 0) or (not mejora and v["delta"] >= 0):
+        clave = (f"{_alcance_en(r, True)}, no student {'improved' if mejora else 'declined'} between the first and the last "
+                 f"unit; the largest change is **{p['nombres']}** (**{v['delta']:+.2f} pts**).")
+    else:
+        clave = (f"{_alcance_en(r, True)}, the student who {'improved' if mejora else 'declined'} the most between units is "
+                 f"**{p['nombres']}**: from **{v['inicio']:.2f}** in {_unidad_en(v['desde'])} to **{v['fin']:.2f}** in "
+                 f"{_unidad_en(v['hasta'])} (**{v['delta']:+.2f} pts**; current average **{p['nota_final']:.2f}/10**).")
+    return "Progress between units", clave, tabla_markdown(
+        ["Student"] + ([] if una else ["Course"]) + ["First unit", "Current unit", "Change", "Average"],
+        [[f["nombres"]] + ([] if una else [curso_en(f["curso_nombre"])])
+         + [f"{_unidad_en(f['variacion']['desde'])}: {f['variacion']['inicio']:.2f}",
+            f"{_unidad_en(f['variacion']['hasta'])}: {f['variacion']['fin']:.2f}",
+            f"**{f['variacion']['delta']:+.2f} pts**", f"{f['nota_final']:.2f}"] for f in filas[:10]])
+
+
+def _componente_en(r):
+    comp = r["componente"]
+    nombre = COMPONENTE_EN[comp]
+    filas = [f for f in r["calificaciones"] if f[comp] is not None]
+    una = len(r.get("cursos_consultados") or []) == 1
+    if not filas:
+        return nombre, f"{_alcance_en(r, True)} there are no {nombre} grades yet.", []
+    p = filas[0]
+    if r.get("extremo"):
+        peor = r["extremo"] == "peor"
+        clave = (f"{_alcance_en(r, True)}, the student with the **{'lowest' if peor else 'highest'} {nombre} grade** is "
+                 f"**{p['nombres']}**, with **{p[comp]:.2f}/10** (final average {p['nota_final']:.2f}/10, {_nivel(p)}).")
+        otros = filas[1:4]
+        lineas = ([f"**Next in {nombre}:**"] + tabla_markdown(
+            ["Student"] + ([] if una else ["Course"]) + [nombre, "Final average"],
+            [[f["nombres"]] + ([] if una else [curso_en(f["curso_nombre"])]) + [f"**{f[comp]:.2f}**", f"{f['nota_final']:.2f}"]
+             for f in otros])) if otros else []
+        return nombre, clave, lineas
+    orden = "highest first" if r["ranking"] == "desc" else "lowest first"
+    clave = f"**{nombre} ranking** {_alcance_en(r)} ({orden}): **{p['nombres']}** with **{p[comp]:.2f}/10**."
+    return f"{nombre} ranking", clave, tabla_markdown(
+        ["#", "Student"] + ([] if una else ["Course"]) + [nombre, "Final average", "Level / Trend"],
+        [[str(i), f["nombres"]] + ([] if una else [curso_en(f["curso_nombre"])])
+         + [f"**{f[comp]:.2f}**", f"{f['nota_final']:.2f}", _estado_tendencia_en(f)] for i, f in enumerate(filas, 1)])
+
+
+def _nivel_en(r):
+    filas, nivel = r["calificaciones"], NIVEL_EN.get(r["nivel"], r["nivel"])
+    una = len(r.get("cursos_consultados") or []) == 1
+    if not filas:
+        return f"Level {nivel}", f"{_alcance_en(r, True)} there are no students at **{nivel}** level.", []
+    clave = f"{_alcance_en(r, True)} there {'is' if len(filas) == 1 else 'are'} **{plural(len(filas), 'student', 'students')} at {nivel} level**:"
+    return f"Level {nivel}", clave, _tabla_en(filas, una, incidencias=True)
+
+
+def _ranking(r):
+    if r["ranking"] == "incidencias":
+        return _incidencias_en(r)
+    if r["ranking"] in ("mejora", "retroceso"):
+        return _evolucion_en(r)
+    if r.get("componente"):
+        return _componente_en(r)
+    filas, cursos = r["calificaciones"], r.get("cursos_consultados") or []
+    una = len(cursos) == 1
+    alcance = f"in **{curso_en(cursos[0]['fullname'])}**" if una else f"across your {len(cursos)} courses"
+    if not filas:
+        return "Grade ranking", f"There are no synchronized grades {alcance} yet.", []
+    aprobados = sum(1 for f in filas if f["nota_final"] >= 7)
+    p = filas[0]
+    if r["ranking"] == "desc":
+        clave = (f"**Grade ranking** {alcance} (highest average first): **{p['nombres']}** leads with "
+                 f"**{p['nota_final']:.2f}/10**; **{aprobados} of {len(filas)}** are passing.")
+    else:
+        clave = (f"**Grade ranking** {alcance} (lowest average first): the lowest average belongs to **{p['nombres']}**, "
+                 f"with **{p['nota_final']:.2f}/10**; **{aprobados} of {len(filas)}** are passing.")
+    return "Grade ranking", clave, _tabla_en(filas, una, numerar=True)
+
+
+def _pendientes(r):
+    acts, cursos = r["actividades"], r.get("cursos_consultados") or []
+    una = len(cursos) == 1
+    alcance = f"in **{curso_en(cursos[0]['fullname'])}**" if una else f"across your {len(cursos)} courses"
+    if not acts:
+        return "Pending grading", f"There are no submissions pending grading {alcance}.", []
+    total = sum(a["pendientes"] for a in acts)
+    nombres = {c["shortname"]: curso_en(c["fullname"]) for c in cursos}
+    clave = (f"You have **{plural(total, 'submission', 'submissions')} pending grading** in "
+             f"**{plural(len(acts), 'activity', 'activities')}** {alcance}.")
+    lineas = tabla_markdown(["Activity", "Name"] + ([] if una else ["Course"]) + ["Pending"],
+                            [[a["actividad"], a["nombre"]] + ([] if una else [nombres.get(a["curso"], a["curso"])])
+                             + [str(a["pendientes"])] for a in acts[:15]])
+    lineas.append("\n**Tip:** grade them in Moodle UTA and press **Sincronizar** to update averages and alerts.")
+    return "Pending grading", clave, lineas
+
+
 def _extremo(r):
     filas, peor = r["calificaciones"], r["extremo"] == "peor"
     cursos = r.get("cursos_consultados") or []
@@ -326,26 +499,32 @@ def _extremo(r):
     else:
         clave = (f"{alcance}, **{len(empatados)} students** share the {adj} grade (**{primero['nota_final']:.2f}/10**, "
                  f"{_nivel(primero)}): " + _y([f"**{f['nombres']}**{donde(f)}" for f in empatados]) + ".")
+    tendencia = TENDENCIA_EN.get(primero.get("tendencia") or "")
+    if len(empatados) == 1 and tendencia:
+        clave += f" Trend: **{tendencia}**."
     restantes = filas[len(empatados):]
     otros = [f for f in restantes if f["nivel_riesgo"] != "ACEPTABLE"][:5] if peor else restantes[:2]
-    lineas = ([("Also need follow-up:" if peor else "Next:")]
-              + [f"- {f['nombres']}{donde(f)}: **{f['nota_final']:.2f}/10** ({_nivel(f)})" for f in otros]) if otros else []
+    lineas = ([("**Also need follow-up** (lowest grade first):" if peor else "**Next:**")]
+              + _tabla_en(otros, una)) if otros else []
     return ("Lowest grade" if peor else "Highest grade"), clave, lineas
 
 
 def _calificaciones(r):
     filas = r["calificaciones"]
     if r.get("extremo"):
-        return _extremo(r)
+        return _componente_en(r) if r.get("componente") else _extremo(r)
+    if r.get("ranking"):
+        return _ranking(r)
+    if r.get("nivel"):
+        return _nivel_en(r)
     if r.get("criterio"):
         criterio = criterio_en(r["criterio"])
         if not filas:
             return "Grades", f"No enrollment has **{criterio}** {_alcance(r)}.", []
         una = len(r.get("cursos_consultados") or []) == 1
         return (f"Grades with {criterio}",
-                f"I found **{plural(len(filas), 'enrollment', 'enrollments')}** with **{criterio}** {_alcance(r)}:",
-                [f"- **{f['nombres']}**" + ("" if una else f" · {curso_en(f['curso_nombre'])}")
-                 + f": **{f['nota_final']:.2f}/10** ({_nivel(f)})" for f in filas])
+                f"I found **{plural(len(filas), 'enrollment', 'enrollments')}** with **{criterio}** {_alcance(r)} "
+                "(lowest grade first):", _tabla_en(filas, una))
     if r.get("estudiante"):
         nombre = filas[0]["nombres"]
         cedula = f" (ID {filas[0]['cedula']})" if filas[0].get("cedula") else ""
@@ -382,8 +561,10 @@ def _calificaciones(r):
         clave = (f"In **{curso_en(filas[0]['curso_nombre'])}** I reviewed **{plural(len(filas), 'grade', 'grades')}** "
                  f"({aprobados} passing): **{criticos} at critical level** and {en_riesgo} at risk.")
         seguimiento = sorted((f for f in filas if f["nivel_riesgo"] != "ACEPTABLE"), key=lambda x: x["nota_final"])
-        return "Grades", clave, [f"- {f['nombres']}: **{f['nota_final']:.2f}/10** ({_nivel(f)}){incid(f)}"
-                                 for f in seguimiento[:6]] or ["- All students are passing."]
+        if not seguimiento:
+            return "Grades", clave, ["- All students are passing."]
+        return "Grades", clave, (["**Need follow-up** (lowest grade first):"]
+                                 + _tabla_en(seguimiento[:8], True, incidencias=True))
     clave = (f"I reviewed **{plural(len(filas), 'grade', 'grades')}** in {len(por_curso)} courses: **{criticos} at "
              f"critical level** and {en_riesgo} at risk.")
     lineas = []
@@ -438,6 +619,8 @@ def _resumen(r):
 
 
 def _actividades(r):
+    if r.get("solo_pendientes"):
+        return _pendientes(r)
     acts = [a for a in r["actividades"] if a["promedio"] is not None]
     if not acts:
         return "Performance by activity", "There are no graded activities in this scope.", []
