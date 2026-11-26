@@ -45,6 +45,20 @@ function mediana(v: number[]): number | null {
 
 const nombreUnidad = (u: string) => u.replace(/^U(\d+)$/, 'Unidad $1');
 
+/** Mini-columna de un hallazgo: etiqueta pequeña, contexto opcional y valor destacado. */
+function Metrica({ etiqueta, valor, detalle, detalleArriba, clase = '' }: {
+  etiqueta: string; valor: string; detalle?: string; detalleArriba?: string; clase?: string;
+}) {
+  return (
+    <div className={`metrica ${clase}`}>
+      <span className="metrica-etiqueta">{etiqueta}</span>
+      {detalleArriba && <span className="metrica-contexto">{detalleArriba}</span>}
+      <b className="metrica-valor num">{valor}</b>
+      {detalle && <span className="metrica-contexto">({detalle})</span>}
+    </div>
+  );
+}
+
 /** Tarjeta minimalista de un hallazgo (título + líneas cortas). */
 function Hallazgo({ titulo, children, testid }: { titulo: string; children: React.ReactNode; testid: string }) {
   return (
@@ -266,66 +280,75 @@ function Dashboard() {
           <h2 style={{ marginBottom: 12 }}>{corte === 'periodo' ? 'Hallazgos del período' : `Hallazgos · ${etiquetaCorte}`}</h2>
           <div className="hallazgos-grid">
             <Hallazgo titulo="Rendimiento general" testid="hallazgo-rendimiento">
-              <p>
-                Promedio del curso: <b className="num">{r.promedio?.toFixed(2)}/10</b>{' '}
-                <span className="muted">(Mediana: {mediana(notas)?.toFixed(2)}/10)</span>
-              </p>
-              <p>
-                Aprobación: <b className="num">{r.tasaAprobacion?.toFixed(1)} %</b>{' '}
-                <span className="muted">
-                  ({r.aprobados} de {plural(r.evaluados, 'estudiante', 'estudiantes')})
-                </span>
-              </p>
+              <div className="mini-columnas">
+                <Metrica etiqueta="Promedio" valor={`${r.promedio?.toFixed(2)} / 10`} />
+                <Metrica etiqueta="Mediana" valor={`${mediana(notas)?.toFixed(2)} / 10`} />
+                <Metrica
+                  etiqueta="Aprobación"
+                  valor={`${r.tasaAprobacion?.toFixed(1)} %`}
+                  detalle={`${r.aprobados} de ${r.evaluados}`}
+                />
+              </div>
             </Hallazgo>
             <Hallazgo titulo="Evolución por unidades" testid="hallazgo-unidades">
               {unidades.length >= 2 ? (
-                <>
-                  <p>
-                    Inicio ({nombreUnidad(unidades[0].unidad)}): <b className="num">{unidades[0].promedio.toFixed(2)}/10</b>
-                    {' · '}
-                    Actual ({nombreUnidad(unidades[unidades.length - 1].unidad)}):{' '}
-                    <b className="num">{unidades[unidades.length - 1].promedio.toFixed(2)}/10</b>
-                  </p>
-                  {(() => {
-                    const d = unidades[unidades.length - 1].promedio - unidades[0].promedio;
-                    return (
-                      <p className={d < 0 ? 'variacion-baja' : d > 0 ? 'variacion-sube' : ''}>
-                        Variación entre unidades: <b className="num">{d > 0 ? '+' : ''}{d.toFixed(2)} pts</b>
-                      </p>
-                    );
-                  })()}
-                </>
+                (() => {
+                  const inicio = unidades[0];
+                  const actual = unidades[unidades.length - 1];
+                  const d = actual.promedio - inicio.promedio;
+                  return (
+                    <div className="mini-columnas">
+                      <Metrica etiqueta="Inicio" detalleArriba={nombreUnidad(inicio.unidad)} valor={inicio.promedio.toFixed(2)} />
+                      <Metrica etiqueta="Actual" detalleArriba={nombreUnidad(actual.unidad)} valor={actual.promedio.toFixed(2)} />
+                      <Metrica
+                        etiqueta="Variación"
+                        detalleArriba="entre unidades"
+                        valor={`${d > 0 ? '+' : ''}${d.toFixed(2)} pts`}
+                        clase={d < 0 ? 'variacion-baja' : d > 0 ? 'variacion-sube' : ''}
+                      />
+                    </div>
+                  );
+                })()
               ) : (
                 <p className="muted">Sólo hay notas de una unidad en este corte.</p>
               )}
             </Hallazgo>
             <Hallazgo titulo="Estudiantes que requieren atención" testid="hallazgo-atencion">
-              {criticos.length === 0 && descenso.length === 0 && (
+              {criticos.length === 0 && descenso.length === 0 ? (
                 <p className="muted">Ningún estudiante en nivel crítico ni con descenso sostenido.</p>
-              )}
-              {criticos.length > 0 && (
-                <p>
-                  <b>Nivel crítico ({criticos.length}):</b> {criticos.join(', ')}
-                </p>
-              )}
-              {descenso.length > 0 && (
-                <p>
-                  <b>Descenso sostenido ({descenso.length}):</b> {descenso.join(', ')}
-                </p>
+              ) : (
+                <dl className="filas-atencion">
+                  {criticos.length > 0 && (
+                    <div>
+                      <dt>Crítico ({criticos.length})</dt>
+                      <dd>{criticos.join(', ')}</dd>
+                    </div>
+                  )}
+                  {descenso.length > 0 && (
+                    <div>
+                      <dt>Descenso ({descenso.length})</dt>
+                      <dd>{descenso.join(', ')}</dd>
+                    </div>
+                  )}
+                </dl>
               )}
             </Hallazgo>
             <Hallazgo titulo="Componentes y pendientes" testid="hallazgo-componentes">
-              {menorComponente && (
-                <p>
-                  Componente más bajo: <b>{menorComponente.componente}</b> con{' '}
-                  <b className="num">{menorComponente.promedio.toFixed(2)}/10</b>
-                </p>
-              )}
-              <p>
-                Incidencias: <b className="num">{estados.cero}</b> con nota 0 · <b className="num">{estados.sin_entrega}</b> sin
-                entrega · <b className="num">{estados.pendiente}</b> {estados.pendiente === 1 ? 'pendiente' : 'pendientes'} de
-                calificar
-              </p>
+              <div className="mini-columnas">
+                <Metrica
+                  etiqueta="Menor componente"
+                  valor={
+                    menorComponente
+                      ? `${menorComponente.componente.replace(/\s*\(.*\)$/, '')} (${menorComponente.promedio.toFixed(2)})`
+                      : '—'
+                  }
+                />
+                <Metrica
+                  etiqueta="Con incidencias"
+                  valor={`${plural(estados.cero, 'nota cero', 'notas cero')} · ${estados.sin_entrega} sin entrega`}
+                />
+                <Metrica etiqueta="Sin calificar" valor={plural(estados.pendiente, 'actividad', 'actividades')} />
+              </div>
             </Hallazgo>
           </div>
         </section>

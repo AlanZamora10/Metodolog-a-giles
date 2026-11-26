@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCurso } from '../context/CursoContext';
 import { CursoRequerido } from '../components/layout/CursoRequerido';
 import { NivelBadge } from '../components/ui/ui';
@@ -44,6 +44,8 @@ function Tendencia({ m }: { m: Metricas }) {
     </span>
   );
 }
+
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
 function Listado() {
   const { datos, corte } = useCurso();
@@ -127,64 +129,56 @@ function Listado() {
           </button>
         </div>
 
-        <div className="table-wrap">
-          <table className="tabla tabla-estudiantes">
-            <thead>
-              <tr>
-                <th>Estudiante</th>
-                <th className="center">Exámenes</th>
-                <th className="center">Tareas</th>
-                <th className="center">APE</th>
-                <th className="center">Nota final</th>
-                <th className="center">Nivel</th>
-                <th className="center">Tendencia</th>
-                <th className="center">Incidencias</th>
-                <th className="center">Alerta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map(({ e, m, estados }) => (
-                <tr key={e.id_number} className="clickable" onClick={() => navegar(`/estudiantes/${e.id_number}`)}>
-                  <td>
-                    <div className="nombre-cell">
-                      <a href={`/estudiantes/${e.id_number}`} onClick={(ev) => ev.preventDefault()}>
-                        {e.nombres}
-                      </a>
-                      <span data-testid="datos-estudiante">
-                        {e.cedula ? `C.I. ${e.cedula}` : 'C.I. —'} · {e.email}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="center num">{nota(m?.acd)}</td>
-                  <td className="center num">{nota(m?.tareas)}</td>
-                  <td className="center num">{nota(m?.pae)}</td>
-                  <td className="center num">
-                    <strong>{nota(m?.nota_final)}</strong>
-                  </td>
-                  <td className="center">{m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted">Sin notas</span>}</td>
-                  <td className="center small nowrap">{m ? <Tendencia m={m} /> : <span className="muted">Sin datos</span>}</td>
-                  <td className="center">
-                    {/* primero las incidencias reales (nota cero, sin entrega); las pendientes de calificar, en una sola etiqueta compacta */}
-                    <div className="incidencias" data-testid="incidencias">
-                      {estados.cero > 0 && (
-                        <span className="badge incidencia incidencia-cero">
-                          Nota cero (0.0){estados.cero > 1 ? ` × ${estados.cero}` : ''}
-                        </span>
-                      )}
-                      {estados.sin_entrega > 0 && (
-                        <span className="badge incidencia incidencia-sin-entrega">
-                          Sin entrega{estados.sin_entrega > 1 ? ` × ${estados.sin_entrega}` : ''}
-                        </span>
-                      )}
-                      {estados.pendiente > 0 && (
-                        <span className="pendientes-compacto" title="Actividades entregadas, pendientes de calificación en Moodle">
-                          {estados.pendiente} {estados.pendiente === 1 ? 'pendiente' : 'pendientes'} de calificar
-                        </span>
-                      )}
-                      {estados.cero + estados.sin_entrega + estados.pendiente === 0 && <span className="muted small">Ninguna</span>}
-                    </div>
-                  </td>
-                  <td className="center">
+      </section>
+
+      {/* Una tarjeta por estudiante: identidad · calificaciones · estado */}
+      <div className="lista-estudiantes stagger-2" role="list" aria-label="Estudiantes del curso">
+        {filas.map(({ e, m, estados }) => {
+          const criticas = [
+            estados.cero > 0 ? plural(estados.cero, 'nota cero', 'notas cero') : null,
+            estados.sin_entrega > 0 ? `${estados.sin_entrega} sin entrega` : null,
+          ].filter(Boolean);
+          return (
+            <article
+              key={e.id_number}
+              role="listitem"
+              className="est-card"
+              data-testid="tarjeta-estudiante"
+              onClick={() => navegar(`/estudiantes/${e.id_number}`)}
+            >
+              <div className="est-identidad">
+                <Link to={`/estudiantes/${e.id_number}`} onClick={(ev) => ev.stopPropagation()}>
+                  {e.nombres}
+                </Link>
+                <span data-testid="datos-estudiante">
+                  {e.cedula ? `C.I. ${e.cedula}` : 'C.I. —'} · {e.email}
+                </span>
+              </div>
+
+              <dl className="est-notas">
+                <div>
+                  <dt>Exámenes</dt>
+                  <dd className="num">{nota(m?.acd)}</dd>
+                </div>
+                <div>
+                  <dt>Tareas</dt>
+                  <dd className="num">{nota(m?.tareas)}</dd>
+                </div>
+                <div>
+                  <dt>APE</dt>
+                  <dd className="num">{nota(m?.pae)}</dd>
+                </div>
+                <div className="est-final">
+                  <dt>Final</dt>
+                  <dd className="num">{nota(m?.nota_final)}</dd>
+                </div>
+              </dl>
+
+              <div className="est-estado">
+                <div className="est-estado-linea">
+                  {m ? <NivelBadge nivel={m.nivel_riesgo} /> : <span className="muted small">Sin notas</span>}
+                  {m && <Tendencia m={m} />}
+                  <span className="est-alerta">
                     {e.regla_alerta ? (
                       <span className={`badge ${e.regla_alerta.startsWith('R1') ? 'nivel-critico' : 'nivel-riesgo'}`}>
                         {REGLAS[e.regla_alerta] ?? e.regla_alerta}
@@ -192,23 +186,23 @@ function Listado() {
                     ) : (
                       <span className="sin-alertas">Sin alertas</span>
                     )}
-                  </td>
-                </tr>
-              ))}
-              {filas.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 28 }}>
-                    Ningún estudiante coincide con la búsqueda.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="card-body small muted">
+                  </span>
+                </div>
+                <div className="est-incidencias" data-testid="incidencias">
+                  {criticas.length > 0 && <span className="incidencias-criticas">{criticas.join(' · ')}</span>}
+                  {criticas.length > 0 && estados.pendiente > 0 && <span className="sep"> · </span>}
+                  {estados.pendiente > 0 && <span className="pendientes-compacto">{estados.pendiente} sin calificar</span>}
+                  {criticas.length === 0 && estados.pendiente === 0 && <span className="pendientes-compacto">Sin incidencias</span>}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+        {filas.length === 0 && <p className="muted est-vacio">Ningún estudiante coincide con la búsqueda.</p>}
+        <p className="small muted est-conteo">
           Mostrando {filas.length} de {datos!.estudiantes.length} estudiantes.
-        </div>
-      </section>
+        </p>
+      </div>
     </>
   );
 }

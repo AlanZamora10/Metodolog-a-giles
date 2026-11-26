@@ -179,7 +179,7 @@ describe('Buscador por cédula y nombre completo', () => {
     const u = userEvent.setup();
     renderApp('/estudiantes');
     await screen.findByText('Carlos Andrés Mendoza Paredes');
-    expect(screen.getByText('Carlos Andrés Mendoza Paredes').closest('td')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
+    expect(screen.getByText('Carlos Andrés Mendoza Paredes').closest('article')).toHaveTextContent('C.I. 1804923199 · u-04@uta.edu.ec');
 
     const buscar = screen.getByPlaceholderText(/cédula o nombre completo/i);
     await u.type(buscar, '1804923199');
@@ -218,22 +218,27 @@ describe('Login con correo institucional', () => {
   });
 });
 
-describe('Estudiantes · tabla ordenada', () => {
-  it('números centrados, tendencia en una línea, incidencias compactas y «Sin alertas»', async () => {
+describe('Estudiantes · tarjetas minimalistas', () => {
+  it('una tarjeta por estudiante: identidad, 4 notas con etiqueta y estado (nivel, tendencia, incidencias, alerta)', async () => {
     iniciarSesionFalsa();
     mockApi();
     renderApp('/estudiantes');
     await screen.findByText('Carlos Andrés Mendoza Paredes');
-    for (const col of ['Exámenes', 'Tareas', 'APE', 'Nota final', 'Nivel', 'Tendencia', 'Incidencias', 'Alerta']) {
-      expect(screen.getByRole('columnheader', { name: col })).toHaveClass('center');
-    }
-    const tendencias = screen.getAllByTestId('tendencia');
-    expect(tendencias[0].textContent).toMatch(/^(↗ Sube|↘ Baja|→ Estable) \([+-]\d\.\d{2}\)$/);
-    expect(document.body.textContent).not.toMatch(/Pendiente de calificación/);
-    expect(document.querySelectorAll('.estado-punto').length).toBe(0);
-    expect(screen.getAllByTestId('incidencias').some((c) => /\d+ pendientes? de calificar/.test(c.textContent ?? ''))).toBe(true);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const tarjetas = screen.getAllByTestId('tarjeta-estudiante');
+    expect(tarjetas.length).toBe(screen.getAllByTestId('datos-estudiante').length);
+
+    const carlos = screen.getByText('Carlos Andrés Mendoza Paredes').closest('article') as HTMLElement;
+    expect(within(carlos).getByRole('link', { name: 'Carlos Andrés Mendoza Paredes' })).toHaveAttribute('href', '/estudiantes/U-04');
+    const etiquetas = Array.from(carlos.querySelectorAll('.est-notas dt')).map((d) => d.textContent);
+    expect(etiquetas).toEqual(['Exámenes', 'Tareas', 'APE', 'Final']);
+    expect(within(carlos).getByTestId('tendencia').textContent).toMatch(/^(↗ Sube|↘ Baja|→ Estable) \([+-]\d\.\d{2}\)$/);
+    // incidencias reales en una sola línea; las pendientes, como texto discreto
+    expect(within(carlos).getByTestId('incidencias')).toHaveTextContent(/^1 nota cero · 1 sin entrega( · \d+ sin calificar)?$/);
+    expect(within(carlos).getByText('Nota crítica', { selector: '.badge' })).toBeInTheDocument();
     expect(screen.getAllByText('Sin alertas').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Nota crítica', { selector: '.badge' }).length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toMatch(/Pendiente de calificación|\(s\)/);
+    expect(document.querySelectorAll('.estado-punto').length).toBe(0);
   });
 });
 
@@ -243,16 +248,25 @@ describe('Dashboard · hallazgos en cuadrícula', () => {
     mockApi();
     renderApp('/dashboard');
     await screen.findAllByText('6.05');
-    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Promedio del curso: 6\.05\/10 \(Mediana: \d\.\d{2}\/10\)/);
-    expect(screen.getByTestId('hallazgo-rendimiento')).toHaveTextContent(/Aprobación: 33\.3 % \(1 de 3 estudiantes\)/);
-    expect(screen.getByTestId('hallazgo-unidades')).toHaveTextContent(/Inicio \(Unidad 1\): \d\.\d{2}\/10 · Actual \(Unidad 2\): \d\.\d{2}\/10/);
-    expect(screen.getByTestId('hallazgo-unidades')).toHaveTextContent(/Variación entre unidades: -?\d\.\d{2} pts/);
+    // Mini-columnas: etiqueta pequeña + valor destacado
+    const columnas = (id: string) =>
+      Array.from(screen.getByTestId(id).querySelectorAll('.metrica')).map((m) => m.textContent?.replace(/\s+/g, ' ').trim());
+    expect(columnas('hallazgo-rendimiento')).toEqual([
+      'Promedio6.05 / 10', expect.stringMatching(/^Mediana\d\.\d{2} \/ 10$/), 'Aprobación33.3 %(1 de 3)',
+    ]);
+    expect(columnas('hallazgo-unidades')).toEqual([
+      expect.stringMatching(/^InicioUnidad 1\d\.\d{2}$/),
+      expect.stringMatching(/^ActualUnidad 2\d\.\d{2}$/),
+      expect.stringMatching(/^Variaciónentre unidades[+-]?\d\.\d{2} pts$/),
+    ]);
     expect(screen.getByTestId('hallazgo-unidades')).not.toHaveTextContent('→');
-    expect(screen.getByTestId('hallazgo-atencion')).toHaveTextContent(/Nivel crítico \(\d\): Carlos Andrés Mendoza Paredes/);
-    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(/Componente más bajo: .+ con \d\.\d{2}\/10/);
-    expect(screen.getByTestId('hallazgo-componentes')).toHaveTextContent(
-      /Incidencias: \d+ con nota 0 · \d+ sin entrega · \d+ pendientes? de calificar/,
-    );
+    expect(screen.getByTestId('hallazgo-atencion').querySelector('dt')).toHaveTextContent(/^Crítico \(\d\)$/);
+    expect(screen.getByTestId('hallazgo-atencion')).toHaveTextContent('Carlos Andrés Mendoza Paredes');
+    expect(columnas('hallazgo-componentes')).toEqual([
+      expect.stringMatching(/^Menor componente.+ \(\d\.\d{2}\)$/),
+      expect.stringMatching(/^Con incidencias\d+ notas? cero · \d+ sin entrega$/),
+      expect.stringMatching(/^Sin calificar\d+ actividad(es)?$/),
+    ]);
   });
 });
 
