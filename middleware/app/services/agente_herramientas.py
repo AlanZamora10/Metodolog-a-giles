@@ -1262,17 +1262,15 @@ def _seccion_calificaciones(r: Dict[str, Any]) -> Seccion:
                       else f"**estado crítico en {criticos} de sus {n} materias**")
             clave = (f"**{nombre}**{cedula} · Cursa **{n} materias** con promedio general de "
                      f"**{promedio:.2f}/10** ({estado}).")
-        lineas = []
-        for f in sorted(filas, key=lambda x: x["nota_final"]):
-            nivel = NIVEL_TEXTO.get(f["nivel_riesgo"], f["nivel_riesgo"]).capitalize()
-            lineas.append(f"- **{_curso_titulo(f['curso_nombre'])}**")
-            lineas.append(f"  - Promedio: **{f['nota_final']:.2f}/10 ({nivel})** · Exámenes: {_f(f['acd'])} | "
-                          f"Tareas: {_f(f['tareas'])} | APE: {_f(f['pae'])} · Tendencia: "
-                          f"{TENDENCIA_TEXTO.get(f['tendencia'], (f['tendencia'] or '—').lower())}")
-            if f["incidencias"]:
-                lineas.append("  - Incidencias: " + idioma.resumen_incidencias(
-                    f["incidencias"], _INCIDENCIA_TEXTO,
-                    ("actividad pendiente de calificación", "actividades pendientes de calificación")))
+        # Indicadores por asignatura en una tabla compacta (sin listas repetitivas)
+        lineas = idioma.tabla_markdown(
+            ["Materia", "Exámenes", "Tareas", "APE", "Promedio", "Nivel", "Tendencia", "Incidencias"],
+            [[_curso_titulo(f["curso_nombre"]), _f(f["acd"]), _f(f["tareas"]), _f(f["pae"]), f"**{f['nota_final']:.2f}**",
+              NIVEL_TEXTO.get(f["nivel_riesgo"], f["nivel_riesgo"]).capitalize(),
+              TENDENCIA_TEXTO.get(f["tendencia"], (f["tendencia"] or "—").lower()).capitalize(),
+              idioma.incidencias_compactas(f["incidencias"], {"SIN_ENTREGA": "sin entrega", "NOTA_0": "nota 0"},
+                                           "sin calificar")]
+             for f in sorted(filas, key=lambda x: x["nota_final"])])
         return f"Calificaciones de {nombre}", clave, lineas
 
     por_curso: Dict[str, List[Dict[str, Any]]] = {}

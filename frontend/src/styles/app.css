@@ -550,11 +550,20 @@ table.tabla { width: 100%; border-collapse: collapse; }
 
 /* Login: imagen opcional en /images/login-bg.(jpg|png) con velo azul UTA; sin imagen, fondo institucional */
 .login-page.login-con-imagen {
-  background-color: #0d1f5c;
-  background-image: linear-gradient(160deg, rgba(10, 25, 80, .78) 0%, rgba(17, 41, 122, .55) 55%, rgba(8, 18, 55, .72) 100%), var(--login-bg);
-  background-size: cover; background-position: center; background-repeat: no-repeat;
+  /* Imagen nítida con sus colores originales (sin degradados, velos ni filtros) sobre fondo claro.
+     El sello y el texto «Universidad Técnica de Ambato» ocupan el 61–89 % del ancho de la imagen: se alinea a la
+     derecha con un ancho que garantiza que el texto empiece después de la tarjeta centrada (440 px + 24 px de aire):
+     ancho ≤ (50vw − 244px) / 0,39  →  128,2vw − 625px, sin superar el ancho de la ventana. */
+  background-color: #FFFFFF;
+  background-image: var(--login-bg);
+  background-size: min(100%, max(0px, calc(128.2vw - 625px))) auto;
+  background-position: right center; background-repeat: no-repeat;
+  filter: none; backdrop-filter: none;
 }
-.login-page.login-con-imagen .login-tarjeta { box-shadow: 0 30px 80px rgba(0, 0, 0, .35), 0 2px 8px rgba(0, 0, 0, .12); }
+.login-page.login-con-imagen .login-tarjeta {
+  border: 1px solid #E2E8F0; border-top: 5px solid var(--uta-blue);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .10), 0 2px 6px rgba(15, 23, 42, .05);
+}
 
 /* Estudiantes: columnas de estado centradas y más separación horizontal entre columnas */
 .tabla-estudiantes th, .tabla-estudiantes td { padding-left: 16px; padding-right: 16px; }
@@ -606,4 +615,79 @@ table.tabla { width: 100%; border-collapse: collapse; }
 @media (max-width: 1100px) {
   .est-card { grid-template-columns: 1fr; gap: 12px; }
   .est-alerta { margin-left: 0; }
+}
+
+/* Hallazgos: mini-columnas de ancho igual, contenido centrado y divisores simétricos */
+.mini-columnas { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.metrica { text-align: center; justify-items: center; padding: 0 8px; border-left: 1px solid #e2e8f0; }
+.metrica:first-child { padding-left: 8px; border-left: 0; }
+.hallazgos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hallazgo h3 { margin-bottom: 4px; }
+
+/* Estudiantes: cuadrícula tipo hoja de cálculo con cabecera única y divisores suaves */
+.cuadricula-estudiantes { margin-top: 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.cuadricula-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, .8fr)) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1.1fr);
+  align-items: stretch; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background-color .12s ease;
+}
+.cuadricula-fila:last-child { border-bottom: 0; }
+.cuadricula-fila > div {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  text-align: center; padding: 12px 8px; min-width: 0; border-left: 1px solid #e2e8f0;
+}
+.cuadricula-fila > div:first-child { border-left: 0; align-items: flex-start; text-align: left; padding-left: 16px; }
+.cuadricula-fila:not(.cuadricula-cabecera):hover { background: #f8fafc; }
+.cuadricula-cabecera { background: #f8fafc; cursor: default; }
+.cuadricula-cabecera > div { padding: 10px 6px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+.celda-estudiante a { font-weight: 650; color: var(--uta-blue); text-decoration: none; }
+.celda-estudiante a:hover { text-decoration: underline; }
+.celda-estudiante span { font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
+.cuadricula-fila > .num { font-size: 14.5px; color: #334155; }
+.cuadricula-fila > .celda-promedio { font-weight: 700; color: #0f172a; }
+.cuadricula-fila .tendencia { font-size: 12px; white-space: nowrap; }
+.cuadricula-fila .badge { font-size: 11.5px; padding: 2px 8px; }
+.celda-incidencias { font-size: 12px; line-height: 1.35; }
+.celda-incidencias .incidencias-criticas { color: #9b3a3a; font-weight: 600; }
+.cuadricula-fila { grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, .8fr)) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1.3fr); }
+.cuadricula-fila > div > .badge { max-width: 100%; white-space: normal; text-align: center; line-height: 1.25; }
+.cuadricula-fila > div:last-child { padding-left: 4px; padding-right: 4px; }
+.cuadricula-fila > div > .badge { padding: 2px 7px; font-size: 11px; border-radius: 8px; }
+
+/* CoraIA: tablas en las respuestas (estilo hoja de cálculo minimalista) */
+.md-tabla-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+.md-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: normal; }
+.md-tabla th {
+  background: #f8fafc; color: #475569; text-transform: uppercase; font-size: 11px; font-weight: 600;
+  letter-spacing: .04em; padding: 7px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap;
+}
+.md-tabla td { padding: 7px 10px; border-top: 1px solid #e2e8f0; vertical-align: middle; color: #334155; }
+.md-tabla tr:first-child td { border-top: 0; }
+.md-tabla th + th, .md-tabla td + td { border-left: 1px solid #e2e8f0; }
+.md-tabla .centro { text-align: center; }
+.md-tabla td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.md-tabla td:first-child { font-weight: 600; color: #0f172a; min-width: 160px; }
+.msg.agente:has(.md-tabla) { max-width: 100%; }
+
+/* CoraIA: bienvenida y panel lateral sin cortes (1280 px / zoom 110 %) */
+.msg.bienvenida .burbuja { border: 1px solid #e2e8f0; background: #fff; }
+.contexto-activo dl { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
+.contexto-activo dt, .contexto-activo dd { min-width: 0; overflow-wrap: anywhere; word-break: normal; }
+.sugerencia { white-space: normal; overflow-wrap: anywhere; word-break: normal; line-height: 1.4; height: auto; width: 100%; }
+.chat-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); }
+.chat-layout > aside { min-width: 0; }
+
+/* tablas del chat: compactas para que 8 columnas quepan en 1280 px sin desplazamiento */
+.md-tabla { font-size: 12px; table-layout: auto; }
+.md-tabla th { padding: 6px 6px; letter-spacing: .02em; font-size: 10.5px; }
+.md-tabla td { padding: 6px 6px; }
+.md-tabla td:first-child { min-width: 120px; }
+.md-tabla td:last-child { min-width: 118px; font-size: 11.5px; line-height: 1.35; }
+.msg.agente:has(.md-tabla) .burbuja { padding: 10px; }
+@media (max-width: 1240px) {
+  .md-tabla th { padding: 5px 4px; font-size: 10px; letter-spacing: 0; }
+  .md-tabla td { padding: 5px 4px; font-size: 11.5px; }
+  .md-tabla td:first-child { min-width: 92px; }
+  .md-tabla td:last-child { min-width: 92px; font-size: 11px; }
+  .msg.agente:has(.md-tabla) .burbuja { padding: 8px; }
 }

@@ -11,6 +11,7 @@ import { endpoints } from '../api/endpoints';
 import type { AdjuntoChat, ChatResponse, HerramientaUsada, PropuestaRefuerzo } from '../api/types';
 import { useChat, type MensajeChat } from '../context/ChatContext';
 import { useCurso } from '../context/CursoContext';
+import { useAuth } from '../context/AuthContext';
 import { Markdown } from '../components/ui/Markdown';
 import { fechaHora, haceCuanto } from '../utils/formato';
 import { materiaCurso, partesCurso } from '../utils/nombres';
@@ -55,6 +56,8 @@ export function sugerenciasPara(curso?: string, estudiante?: string): GrupoSuger
 export function AgentePage() {
   const { mensajes, enviando, enviar, limpiar } = useChat();
   const { cursoId, datos, sync, alertas } = useCurso();
+  const { usuario } = useAuth();
+  const nombre = usuario?.nombres?.split(/\s+/)[0];
   const [texto, setTexto] = useState('');
   const finRef = useRef<HTMLDivElement>(null);
 
@@ -92,9 +95,20 @@ export function AgentePage() {
         <section className="card chat-card stagger-1" aria-label="Conversación con el agente">
           <div className="chat-hist" role="log" aria-live="polite">
             {mensajes.length === 0 && (
-              <div className="empty">
-                <strong>¿En qué le ayudo hoy?</strong>
-                <span>Pregunte por sus cursos, estudiantes, actividades o pídame preparar un refuerzo.</span>
+              // Bienvenida en español (idioma de la interfaz); CoraIA responde en inglés si el docente escribe en inglés
+              <div className="msg agente bienvenida" data-testid="bienvenida">
+                <div className="burbuja">
+                  <div className="md">
+                    <p>
+                      <strong>¡Hola{nombre ? `, ${nombre}` : ''}!</strong> Soy CoraIA, el asistente académico de la UTA - FISEI.
+                    </p>
+                    <p>
+                      Puedo consultar sus cursos, las calificaciones de sus estudiantes, las alertas tempranas y preparar guías
+                      de refuerzo. ¿En qué le ayudo hoy?
+                    </p>
+                    <p className="muted small">Puede escribirme en español o en inglés: respondo en el idioma de su pregunta.</p>
+                  </div>
+                </div>
               </div>
             )}
             {mensajes.map((m) => (
